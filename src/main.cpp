@@ -1,33 +1,42 @@
-#include <QApplication>
-#include <QWidget>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <iostream>
-#include <glm/glm.hpp>
-#include <vulkan/vulkan.h>
-#include <vector>
+// #include <iostream>
+// #include <glm/glm.hpp>
+// #include <vulkan/vulkan.h>
+// #include <vector>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
+#define GLM_FORCE_RADIANS
+#include <glm/vec4.hpp>
+#include <glm/mat4x4.hpp>
+
+#include <iostream>
 using namespace std;
-int main(int argc, char *argv[]) {
-  cout << "null_engine starting..." << endl;
-  glm::vec4 position(1.0f, 2.0f, 3.0f, 1.0f);
-  cout<< glm::to_string(position) <<endl;
-  
-  QApplication app(argc, argv);
+int main() {
+  glfwInit();
 
-  QWidget window;
-  window.setWindowTitle("Qt6 Test Window");
-  window.resize(400, 400);
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  GLFWwindow* window = glfwCreateWindow(800, 600, "Vulkan window", nullptr, nullptr);
 
-  QVBoxLayout *layout = new QVBoxLayout(&window);
-  QLabel *label = new QLabel("Qt6 is working!\nVulkan test coming next...");
-  label->setAlignment(Qt::AlignCenter);
-  layout->addWidget(label);
+  uint32_t extensionCount = 0;
+  vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
-  window.show();
-    // Create Vulkan instance
+  std::cout << extensionCount << " extensions supported\n";
+
+  glm::mat4 matrix;
+  glm::vec4 vec;
+  auto test = matrix * vec;
+
+  while(!glfwWindowShouldClose(window)) {
+    glfwPollEvents();
+  }
+
+  glfwDestroyWindow(window);
+
+  glfwTerminate();
+
+  // Create Vulkan instance
   VkApplicationInfo appInfo{};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = "Vulkan Test";
@@ -92,5 +101,5 @@ int main(int argc, char *argv[]) {
 
   vkDestroyInstance(instance, nullptr);
   std::cout << "\n✅ Vulkan is working correctly!" << std::endl;
-  return app.exec();
+  return 0;
 }

@@ -14,12 +14,12 @@ This project aims to build a custom, low-level rendering engine using Vulkan, wi
 - **Build System**: CMake
 
 ## Roadmap
-1. **Skeleton**: Project setup with CMake and Qt6.
-2. **UI Shell**: MainWindow with embedded `QVulkanWindow`.
-3. **Vulkan Core**: Subclassing `QVulkanWindowRenderer` and manual memory allocation.
-4. **Asset Loading**: Integrated `cgltf` for model parsing.
-5. **Rendering**: Custom shader pipeline, camera controls, and uniform buffer updates.
-6. **Optimization**: Refactoring manual memory allocation to VMA.
+1. [x] **Skeleton**: Project setup with CMake and Qt6.
+2. [x] **UI Shell**: MainWindow with embedded `QVulkanWindow`.
+3. [>] **Vulkan Core**: Subclassing `QVulkanWindowRenderer` and first triangle. (In Progress)
+4. [ ] **Asset Loading**: Integrated `cgltf` for model parsing.
+5. [ ] **Rendering**: Custom shader pipeline, camera controls, and uniform buffer updates.
+6. [ ] **Optimization**: Refactoring manual memory allocation to VMA.
 
 ## Getting Started
 (Detailed build and run instructions will be added as implementation begins.)
