@@ -23,3 +23,19 @@ This project aims to build a custom, low-level rendering engine using Vulkan, wi
 
 ## Getting Started
 (Detailed build and run instructions will be added as implementation begins.)
+
+## Folder Structure
+null_engine/
+├── src/
+│   ├── core/           # Window, device, swap chain, pipeline
+│   ├── ecs/            # Entity Component System
+│   ├── resources/      # Buffers, textures, models
+│   ├── renderer/       # Rendering system
+│   ├── systems/        # Gameplay systems (movement, etc.)
+│   ├── utils/          # Frame info, utilities
+│   └── app/            # Sample application layer
+├── include/
+│   └── ve/             # Public headers mirroring src/ structure
+├── shaders/
+├── assets/
+└── CMakeLists.txt
