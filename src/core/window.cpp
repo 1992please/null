@@ -9,8 +9,8 @@ namespace ne
     Window::Window(int w, int h, std::string name) : 
         width(w), 
         height(h), 
-        windowName(name),
-        frameBufferResized(false)
+        frameBufferResized(false),
+        windowName(name)
     {
         initWindow();
     }

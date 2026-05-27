@@ -12,8 +12,14 @@
 #include <glm/mat4x4.hpp>
 
 #include <iostream>
+#include "utils/logger.h"
+
 using namespace std;
+
 int main() {
+  NE_LOG("hello world");
+  NE_WARN("hello world");
+  NE_ERROR("oH Shit");
   glfwInit();
 
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -24,9 +30,9 @@ int main() {
 
   std::cout << extensionCount << " extensions supported\n";
 
-  glm::mat4 matrix;
-  glm::vec4 vec;
-  auto test = matrix * vec;
+  // glm::mat4 matrix;
+  // glm::vec4 vec;
+  // auto test = matrix * vec;
 
   while(!glfwWindowShouldClose(window)) {
     glfwPollEvents();

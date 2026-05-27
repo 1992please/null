@@ -1,7 +1,7 @@
 -- Build configuration
 vim.opt.makeprg = "cmake --build build"
 -- vim.opt.errorformat = "%f:%l:%c: %m,%f:%l: %m"
-
+-- NOTE: we need to include a way to build and run release and shipping for testing
 -- Clean build
 vim.keymap.set('n', '<F5>', function()
   vim.cmd('!rm -rf build')
