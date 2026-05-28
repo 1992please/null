@@ -1,7 +1,7 @@
 #include "window.h"
 
 
-// TODO: replace runtime errors with something better
+// TODO: nader: replace runtime errors with something better
 #include <stdexcept>
 
 namespace ne

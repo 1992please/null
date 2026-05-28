@@ -1,6 +1,11 @@
 -- Build configuration
 vim.opt.makeprg = "cmake --build build"
 -- vim.opt.errorformat = "%f:%l:%c: %m,%f:%l: %m"
+local executable_name = "null_engine"
+local build_dir = "build/bin"
+local executable_path = vim.fn.getcwd() .. "/" .. build_dir .. "/" .. executable_name
+
+
 -- NOTE: we need to include a way to build and run release and shipping for testing
 -- Clean build
 vim.keymap.set('n', '<F5>', function()
@@ -16,16 +21,23 @@ end, { desc = 'Build Project' })
 
 -- Run executable (F6)
 -- Adjust the path to match your executable location
-local executable_path = "./build/bin/null_engine"  -- Change this!
 vim.keymap.set('n', '<F7>', function()
-  -- Check if executable exists
   if vim.fn.filereadable(executable_path) == 1 then
-    vim.cmd('!' .. executable_path)
+    vim.cmd('terminal cd ' .. build_dir .. '&& ./' .. executable_name)
   else
     print("Executable not found: " .. executable_path .. ". Run build first (F5)")
   end
 end, { desc = 'Run Executable' })
 
+vim.keymap.set('n', '<leader>ll', function()
+  local log_path = build_dir .. "/logs/engine.log"
+  if vim.fn.filereadable(log_path) == 1 then
+    vim.cmd('split ' .. log_path)
+    vim.cmd('setlocal autoread')
+  else
+    print("Log file not found: " .. log_path)
+  end
+end, { desc = 'View Engine Log' })
 
 local dap = require('dap')
 dap.configurations.cpp = {
@@ -34,9 +46,9 @@ dap.configurations.cpp = {
     type = "codelldb",
     request = "launch",
     program = executable_path,
-    cwd = vim.fn.getcwd(),
+    cwd = "${workspaceFolder}/" .. build_dir,
     stopOnEntry = false,
   },
 }
 
-print("Project config loaded: makeprg=" .. vim.opt.makeprg:get())
+print("Lua Config Loaded successfully!!!!")
