@@ -7,9 +7,9 @@
 #include <cstdlib>
 
 namespace ne {
-// TODO: nader: MAKE SURE logs/engine.log path is relative to the executable
-// TODO: nader: Look the flush it seems that logs are not filled
-// TODO: nader: Make sure everything compiles and runs fine in release
+// TODO: NADER MAKE SURE logs/engine.log path is relative to the executable
+// TODO: NADER Look the flush it seems that logs are not filled
+// TODO: NADER Make sure everything compiles and runs fine in release
 
 static std::shared_ptr<Logger> sEngineLogger;
 

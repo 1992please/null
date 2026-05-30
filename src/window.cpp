@@ -25,12 +25,16 @@ void Window::frameBufferResizedCallback(GLFWwindow *window, int width,
 void Window::initWindow() {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  // NOTE: NADER remove this when you support resizable
+  // make sure the window is floating for now
+  glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
 
   mWindow =
       glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
   glfwSetWindowUserPointer(mWindow, this);
   glfwSetFramebufferSizeCallback(mWindow, frameBufferResizedCallback);
+
 }
 
 void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
