@@ -1,6 +1,6 @@
 #include "window.h"
 
-#include "core/assert.h"
+#include "core/core.h"
 
 namespace ne {
 Window::Window(int iWidth, int iHeight, const std::string &iName)

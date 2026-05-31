@@ -1,5 +1,5 @@
 #include "application.h"
-#include "core/assert.h"
+#include "core/core.h"
 
 namespace ne {
 

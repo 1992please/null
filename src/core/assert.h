@@ -2,6 +2,7 @@
 
 #include "core/types.h"
 #include "logger.h"
+#include <cstdlib>
 
 #if !NE_SHIPPING
 #define NE_ASSERT(condition, ...)                                              \
@@ -14,6 +15,7 @@
           "ASSERTION FAILED: {}\n  Condition: {}\n  File: {}\n  Line: {}",     \
           user_msg, #condition, __FILE__, __LINE__);                           \
       NE_BREAK();                                                              \
+      std::abort();                                                            \
     }                                                                          \
   } while (false)
 
