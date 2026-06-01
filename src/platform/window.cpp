@@ -1,6 +1,7 @@
-#include "window.h"
+#include "platform/window.h"
 
 #include "core/core.h"
+#include "renderer/utils.h"
 
 namespace ne {
 Window::Window(int iWidth, int iHeight, const std::string &iName)
@@ -38,8 +39,6 @@ void Window::initWindow() {
 }
 
 void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
-  bool success =
-      glfwCreateWindowSurface(instance, mWindow, nullptr, surface) == VK_SUCCESS;
-  NE_ASSERT(success, "failed to create window surface");
+  VK_CHECK(glfwCreateWindowSurface(instance, mWindow, nullptr, surface));
 }
 } // namespace ne

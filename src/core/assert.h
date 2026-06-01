@@ -4,7 +4,7 @@
 #include "logger.h"
 #include <cstdlib>
 
-#if !NE_SHIPPING
+#if !NE_BUILD_SHIPPING
 #define NE_ASSERT(condition, ...)                                              \
   do {                                                                         \
     if (!(condition)) {                                                        \

@@ -1,41 +1,53 @@
-# 3D Model Viewer
+# Null Engine (3D Model Viewer)
 
-A high-performance, cross-platform 3D model viewer for Linux and Windows built with C++ and Vulkan.
+A high-performance, cross-platform 3D model viewer and rendering engine built with C++20 and Vulkan.
 
 ## Project Overview
-This project aims to build a custom, low-level rendering engine using Vulkan, with a native desktop user interface provided by Qt6. It is designed for maximum control and performance while serving as a foundational learning platform for modern graphics programming.
+This project is a custom Vulkan-based rendering engine designed for loading and viewing 3D models (glTF). It focuses on low-level control, performance, and modern graphics techniques.
 
 ## Tech Stack
-- **Language**: C++ (C++17/20)
-- **Graphics API**: Vulkan (Manual memory management transitioning to VMA)
-- **UI Framework**: Qt6 (`QVulkanWindow`)
-- **3D Format**: glTF (parsed via `cgltf`)
+- **Language**: C++20
+- **Graphics API**: Vulkan
+- **Windowing/OS**: GLFW
+- **Logging**: spdlog
 - **Mathematics**: GLM
+- **3D Format**: glTF (parsed via `cgltf`)
 - **Build System**: CMake
 
 ## Roadmap
-1. [x] **Skeleton**: Project setup with CMake and Qt6.
-2. [x] **UI Shell**: MainWindow with embedded `QVulkanWindow`.
-3. [>] **Vulkan Core**: Subclassing `QVulkanWindowRenderer` and first triangle. (In Progress)
-4. [ ] **Asset Loading**: Integrated `cgltf` for model parsing.
-5. [ ] **Rendering**: Custom shader pipeline, camera controls, and uniform buffer updates.
-6. [ ] **Optimization**: Refactoring manual memory allocation to VMA.
-
-## Getting Started
-(Detailed build and run instructions will be added as implementation begins.)
+1. [x] **Core Foundation**: Project setup with CMake, GLFW, and Vulkan.
+2. [x] **Logging**: Integrated `spdlog` for structured engine logging.
+3. [x] **Windowing**: Robust GLFW window abstraction.
+4. [>] **Vulkan Pipeline**: Graphics pipeline initialization and first triangle. (In Progress)
+5. [ ] **Memory Management**: Manual allocation transitioning to VMA.
+6. [ ] **Asset Loading**: Integrated `cgltf` for glTF/GLB model parsing.
+7. [ ] **Renderer**: Swapchain management, framebuffers, and command buffers.
+8. [ ] **Camera & Input**: Interactive orbital camera and input handling.
 
 ## Folder Structure
-null_engine/
+```
+null/
 ├── src/
-│   ├── core/           # Window, device, swap chain, pipeline
-│   ├── ecs/            # Entity Component System
-│   ├── resources/      # Buffers, textures, models
-│   ├── renderer/       # Rendering system
-│   ├── systems/        # Gameplay systems (movement, etc.)
-│   ├── utils/          # Frame info, utilities
-│   └── app/            # Sample application layer
-├── include/
-│   └── ve/             # Public headers mirroring src/ structure
-├── shaders/
-├── assets/
+│   ├── core/           # Essential utilities (Logger, Assert, Types)
+│   ├── renderer/       # Vulkan-specific abstractions (Pipeline, etc.)
+│   ├── application.h/cpp # Main application logic
+│   ├── window.h/cpp    # GLFW window wrapper
+│   └── main.cpp        # Entry point
+├── shaders/            # GLSL shader source (compiled to SPIR-V automatically)
+├── third_party/        # Header-only and git-submodule dependencies
 └── CMakeLists.txt
+```
+
+## Getting Started
+### Prerequisites
+- CMake 3.22+
+- Vulkan SDK
+- A C++20 compatible compiler (GCC 11+, Clang 13+, MSVC 2022)
+
+### Building
+```bash
+mkdir build && cd build
+cmake ..
+cmake --build .
+```
+The executable and compiled shaders will be located in the `bin/` directory within the build folder.

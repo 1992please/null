@@ -1,5 +1,7 @@
 #pragma once
 
+#define NE_UNUSED(x) (void)(x)
+
 #if defined(_WIN32) || defined(_WIN64)
     #define NE_PLATFORM_WINDOWS 1
 #elif defined(__linux__)

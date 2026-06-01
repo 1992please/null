@@ -1,6 +1,6 @@
 #pragma once
 
-#include "window.h"
+#include "platform/window.h"
 #include "renderer/pipeline.h"
 
 namespace ne {

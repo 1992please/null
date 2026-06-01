@@ -75,9 +75,9 @@ target_link_libraries(${EngineTarget} PRIVATE
   Vulkan::Vulkan
 )
 target_compile_definitions(${EngineTarget} PRIVATE
-  $<$<CONFIG:Debug>:NE_DEBUG>
-  $<$<CONFIG:RelWithDebInfo>:NE_RELEASE>
-  $<$<CONFIG:Release>:NE_SHIPPING>
+  $<$<CONFIG:Debug>:NE_BUILD_DEBUG>
+  $<$<CONFIG:RelWithDebInfo>:NE_BUILD_RELEASE>
+  $<$<CONFIG:Release>:NE_BUILD_SHIPPING>
 )
 
 target_compile_options(${EngineTarget} PRIVATE
