@@ -1,5 +1,7 @@
 #include "application.h"
 #include "core/core.h"
+#include "platform/window.h"
+#include "renderer/pipeline.h"
 
 namespace ne {
 

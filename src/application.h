@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform/window.h"
+#include "renderer/device.h"
 #include "renderer/pipeline.h"
 
 namespace ne {
@@ -13,6 +14,9 @@ public:
 
 private:
   Window mWindow{WIDTH, HEIGHT, "Hello Vulkan"};
-  Pipeline mPipeline{"shaders/triangle.vert.spv", "shaders/triangle.frag.spv"};
+  Device mDevice{mWindow};
+  Pipeline mPipeline{mDevice, "shaders/triangle.vert.spv",
+                       "shaders/triangle.frag.spv",
+                       Pipeline::defaultConfigInfo(WIDTH, HEIGHT)};
 };
 } // namespace ne

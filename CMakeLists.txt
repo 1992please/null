@@ -79,6 +79,7 @@ target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CONFIG:RelWithDebInfo>:NE_BUILD_RELEASE>
   $<$<CONFIG:Release>:NE_BUILD_SHIPPING>
 )
+target_compile_definitions(${EngineTarget} PRIVATE GLFW_INCLUDE_VULKAN)
 
 target_compile_options(${EngineTarget} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4>

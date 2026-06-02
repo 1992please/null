@@ -111,7 +111,7 @@ void Device::createInstance() {
 void Device::pickPhysicalDevice() {
   uint32_t deviceCount = 0;
   vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-  NE_ASSERT(deviceCount == 0, "failed to find GPUs with Vulkan support!");
+  NE_ASSERT(deviceCount != 0, "failed to find GPUs with Vulkan support!");
 
   NE_LOG("Device count: {}", deviceCount);
   std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -163,15 +163,9 @@ void Device::createLogicalDevice() {
       static_cast<uint32_t>(deviceExtensions.size());
   createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-  // might not really be necessary anymore because device specific validation
-  // layers have been deprecated
-  if (enableValidationLayers) {
-    createInfo.enabledLayerCount =
-        static_cast<uint32_t>(validationLayers.size());
-    createInfo.ppEnabledLayerNames = validationLayers.data();
-  } else {
-    createInfo.enabledLayerCount = 0;
-  }
+  // No validation layers anymore for device
+  createInfo.enabledLayerCount = 0;
+  createInfo.ppEnabledLayerNames = nullptr;
 
   VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device_));
 
