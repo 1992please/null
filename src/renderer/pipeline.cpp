@@ -17,7 +17,7 @@ Pipeline::Pipeline(Device &iDevice, const std::string &iVertFilePath,
 Pipeline::~Pipeline() {
   vkDestroyShaderModule(mDevice.device(), mVertShaderModule, nullptr);
   vkDestroyShaderModule(mDevice.device(), mFragShaderModule, nullptr);
-  vkDestroyPipeline(mDevice.device(), mPipline, nullptr);
+  vkDestroyPipeline(mDevice.device(), mGraphicsPipline, nullptr);
 }
 
 std::vector<char> Pipeline::readFile(const std::string &iFilePath) {
@@ -98,7 +98,7 @@ void Pipeline::createGraphicsPipeline(const std::string &iVertFilePath,
   pipelineInfo.basePipelineIndex = -1;
   pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-  VK_CHECK(vkCreateGraphicsPipelines(mDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mPipline));
+  VK_CHECK(vkCreateGraphicsPipelines(mDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipline));
 }
 
 void Pipeline::createShaderModule(const std::vector<char> &code,
@@ -110,6 +110,10 @@ void Pipeline::createShaderModule(const std::vector<char> &code,
 
   VK_CHECK(
       vkCreateShaderModule(mDevice.device(), &createInfo, nullptr, oShader));
+}
+
+void Pipeline::bind(VkCommandBuffer iCommandBuffer) {
+  vkCmdBindPipeline(iCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipline);
 }
 
 Pipeline::ConfigInfo Pipeline::defaultConfigInfo(uint32_t iWidth,

@@ -4,6 +4,10 @@
 #include "renderer/pipeline.h"
 #include "renderer/utils.h"
 
+
+// std
+#include <array>
+
 namespace ne {
 
 Application::Application() {
@@ -21,7 +25,9 @@ void Application::run() {
 
   while(!mWindow.shouldClose()) {
     glfwPollEvents();
+    drawFrame();
   }
+  VK_CHECK(vkDeviceWaitIdle(mDevice.device()));
 
   NE_LOG("Application Done!");
 }
@@ -47,11 +53,51 @@ void Application::createPipeline() {
 }
 
 void Application::createCommandBuffers() {
+  mCommandBuffers.resize(mSwapChain.imageCount());
+  VkCommandBufferAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  allocInfo.commandPool = mDevice.getCommandPool();
+  allocInfo.commandBufferCount = static_cast<uint32_t>(mCommandBuffers.size());
 
+  VK_CHECK(vkAllocateCommandBuffers(mDevice.device(), &allocInfo, mCommandBuffers.data()));
+
+  for(size_t i = 0; i < mCommandBuffers.size(); i++)
+  {
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    VK_CHECK(vkBeginCommandBuffer(mCommandBuffers[i], &beginInfo));
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = mSwapChain.getRenderPass();
+    renderPassInfo.framebuffer = mSwapChain.getFrameBuffer(i);
+
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = mSwapChain.getSwapChainExtent();
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
+    clearValues[1].depthStencil = {1.0f, 0};
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(mCommandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    mPipeline->bind(mCommandBuffers[i]);
+    vkCmdDraw(mCommandBuffers[i], 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(mCommandBuffers[i]);
+
+    VK_CHECK(vkEndCommandBuffer(mCommandBuffers[i]));
+  }
 }
 
 void Application::drawFrame() {
+  uint32_t imageIndex;
+  VK_CHECK(mSwapChain.acquireNextImage(&imageIndex));
 
+  VK_CHECK(mSwapChain.submitCommandBuffers(&mCommandBuffers[imageIndex], &imageIndex));
 }
 
 } // namespace ne

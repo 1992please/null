@@ -36,6 +36,8 @@ public:
   Pipeline(const Pipeline &) = delete;
   void operator=(const Pipeline &) = delete;
 
+  void bind(VkCommandBuffer iCommandBuffer);
+
   static ConfigInfo defaultConfigInfo(uint32_t iWidth, uint32_t iHeight);
 
 private:
@@ -49,7 +51,7 @@ private:
                           VkShaderModule *oShader);
 
   Device &mDevice;
-  VkPipeline mPipline;
+  VkPipeline mGraphicsPipline;
   VkShaderModule mVertShaderModule;
   VkShaderModule mFragShaderModule;
 };
