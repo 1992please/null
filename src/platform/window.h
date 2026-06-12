@@ -6,7 +6,7 @@
 namespace ne {
 class Window {
 public:
-  Window(int iWidth, int iHeight, const std::string& iName);
+  Window(int iWidth, int iHeight, const std::string &iName);
   ~Window();
 
   // Remove copy constructor

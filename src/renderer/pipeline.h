@@ -9,11 +9,29 @@ namespace ne {
 
 class Pipeline {
 public:
-  struct ConfigInfo {};
+  struct ConfigInfo {
+    VkViewport mViewport;
+    VkRect2D mScissor;
+
+    // std::vector<VkVertexInputBindingDescription> mBindingDescriptions{};
+    // std::vector<VkVertexInputAttributeDescription> mAttributeDescriptions{};
+    VkPipelineInputAssemblyStateCreateInfo mInputAssemblyInfo;
+    VkPipelineRasterizationStateCreateInfo mRasterizationInfo;
+    VkPipelineMultisampleStateCreateInfo mMultisampleInfo;
+    VkPipelineColorBlendAttachmentState mColorBlendAttachment;
+    VkPipelineColorBlendStateCreateInfo mColorBlendInfo;
+    VkPipelineDepthStencilStateCreateInfo mDepthStencilInfo;
+    // std::vector<VkDynamicState> mDynamicStateEnables;
+    // VkPipelineDynamicStateCreateInfo mDynamicStateInfo;
+
+    VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
+    VkRenderPass mRenderPass = VK_NULL_HANDLE;
+    uint32_t mSubpass = 0;
+  };
 
   Pipeline(Device &iDevice, const std::string &iVertFilePath,
            const std::string &iFragFilePath, const ConfigInfo &iConfigInfo);
-  ~Pipeline() {}
+  ~Pipeline();
 
   Pipeline(const Pipeline &) = delete;
   void operator=(const Pipeline &) = delete;

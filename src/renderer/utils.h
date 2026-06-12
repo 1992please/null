@@ -1,6 +1,9 @@
 #include "core/logger.h"
+#include "core/types.h"
+
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan.h>
+
 #include <cstdlib>
 
 #define VK_CHECK(fn)                                                           \
