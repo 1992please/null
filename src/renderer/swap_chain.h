@@ -24,7 +24,7 @@ public:
   SwapChain(const SwapChain &) = delete;
   SwapChain operator=(const SwapChain &) = delete;
 
-  VkFramebuffer getFrameBuffer(int iIndex) {
+  VkFramebuffer getFrameBuffer(size_t iIndex) {
     return mSwapChainFramebuffers[iIndex];
   }
   VkRenderPass getRenderPass() { return mRenderPass; }

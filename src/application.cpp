@@ -47,8 +47,8 @@ void Application::createPipeline() {
   auto pipelineConfig = Pipeline::defaultConfigInfo(mSwapChain.width(), mSwapChain.height());
   pipelineConfig.mRenderPass = mSwapChain.getRenderPass();
   pipelineConfig.mPipelineLayout = mPipelineLayout;
-  mPipeline = std::make_unique<Pipeline>(mDevice, "shaders/triangle.vert.spv",
-                                         "shaders/triangle.frag.spv",
+  mPipeline = std::make_unique<Pipeline>(mDevice, "build/shaders/triangle.vert.spv",
+                                         "build/shaders/triangle.frag.spv",
                                          pipelineConfig);
 }
 

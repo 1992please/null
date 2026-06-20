@@ -10,8 +10,7 @@ set(ThirdPartyDir "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 set(SourceDir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(ShadersDir "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(BinDir "${CMAKE_BINARY_DIR}/bin")
-set(BinShaderDir "${BinDir}/shaders")
-
+set(BinShaderDir "${CMAKE_BINARY_DIR}/shaders")
 
 # ----------------------------------------------------------------------
 # Vulkan
@@ -47,7 +46,7 @@ add_executable(${EngineTarget})
 file(GLOB_RECURSE ENGINE_SOURCE_FILES
   LIST_DIRECTORIES false
   RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} 
-  src/*.h?? src/*.c??
+  src/*.h src/*.cpp
 )
 
 file(GLOB_RECURSE ENGINE_SHADERS
@@ -82,11 +81,12 @@ target_compile_definitions(${EngineTarget} PRIVATE
 target_compile_definitions(${EngineTarget} PRIVATE GLFW_INCLUDE_VULKAN)
 
 target_compile_options(${EngineTarget} PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /utf-8 /Zc:preprocessor /MP>
     $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall;-Wextra;-Wpedantic>
 )
 
 set_target_properties(${EngineTarget} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BinDir})
+
 # ----------------------------------------------------------------------
 # Shaders
 message(STATUS "glslc: ${Vulkan_GLSLC_EXECUTABLE}")
@@ -115,3 +115,18 @@ add_custom_target(
 add_dependencies(${EngineTarget} Shaders)
 
 message(STATUS "✅ ${EngineTarget} configured with C++${CMAKE_CXX_STANDARD}")
+
+# ----------------------------------------------------------------------
+# Visual Studio
+if(MSVC)
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${EngineTarget})
+  set_property(TARGET ${EngineTarget} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS} ${ENGINE_UTILS})
+
+  set_target_properties(glfw PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
+  set_target_properties(update_mappings PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
+  set_target_properties(uninstall PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
+  set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "Misc/CMakeTargets")
+  set_property(TARGET ${EngineTarget} PROPERTY FOLDER Engine)
+  set_property(TARGET Shaders PROPERTY FOLDER Engine)
+endif()

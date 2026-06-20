@@ -8,17 +8,17 @@
 namespace ne {
 
 struct SwapChainSupportDetails {
-  VkSurfaceCapabilitiesKHR capabilities;
-  std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> presentModes;
+  VkSurfaceCapabilitiesKHR mCapabilities;
+  std::vector<VkSurfaceFormatKHR> mFormats;
+  std::vector<VkPresentModeKHR> mPresentModes;
 };
 
 struct QueueFamilyIndices {
-  uint32_t graphicsFamily;
-  uint32_t presentFamily;
-  bool graphicsFamilyHasValue = false;
-  bool presentFamilyHasValue = false;
-  bool isComplete() { return graphicsFamilyHasValue && presentFamilyHasValue; }
+  uint32_t mGraphicsFamily;
+  uint32_t mPresentFamily;
+  bool mGraphicsFamilyHasValue = false;
+  bool mPresentFamilyHasValue = false;
+  bool isComplete() { return mGraphicsFamilyHasValue && mPresentFamilyHasValue; }
 };
 
 class Device {
@@ -38,45 +38,45 @@ public:
   Device(Device &&) = delete;
   Device &operator=(Device &&) = delete;
 
-  VkCommandPool getCommandPool() { return commandPool; }
-  VkDevice device() { return device_; }
-  VkSurfaceKHR surface() { return surface_; }
-  VkQueue graphicsQueue() { return graphicsQueue_; }
-  VkQueue presentQueue() { return presentQueue_; }
+  VkCommandPool getCommandPool() { return mCommandPool; }
+  VkDevice device() { return mDevice; }
+  VkSurfaceKHR surface() { return mSurface; }
+  VkQueue graphicsQueue() { return mGraphicsQueue; }
+  VkQueue presentQueue() { return mPresentQueue; }
 
   SwapChainSupportDetails getSwapChainSupport() {
-    return querySwapChainSupport(physicalDevice);
+    return querySwapChainSupport(mPhysicalDevice);
   }
-  uint32_t findMemoryType(uint32_t typeFilter,
-                          VkMemoryPropertyFlags properties);
+  uint32_t findMemoryType(uint32_t iTypeFilter,
+                          VkMemoryPropertyFlags iProperties);
   QueueFamilyIndices findPhysicalQueueFamilies() {
-    return findQueueFamilies(physicalDevice);
+    return findQueueFamilies(mPhysicalDevice);
   }
-  VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates,
-                               VkImageTiling tiling,
-                               VkFormatFeatureFlags features);
+  VkFormat findSupportedFormat(const std::vector<VkFormat> &iCandidates,
+                               VkImageTiling iTiling,
+                               VkFormatFeatureFlags iFeatures);
 
   // Buffer Helper Functions
-  void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
-                    VkMemoryPropertyFlags properties, VkBuffer &buffer,
-                    VkDeviceMemory &bufferMemory);
+  void createBuffer(VkDeviceSize iSize, VkBufferUsageFlags iUsage,
+                    VkMemoryPropertyFlags iProperties, VkBuffer &iBuffer,
+                    VkDeviceMemory &iBufferMemory);
   VkCommandBuffer beginSingleTimeCommands();
-  void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-  void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
-                         uint32_t height, uint32_t layerCount);
+  void endSingleTimeCommands(VkCommandBuffer iCommandBuffer);
+  void copyBuffer(VkBuffer iSrcBuffer, VkBuffer iDstBuffer, VkDeviceSize iSize);
+  void copyBufferToImage(VkBuffer iBuffer, VkImage iImage, uint32_t iWidth,
+                         uint32_t iHeight, uint32_t iLayerCount);
 
-  void createImageWithInfo(const VkImageCreateInfo &imageInfo,
-                           VkMemoryPropertyFlags properties, VkImage &image,
-                           VkDeviceMemory &imageMemory);
+  void createImageWithInfo(const VkImageCreateInfo &iImageInfo,
+                           VkMemoryPropertyFlags iProperties, VkImage &iImage,
+                           VkDeviceMemory &iImageMemory);
 
-  void transitionImageLayout(VkImage image, VkFormat format,
-                             VkImageLayout oldLayout, VkImageLayout newLayout,
-                             uint32_t mipLevels = 1, uint32_t layerCount = 1);
+  void transitionImageLayout(VkImage iImage, VkFormat iFormat,
+                             VkImageLayout iOldLayout, VkImageLayout iNewLayout,
+                             uint32_t iMipLevels = 1, uint32_t iLayerCount = 1);
 
-  VkImageView createImageView(VkImage image, VkFormat format);
+  VkImageView createImageView(VkImage iImage, VkFormat iFormat);
 
-  VkPhysicalDeviceProperties properties;
+  VkPhysicalDeviceProperties mProperties;
 
 private:
   void createInstance();
@@ -87,30 +87,30 @@ private:
   void createCommandPool();
 
   // helper functions
-  bool isDeviceSuitable(VkPhysicalDevice device);
+  bool isDeviceSuitable(VkPhysicalDevice iDevice);
   std::vector<const char *> getRequiredExtensions();
   bool checkValidationLayerSupport();
-  QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+  QueueFamilyIndices findQueueFamilies(VkPhysicalDevice iDevice);
   void populateDebugMessengerCreateInfo(
-      VkDebugUtilsMessengerCreateInfoEXT &createInfo);
+      VkDebugUtilsMessengerCreateInfoEXT &iCreateInfo);
   void hasGflwRequiredInstanceExtensions();
-  bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-  SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+  bool checkDeviceExtensionSupport(VkPhysicalDevice iDevice);
+  SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
 
-  VkInstance instance;
-  VkDebugUtilsMessengerEXT debugMessenger;
-  VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-  Window &window;
-  VkCommandPool commandPool;
+  VkInstance mInstance;
+  VkDebugUtilsMessengerEXT mDebugMessenger;
+  VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
+  Window &mWindow;
+  VkCommandPool mCommandPool;
 
-  VkDevice device_;
-  VkSurfaceKHR surface_;
-  VkQueue graphicsQueue_;
-  VkQueue presentQueue_;
+  VkDevice mDevice;
+  VkSurfaceKHR mSurface;
+  VkQueue mGraphicsQueue;
+  VkQueue mPresentQueue;
 
-  const std::vector<const char *> validationLayers = {
+  const std::vector<const char *> mValidationLayers = {
       "VK_LAYER_KHRONOS_validation"};
-  const std::vector<const char *> deviceExtensions = {
+  const std::vector<const char *> mDeviceExtensions = {
       VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 };
 

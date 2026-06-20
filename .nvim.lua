@@ -35,7 +35,7 @@ vim.keymap.set('n', '<F7>', function()
     if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
       vim.api.nvim_buf_delete(term_buf, { force = true })
     end
-    vim.cmd('split | terminal cd ' .. build_dir .. '&& ./' .. executable_name)
+    vim.cmd('split | terminal ./' .. build_dir .. executable_name)
     term_buf = vim.api.nvim_get_current_buf()
   else
     print("Executable not found: " .. executable_path .. ". Run build first (F5)")

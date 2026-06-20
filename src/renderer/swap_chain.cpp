@@ -134,18 +134,16 @@ void SwapChain::createSwapChain() {
   SwapChainSupportDetails swapChainSupport = mDevice.getSwapChainSupport();
 
   VkSurfaceFormatKHR surfaceFormat =
-      chooseSwapSurfaceFormat(swapChainSupport.formats);
+      chooseSwapSurfaceFormat(swapChainSupport.mFormats);
   VkPresentModeKHR presentMode =
-      chooseSwapPresentMode(swapChainSupport.presentModes);
-  VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+      chooseSwapPresentMode(swapChainSupport.mPresentModes);
+  VkExtent2D extent = chooseSwapExtent(swapChainSupport.mCapabilities);
 
-  uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-  if (swapChainSupport.capabilities.maxImageCount > 0 &&
-      imageCount > swapChainSupport.capabilities.maxImageCount) {
-    imageCount = swapChainSupport.capabilities.maxImageCount;
+  uint32_t imageCount = swapChainSupport.mCapabilities.minImageCount + 1;
+  if (swapChainSupport.mCapabilities.maxImageCount > 0 &&
+      imageCount > swapChainSupport.mCapabilities.maxImageCount) {
+    imageCount = swapChainSupport.mCapabilities.maxImageCount;
   }
-
-  NE_LOG("imageCount: {}", imageCount);
 
   VkSwapchainCreateInfoKHR createInfo = {};
   createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -159,10 +157,10 @@ void SwapChain::createSwapChain() {
   createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
   QueueFamilyIndices indices = mDevice.findPhysicalQueueFamilies();
-  uint32_t queueFamilyIndices[] = {indices.graphicsFamily,
-                                   indices.presentFamily};
+  uint32_t queueFamilyIndices[] = {indices.mGraphicsFamily,
+                                   indices.mPresentFamily};
 
-  if (indices.graphicsFamily != indices.presentFamily) {
+  if (indices.mGraphicsFamily != indices.mPresentFamily) {
     createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
     createInfo.queueFamilyIndexCount = 2;
     createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -172,7 +170,7 @@ void SwapChain::createSwapChain() {
     createInfo.pQueueFamilyIndices = nullptr; // Optional
   }
 
-  createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+  createInfo.preTransform = swapChainSupport.mCapabilities.currentTransform;
   createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 
   createInfo.presentMode = presentMode;
