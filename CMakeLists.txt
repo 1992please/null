@@ -58,10 +58,11 @@ file(GLOB_RECURSE ENGINE_SHADERS
 message(STATUS "ENGINE_SOURCE_FILES: ${ENGINE_SOURCE_FILES}")
 message(STATUS "ENGINE_SHADERS: ${ENGINE_SHADERS}")
 
-set(ENGINE_UTILS
-  "${ThirdPartyDir}/glm/util/glm.natvis"
-  # add any other util files you want to add to the IDE (for example TODO)
-)
+if(MSVC)
+    set(ENGINE_UTILS "${ThirdPartyDir}/glm/util/glm.natvis")
+else()
+    set(ENGINE_UTILS "")
+endif()
 
 target_sources(${EngineTarget} PRIVATE ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS} ${ENGINE_UTILS})
 set_source_files_properties(${ENGINE_SHADERS} ${ENGINE_UTILS} PROPERTIES HEADER_FILE_ONLY TRUE)
@@ -121,8 +122,8 @@ message(STATUS "✅ ${EngineTarget} configured with C++${CMAKE_CXX_STANDARD}")
 if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${EngineTarget})
   set_property(TARGET ${EngineTarget} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-  source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS} ${ENGINE_UTILS})
-
+  source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS})
+  source_group("Misc" FILES ${ENGINE_UTILS})
   set_target_properties(glfw PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
   set_target_properties(update_mappings PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
   set_target_properties(uninstall PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
