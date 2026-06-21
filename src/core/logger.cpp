@@ -18,7 +18,7 @@ Logger::Logger() {
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
   // Setup a file sink for persistent logs
-  auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/engine.log", 1024*1024, 5, true);
+  auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("build/logs/engine.log", 1024*1024, 5, true);
 
   // Combine sinks: log to both console and file
   spdlog::sinks_init_list sink_list = {console_sink, rotating_sink};

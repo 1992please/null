@@ -1,6 +1,7 @@
 #pragma once
 
 #define NE_UNUSED(x) (void)(x)
+#define NE_ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #if defined(_WIN32) || defined(_WIN64)
     #define NE_PLATFORM_WINDOWS 1
