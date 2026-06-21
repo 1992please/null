@@ -19,6 +19,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
   NE_UNUSED(iMessageSeverity);
   NE_UNUSED(iMessageType);
   NE_UNUSED(pUserData);
+  NE_UNUSED(pCallbackData);
 
   NE_ERROR("validation layer: {}", pCallbackData->pMessage);
 

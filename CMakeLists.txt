@@ -10,7 +10,7 @@ set(ThirdPartyDir "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 set(SourceDir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(ShadersDir "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(BinDir "${CMAKE_BINARY_DIR}/bin")
-set(BinShaderDir "${CMAKE_BINARY_DIR}/shaders")
+set(BinShaderDir "${BinDir}/compiled_shaders")
 
 # ----------------------------------------------------------------------
 # Vulkan
@@ -78,8 +78,9 @@ target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CONFIG:Debug>:NE_BUILD_DEBUG>
   $<$<CONFIG:RelWithDebInfo>:NE_BUILD_RELEASE>
   $<$<CONFIG:Release>:NE_BUILD_SHIPPING>
+  NE_BUILD_DIR="${CMAKE_BINARY_DIR}"
+  GLFW_INCLUDE_VULKAN
 )
-target_compile_definitions(${EngineTarget} PRIVATE GLFW_INCLUDE_VULKAN)
 
 target_compile_options(${EngineTarget} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /utf-8 /Zc:preprocessor /MP>
