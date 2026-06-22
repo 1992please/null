@@ -21,36 +21,22 @@
 			}
 		},
 		{
-			"name": "relWithDebugInfo",
-			"displayName": "RelWithDebugInfo",
-			"description": "Release build",
+			"name": "development",
+			"displayName": "Development",
+			"description": "Optimized build with debug info for testing (NE_BUILD_DEVELOPMENT)",
 			"inherits": "base",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "RelWithDebInfo"
 			}
 		},
 		{
-			"name": "release",
-			"displayName": "Release",
-			"description": "Release build",
+			"name": "shipping",
+			"displayName": "Shipping",
+			"description": "Fully optimized final build (NE_BUILD_SHIPPING)",
 			"inherits": "base",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Release"
 			}
-		}
-	],
-	"buildPresets": [
-		{
-			"name": "build-debug",
-			"configurePreset": "debug"
-		},
-		{
-			"name": "build-profile",
-			"configurePreset": "relWithDebugInfo"
-		},
-		{
-			"name": "build-release",
-			"configurePreset": "release"
 		}
 	]
 }

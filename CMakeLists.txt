@@ -3,7 +3,6 @@ project(null VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for nvim's lsp
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo" CACHE STRING "" FORCE)
 
 set(EngineTarget "null_engine")
 set(ThirdPartyDir "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
@@ -76,7 +75,7 @@ target_link_libraries(${EngineTarget} PRIVATE
 )
 target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CONFIG:Debug>:NE_BUILD_DEBUG>
-  $<$<CONFIG:RelWithDebInfo>:NE_BUILD_RELEASE>
+  $<$<CONFIG:RelWithDebInfo>:NE_BUILD_DEVELOPMENT>
   $<$<CONFIG:Release>:NE_BUILD_SHIPPING>
   NE_BUILD_DIR="${CMAKE_BINARY_DIR}"
   GLFW_INCLUDE_VULKAN

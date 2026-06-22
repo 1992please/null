@@ -4,22 +4,22 @@ vim.opt.makeprg = "cmake --build build"
 local executable_name = "null_engine"
 local build_dir = "build/bin"
 local executable_path = vim.fn.getcwd() .. "/" .. build_dir .. "/" .. executable_name
-local build_types = { "Debug", "RelWithDebInfo", "Release" }
-local current_build_index = 1
+local presets = { "debug", "development", "shipping" }
+local current_preset_index = 1
 local term_buf = nil
 
 -- Build type switching
 vim.keymap.set('n', '<F4>', function()
-  current_build_index = current_build_index % #build_types + 1
-  print("Build type: " .. build_types[current_build_index])
+  current_preset_index = current_preset_index % #presets + 1
+  print("Build type: " .. presets[current_preset_index])
 end, { desc = 'Toggle Build Type' })
 
 -- Cmake build files
 vim.keymap.set('n', '<F5>', function()
-  local build_type = build_types[current_build_index]
+  local preset = presets[current_preset_index]
   vim.cmd('!rm -rf build')
-  vim.cmd('!cmake -B build -DCMAKE_BUILD_TYPE=' .. build_type)
-  print("Clean build: " .. build_type)
+  vim.cmd('!cmake --preset ' .. preset)
+  print("Clean build: " .. preset)
 end, { desc = 'Clean Build' })
 
 -- Build project
