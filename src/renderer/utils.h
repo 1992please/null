@@ -1,5 +1,5 @@
 #include "core/logger.h"
-#include "core/types.h"
+#include "core/defines.h"
 
 #include <vulkan/vk_enum_string_helper.h>
 #include <vulkan/vulkan.h>

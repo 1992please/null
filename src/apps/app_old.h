@@ -1,5 +1,6 @@
 #pragma once
 
+#include "apps/application.h"
 #include "platform/window.h"
 #include "renderer/device.h"
 #include "renderer/pipeline.h"
@@ -10,18 +11,15 @@
 #include <vector>
 
 namespace ne {
-class Application {
+class AppOld : public Application {
 public:
-  static constexpr int WIDTH = 1200;
-  static constexpr int HEIGHT = 1000;
+  AppOld();
+  ~AppOld();
 
-  Application();
-  ~Application();
+  AppOld(const AppOld&) = delete;
+  AppOld& operator=(const AppOld&) = delete;
 
-  Application(const Application &) = delete;
-  Application &operator=(const Application &) = delete;
-
-  void run();
+  virtual void run() override;
 
 private:
   void createPipelineLayout();
@@ -29,9 +27,9 @@ private:
   void createCommandBuffers();
   void drawFrame();
 
-  Window mWindow{WIDTH, HEIGHT, "Hello Vulkan"};
-  Device mDevice{mWindow};
-  SwapChain mSwapChain{mDevice, mWindow.getExtent()};
+  Window mWindow;
+  Device mDevice;
+  SwapChain mSwapChain;
   std::unique_ptr<Pipeline> mPipeline;
   VkPipelineLayout mPipelineLayout;
   std::vector<VkCommandBuffer> mCommandBuffers;

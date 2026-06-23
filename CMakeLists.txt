@@ -14,6 +14,9 @@ set(BinShaderDir "${BinDir}/compiled_shaders")
 # ----------------------------------------------------------------------
 # Vulkan
 find_package(Vulkan REQUIRED)
+find_program(Vulkan_SLANGC_EXECUTABLE slangc HINTS $ENV{VULKAN_SDK}/bin REQUIRED)
+message(STATUS "glslc: ${Vulkan_GLSLC_EXECUTABLE}")
+message(STATUS "slang: ${Vulkan_SLANGC_EXECUTABLE}")
 
 # ----------------------------------------------------------------------
 # GLFW
@@ -54,9 +57,6 @@ file(GLOB_RECURSE ENGINE_SHADERS
     shaders/*.frag shaders/*.vert shaders/*.comp
 )
 
-message(STATUS "ENGINE_SOURCE_FILES: ${ENGINE_SOURCE_FILES}")
-message(STATUS "ENGINE_SHADERS: ${ENGINE_SHADERS}")
-
 if(MSVC)
     set(ENGINE_UTILS "${ThirdPartyDir}/glm/util/glm.natvis")
 else()
@@ -77,6 +77,11 @@ target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CONFIG:Debug>:NE_BUILD_DEBUG>
   $<$<CONFIG:RelWithDebInfo>:NE_BUILD_DEVELOPMENT>
   $<$<CONFIG:Release>:NE_BUILD_SHIPPING>
+
+  $<$<PLATFORM_ID:Windows>:NE_PLATFORM_WINDOWS>
+  $<$<PLATFORM_ID:Linux>:NE_PLATFORM_LINUX>
+  $<$<PLATFORM_ID:Darwin>:NE_PLATFORM_APPLE>
+
   NE_BUILD_DIR="${CMAKE_BINARY_DIR}"
   GLFW_INCLUDE_VULKAN
 )
@@ -90,7 +95,7 @@ set_target_properties(${EngineTarget} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BinD
 
 # ----------------------------------------------------------------------
 # Shaders
-message(STATUS "glslc: ${Vulkan_GLSLC_EXECUTABLE}")
+
 set(ShaderCompiler ${Vulkan_GLSLC_EXECUTABLE})
 file(MAKE_DIRECTORY ${BinShaderDir})
 
@@ -115,8 +120,6 @@ add_custom_target(
 
 add_dependencies(${EngineTarget} Shaders)
 
-message(STATUS "✅ ${EngineTarget} configured with C++${CMAKE_CXX_STANDARD}")
-
 # ----------------------------------------------------------------------
 # Visual Studio
 if(MSVC)
@@ -131,3 +134,5 @@ if(MSVC)
   set_property(TARGET ${EngineTarget} PROPERTY FOLDER Engine)
   set_property(TARGET Shaders PROPERTY FOLDER Engine)
 endif()
+
+message(STATUS "✅ ${EngineTarget} configured with C++${CMAKE_CXX_STANDARD}")

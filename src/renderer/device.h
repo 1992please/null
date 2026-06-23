@@ -1,11 +1,13 @@
 #pragma once
 
-#include "platform/window.h"
+#include <vulkan/vulkan.h>
 
 // std lib headers
 #include <vector>
 
 namespace ne {
+
+class Window;
 
 struct SwapChainSupportDetails {
   VkSurfaceCapabilitiesKHR mCapabilities;

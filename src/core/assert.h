@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/types.h"
+#include "core/defines.h"
 #include "logger.h"
 #include <cstdlib>
 

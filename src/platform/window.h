@@ -1,9 +1,15 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
+
+// std
 #include <string>
+#include <vector>
+
+struct GLFWwindow;
 
 namespace ne {
+
 class Window {
 public:
   Window(int iWidth, int iHeight, const std::string &iName);
@@ -13,14 +19,16 @@ public:
   Window(const Window &) = delete;
   Window &operator=(const Window &) = delete;
 
-  bool shouldClose() { return glfwWindowShouldClose(mWindow); }
+  const std::string& getWindowName() const { return mWindowName; }
+  bool shouldClose();
+  void processEvents();
   VkExtent2D getExtent() {
     return {static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)};
   }
   bool wasWindowResized() { return mFrameBufferResized; }
   void resetWindowResizedFlag() { mFrameBufferResized = false; }
   GLFWwindow *getGLFWwindow() const { return mWindow; }
-
+  std::vector<const char*> getRequiredInstanceExtensions();
   void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
 private:

@@ -1,7 +1,8 @@
 #include "platform/window.h"
-
 #include "core/core.h"
 #include "renderer/utils.h"
+
+#include <GLFW/glfw3.h>
 
 namespace ne {
 Window::Window(int iWidth, int iHeight, const std::string &iName)
@@ -12,6 +13,16 @@ Window::Window(int iWidth, int iHeight, const std::string &iName)
 Window::~Window() {
   glfwDestroyWindow(mWindow);
   glfwTerminate();
+}
+
+bool Window::shouldClose()
+{
+    return glfwWindowShouldClose(mWindow);
+}
+
+void Window::processEvents()
+{
+  glfwPollEvents();
 }
 
 void Window::frameBufferResizedCallback(GLFWwindow *window, int width,
@@ -29,13 +40,22 @@ void Window::initWindow() {
   glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
   // NOTE: NADER remove this when you support resizable
   // make sure the window is floating for now
+#if defined(NE_PLATFORM_LINUX)
   glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+#endif
 
-  mWindow =
-      glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
+  mWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
   glfwSetWindowUserPointer(mWindow, this);
   glfwSetFramebufferSizeCallback(mWindow, frameBufferResizedCallback);
 
+}
+
+std::vector<const char*> Window::getRequiredInstanceExtensions()
+{
+  uint32_t count = 0;
+  const char** extensions = glfwGetRequiredInstanceExtensions(&count);
+  std::vector<const char*> result(extensions, extensions + count);
+  return result;
 }
 
 void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {

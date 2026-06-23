@@ -4,7 +4,6 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/spdlog.h>
-#include <cstdlib>
 
 namespace ne {
 // TODO: NADER MAKE SURE logs/engine.log path is relative to the executable
@@ -53,7 +52,6 @@ void Logger::logExec(LogType inLogType, std::string inLog) {
     case LogType_Fatal: {
       mLogger->critical(std::move(inLog));
       mLogger->flush();
-      std::abort();
       break;
     }
   }

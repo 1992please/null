@@ -2,10 +2,10 @@
 
 A high-performance, cross-platform 3D model viewer and rendering engine built with C++20 and Vulkan.
 
-## Roadmap
-1. [ ] rename ".src/core/types.h" to "src/core/defines.h".
-2. [ ] rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
-
+## TODO
+1. [x] rename ".src/core/types.h" to "src/core/defines.h".
+2. [>] rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
+3. [ ] ktx texture library
 ## Project Overview
 This project is a custom Vulkan-based rendering engine designed for loading and viewing 3D models (glTF). It focuses on low-level control, performance, and modern graphics techniques.
 

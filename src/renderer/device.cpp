@@ -1,6 +1,7 @@
 #include "renderer/device.h"
 #include "core/core.h"
 #include "renderer/utils.h"
+#include "platform/window.h"
 
 // std headers
 #include <cstring>
@@ -11,8 +12,8 @@
 namespace ne {
 
 // local callback functions
-static VKAPI_ATTR VkBool32 VKAPI_CALL
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+              VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
               VkDebugUtilsMessageTypeFlagsEXT iMessageType,
               const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
               void *pUserData) {
@@ -252,17 +253,13 @@ bool Device::checkValidationLayerSupport() {
       return false;
     }
   }
-
+  
   return true;
 }
 
 std::vector<const char *> Device::getRequiredExtensions() {
-  uint32_t glfwExtensionCount = 0;
-  const char **glfwExtensions;
-  glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-  std::vector<const char *> extensions(glfwExtensions,
-                                       glfwExtensions + glfwExtensionCount);
+  std::vector<const char*> extensions = mWindow.getRequiredInstanceExtensions();
 
   if (enableValidationLayers) {
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

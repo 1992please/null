@@ -1,6 +1,7 @@
-#include "application.h"
+#include "apps/app_old.h"
+#include "apps/basic_app.h"
 
 int main() {
-  ne::Application app{};
+  ne::BasicApp app{};
   app.run();
 }
