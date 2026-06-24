@@ -2,7 +2,7 @@
 #include "core/core.h"
 #include "platform/window.h"
 #include "renderer/utils.h"
-#include "renderer\renderer.h"
+#include "renderer/renderer.h"
 
 namespace ne {
 

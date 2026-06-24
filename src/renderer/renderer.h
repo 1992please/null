@@ -21,9 +21,19 @@ public:
   Renderer(Renderer&&) = delete;
   Renderer& operator=(Renderer&&) = delete;
 
+
+  struct QueueFamilyIndices {
+    int32_t mGraphicsFamilyIndex;
+    int32_t mPresentFamilyIndex;
+    bool isComplete() { return mGraphicsFamilyIndex != -1 && mPresentFamilyIndex != -1; }
+  };
+
+  QueueFamilyIndices findPhysicalQueueFamilies();
+
 private:
   void createInstance();
   void setupDebugMessenger();
+  void pickPhysicalDevice();
 
 #if defined(NE_BUILD_DEBUG)
   const bool enableValidationLayers = false;
@@ -34,8 +44,8 @@ private:
   const std::vector<char const*> mValidationLayers = {
     "VK_LAYER_KHRONOS_validation"
   };
-
-
+  const std::vector<const char *> mRequiredDeviceExtensions = {
+      VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
   Window* mWindow;
   std::string mEngineName;
@@ -43,6 +53,8 @@ private:
 
   VkInstance mInstance;
   VkDebugUtilsMessengerEXT mDebugMessenger;
+  VkPhysicalDevice mPhysicalDevice;
+  VkPhysicalDeviceProperties mPhysicalDeviceProperties;
 
 };
 
