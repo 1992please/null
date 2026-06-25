@@ -71,14 +71,18 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
 {
   createInstance();
   setupDebugMessenger();
+  createSurface();
   pickPhysicalDevice();
+  createLogicalDevice();
+  createSwapChain();
 }
 
 Renderer::~Renderer() {
+  vkDestroyDevice(mDevice, nullptr);
   if (enableValidationLayers) {
     DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
   }
-
+  vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
   vkDestroyInstance(mInstance, nullptr);
 }
 
@@ -98,11 +102,6 @@ void Renderer::createInstance() {
   vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
   std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
   vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
-
-  //NE_LOG("Available extensions:\n");
-  //for (const VkExtensionProperties& availableExtension : availableExtensions) {
-  //  NE_LOG("\t{}", availableExtension.extensionName);
-  //}
 
   // make sure all the extensions we need are available
   std::vector<const char*> windowExtensions = mWindow->getRequiredInstanceExtensions();
@@ -177,6 +176,9 @@ void Renderer::setupDebugMessenger() {
   VK_CHECK(CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
 }
 
+void Renderer::createSurface() {
+  VK_CHECK(mWindow->createWindowSurface(mInstance, &mSurface));
+}
 
 void Renderer::pickPhysicalDevice() {
   uint32_t physicalDevicesCount;
@@ -191,19 +193,8 @@ void Renderer::pickPhysicalDevice() {
   for (VkPhysicalDevice& physicalDevice : physicalDevices) {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-    bool supportsVulkanApi = physicalDeviceProperties.apiVersion >= VK_API_VERSION_1_3;
-
-    uint32_t deviceQueueFamilyPropertyCount;
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &deviceQueueFamilyPropertyCount, nullptr);
-    std::vector<VkQueueFamilyProperties> deviceQueueFamilyProperties(deviceQueueFamilyPropertyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &deviceQueueFamilyPropertyCount, deviceQueueFamilyProperties.data());
-    bool supportGraphics = false;
-    for(const auto& queueFamily : deviceQueueFamilyProperties) {
-      if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-        supportGraphics = true;
-        break;
-      }
-    }
+    const bool supportsVulkanApi = physicalDeviceProperties.apiVersion >= VK_API_VERSION_1_3;
+    const bool supportRequiredQueueFamilies = findPhysicalDeviceQueueFamily(physicalDevice) != ~0U;
 
     uint32_t deviceExtensionPropertyCount;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr,  &deviceExtensionPropertyCount, nullptr);
@@ -224,43 +215,40 @@ void Renderer::pickPhysicalDevice() {
         break;
       }
     }
-    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extDynamicFeatures{};
-    extDynamicFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
-    extDynamicFeatures.pNext = NULL;  // End of the chain
 
-    VkPhysicalDeviceVulkan13Features vulkan13Features{};
-    vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    vulkan13Features.pNext = &extDynamicFeatures;
+    bool supportsSwapChain = false;
+    if (supportsAllRequiredExtensions)
+    {
+      SwapChainSupportDetails swapChainSupport;
+      querySwapChainSupport(physicalDevice, swapChainSupport);
+      supportsSwapChain = !swapChainSupport.mFormats.empty() && !swapChainSupport.mPresentModes.empty();
+    }
 
-    VkPhysicalDeviceVulkan11Features vulkan11Features{};
-    vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-    vulkan11Features.pNext = &vulkan13Features;
-
-    VkPhysicalDeviceFeatures2 features2{};
-    features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features2.pNext = &vulkan11Features;  // Start of the chain
-
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extDynamicFeatures {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+      .pNext = NULL  // End of the chain
+    };
+    VkPhysicalDeviceVulkan13Features vulkan13Features {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+      .pNext = &extDynamicFeatures
+    };
+    VkPhysicalDeviceVulkan11Features vulkan11Features {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+      .pNext = &vulkan13Features
+    };
+    VkPhysicalDeviceFeatures2 features2 {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+      .pNext = &vulkan11Features  // Start of the chain
+    };
     // Query all features at once
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
     // Check support for features you need
-    bool supportsRequiredFeatures = 
-      vulkan11Features.shaderDrawParameters &&
-      vulkan13Features.dynamicRendering &&
-      extDynamicFeatures.extendedDynamicState;
-    NE_LOG("deviceName: {}\n\tdeviceType: {}\n\tsupportsVulkanApi: {}\n\tsupportGraphics: {}\n\t"
-           "supportsRequiredFeatures: {}\n\tshaderDrawParameters: {}\n\tdynamicRendering: {}\n\textendedDynamicState: {}",
-           physicalDeviceProperties.deviceName,
-           string_VkPhysicalDeviceType(physicalDeviceProperties.deviceType),
-           supportsVulkanApi,
-           supportGraphics,
-           supportsRequiredFeatures,
-           vulkan11Features.shaderDrawParameters,
-           vulkan13Features.dynamicRendering,
-           extDynamicFeatures.extendedDynamicState);
+    bool supportsRequiredFeatures = vulkan11Features.shaderDrawParameters && vulkan13Features.dynamicRendering 
+                                    && extDynamicFeatures.extendedDynamicState;
 
     // this features are a must to continue using this device
-    if(!(supportsVulkanApi && supportGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures)) {
+    if(!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain && supportsRequiredFeatures)) {
       continue;
     }
 
@@ -282,32 +270,108 @@ void Renderer::pickPhysicalDevice() {
   NE_LOG("Selected device: {}", mPhysicalDeviceProperties.deviceName);
 }
 
-Renderer::QueueFamilyIndices Renderer::findPhysicalQueueFamilies() {
+void Renderer::createLogicalDevice() {
+  uint32_t queueFamilyIndex = findPhysicalDeviceQueueFamily(mPhysicalDevice);
+  NE_ASSERT(queueFamilyIndex != ~0U, "Couldn't find the queue for graphics and present.");
+  float queuePriority = 0.5f;
+  VkDeviceQueueCreateInfo deviceQueueCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+    .queueFamilyIndex = queueFamilyIndex,
+    .queueCount = 1,
+    .pQueuePriorities = &queuePriority
+  };
 
-  QueueFamilyIndices indices;
+  VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extDynamicFeatures {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT,
+    .pNext = NULL,  // End of the chain
+    .extendedDynamicState = true
+  };
+  VkPhysicalDeviceVulkan13Features vulkan13Features {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+    .pNext = &extDynamicFeatures,
+    .dynamicRendering = true
+  };
+  VkPhysicalDeviceVulkan11Features vulkan11Features {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES,
+    .pNext = &vulkan13Features,
+    .shaderDrawParameters = true
+  };
+  VkPhysicalDeviceFeatures2 deviceFeatures {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+    .pNext = &vulkan11Features  // Start of the chain
+  };
 
-  uint32_t deviceQueueFamilyPropertyCount;
-  vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &deviceQueueFamilyPropertyCount, nullptr);
-  std::vector<VkQueueFamilyProperties> deviceQueueFamilyProperties(deviceQueueFamilyPropertyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &deviceQueueFamilyPropertyCount, deviceQueueFamilyProperties.data());
-  for(size_t queueIndex = 0; queueIndex < deviceQueueFamilyProperties.size(); queueIndex++) {
-    const auto& queueFamily = deviceQueueFamilyProperties[queueIndex];
-    if(queueFamily.queueCount <= 0) {
-      break;
-    }
+  VkDeviceCreateInfo deviceCreateInfo {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+      .pNext = &deviceFeatures,
+      .flags = 0,
+      .queueCreateInfoCount = 1,
+      .pQueueCreateInfos = &deviceQueueCreateInfo,
+      .enabledExtensionCount = static_cast<uint32_t>(mRequiredDeviceExtensions.size()),
+      .ppEnabledExtensionNames = mRequiredDeviceExtensions.data(),
+      .pEnabledFeatures = nullptr
+  };
 
-    if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      indices.mGraphicsFamilyIndex = queueIndex;
-    }
-    // VkBool32 presentSupport = false;
-    // vkGetPhysicalDeviceSurfaceSupportKHR(mDevice, i, mSurface, &presentSupport);
-
-    if(indices.isComplete()) {
-      break;
-    }
-  }
-  return indices;
+  VK_CHECK(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
+  vkGetDeviceQueue(mDevice, queueFamilyIndex, 0, &mQueue);
 }
 
+void Renderer::createSwapChain() {
+  SwapChainSupportDetails swapChainSupport;
+  querySwapChainSupport(mPhysicalDevice, swapChainSupport);
+}
+
+uint32_t Renderer::findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice) {
+  uint32_t deviceQueueFamilyPropertyCount;
+  vkGetPhysicalDeviceQueueFamilyProperties(iPhysicalDevice, &deviceQueueFamilyPropertyCount, nullptr);
+  std::vector<VkQueueFamilyProperties> deviceQueueFamilyProperties(deviceQueueFamilyPropertyCount);
+  vkGetPhysicalDeviceQueueFamilyProperties(iPhysicalDevice, &deviceQueueFamilyPropertyCount, deviceQueueFamilyProperties.data());
+  for (size_t queueIndex = 0; queueIndex < deviceQueueFamilyProperties.size(); queueIndex++) {
+    const auto& queueFamily = deviceQueueFamilyProperties[queueIndex];
+    if (queueFamily.queueCount <= 0) {
+      break;
+    }
+
+    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+      VkBool32 presentSupport = false;
+      vkGetPhysicalDeviceSurfaceSupportKHR(iPhysicalDevice, static_cast<uint32_t>(queueIndex), mSurface, &presentSupport);
+      if (presentSupport) {
+        return static_cast<uint32_t>(queueIndex);
+      }
+    }
+  }
+  return ~0U;
+}
+
+void Renderer::querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportDetails& oSwapChainSupportDetails)
+{
+  vkGetPhysicalDeviceSurfaceCapabilitiesKHR(iDevice, mSurface, &oSwapChainSupportDetails.mCapabilities);
+
+  uint32_t formatCount;
+  vkGetPhysicalDeviceSurfaceFormatsKHR(iDevice, mSurface, &formatCount, nullptr);
+  oSwapChainSupportDetails.mFormats.resize(formatCount);
+  vkGetPhysicalDeviceSurfaceFormatsKHR(iDevice, mSurface, &formatCount, oSwapChainSupportDetails.mFormats.data());
+
+  uint32_t presentModeCount;
+  vkGetPhysicalDeviceSurfacePresentModesKHR(iDevice, mSurface, &presentModeCount, nullptr);
+  oSwapChainSupportDetails.mPresentModes.resize(presentModeCount);
+  vkGetPhysicalDeviceSurfacePresentModesKHR(iDevice, mSurface, &presentModeCount, oSwapChainSupportDetails.mPresentModes.data());
+}
+
+VkSurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& iAvailableFormats)
+{
+  NE_ASSERT(!iAvailableFormats.empty());
+  return VkSurfaceFormatKHR();
+}
+
+VkPresentModeKHR Renderer::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& iAvailablePresentModes)
+{
+  return VkPresentModeKHR();
+}
+
+VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& iCapabilities)
+{
+  return VkExtent2D();
+}
 
 } // namespace ne

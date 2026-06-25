@@ -22,19 +22,29 @@ public:
   Renderer& operator=(Renderer&&) = delete;
 
 
-  struct QueueFamilyIndices {
-    int32_t mGraphicsFamilyIndex;
-    int32_t mPresentFamilyIndex;
-    bool isComplete() { return mGraphicsFamilyIndex != -1 && mPresentFamilyIndex != -1; }
-  };
-
-  QueueFamilyIndices findPhysicalQueueFamilies();
-
 private:
   void createInstance();
   void setupDebugMessenger();
+  void createSurface();
   void pickPhysicalDevice();
+  void createLogicalDevice();
+  void createSwapChain();
 
+  // Helper Functions
+  uint32_t findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice);
+
+  struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR mCapabilities;
+    std::vector<VkSurfaceFormatKHR> mFormats;
+    std::vector<VkPresentModeKHR> mPresentModes;
+  };
+  void querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportDetails& oSwapChainSupportDetails);
+
+  VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& iAvailableFormats);
+  VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& iAvailablePresentModes);
+  VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& iCapabilities);
+
+  // Member variables
 #if defined(NE_BUILD_DEBUG)
   const bool enableValidationLayers = false;
 #else
@@ -53,9 +63,11 @@ private:
 
   VkInstance mInstance;
   VkDebugUtilsMessengerEXT mDebugMessenger;
+  VkSurfaceKHR mSurface;
   VkPhysicalDevice mPhysicalDevice;
   VkPhysicalDeviceProperties mPhysicalDeviceProperties;
-
+  VkDevice mDevice;
+  VkQueue mQueue;
 };
 
 }

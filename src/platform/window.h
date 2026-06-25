@@ -29,7 +29,7 @@ public:
   void resetWindowResizedFlag() { mFrameBufferResized = false; }
   GLFWwindow *getGLFWwindow() const { return mWindow; }
   std::vector<const char*> getRequiredInstanceExtensions();
-  void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
+  VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
 private:
   static void frameBufferResizedCallback(GLFWwindow *window, int width,

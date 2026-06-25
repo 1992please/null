@@ -1,6 +1,5 @@
 #include "platform/window.h"
 #include "core/core.h"
-#include "renderer/utils.h"
 
 #include <GLFW/glfw3.h>
 
@@ -58,7 +57,7 @@ std::vector<const char*> Window::getRequiredInstanceExtensions()
   return result;
 }
 
-void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
-  VK_CHECK(glfwCreateWindowSurface(instance, mWindow, nullptr, surface));
+VkResult Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
+  return glfwCreateWindowSurface(instance, mWindow, nullptr, surface);
 }
 } // namespace ne

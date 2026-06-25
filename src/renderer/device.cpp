@@ -188,7 +188,7 @@ void Device::createCommandPool() {
 }
 
 void Device::createSurface() {
-  mWindow.createWindowSurface(mInstance, &mSurface);
+  VK_CHECK(mWindow.createWindowSurface(mInstance, &mSurface));
 }
 
 bool Device::isDeviceSuitable(VkPhysicalDevice iDevice) {
