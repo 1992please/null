@@ -24,6 +24,13 @@ void Window::processEvents()
   glfwPollEvents();
 }
 
+VkExtent2D Window::getExtent()
+{
+  int width, height;
+  glfwGetFramebufferSize(mWindow, &width, &height);
+  return { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+}
+
 void Window::frameBufferResizedCallback(GLFWwindow *window, int width,
                                         int height) {
   Window *veWindow =

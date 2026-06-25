@@ -68,6 +68,7 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   , mInstance(VK_NULL_HANDLE)
   , mDebugMessenger(VK_NULL_HANDLE)
   , mPhysicalDevice(VK_NULL_HANDLE)
+  , mSwapChain(VK_NULL_HANDLE)
 {
   createInstance();
   setupDebugMessenger();
@@ -78,6 +79,8 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
 }
 
 Renderer::~Renderer() {
+  vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+
   vkDestroyDevice(mDevice, nullptr);
   if (enableValidationLayers) {
     DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
@@ -319,6 +322,74 @@ void Renderer::createLogicalDevice() {
 void Renderer::createSwapChain() {
   SwapChainSupportDetails swapChainSupport;
   querySwapChainSupport(mPhysicalDevice, swapChainSupport);
+  VkSurfaceCapabilitiesKHR surfaceCapabilities = swapChainSupport.mCapabilities;
+
+  // Surface format
+  NE_ASSERT(!swapChainSupport.mFormats.empty());
+  VkSurfaceFormatKHR selectedSurfaceFormat = swapChainSupport.mFormats[0];
+  for (const auto& surfaceFormat : swapChainSupport.mFormats) {
+    if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+      selectedSurfaceFormat = surfaceFormat;
+      break;
+    }
+  }
+  // Present Mode
+  NE_ASSERT(!swapChainSupport.mPresentModes.empty());
+  VkPresentModeKHR selectedPresentMode = swapChainSupport.mPresentModes[0];
+  for (const auto& presentMode : swapChainSupport.mPresentModes) {
+    if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+      selectedPresentMode = presentMode;
+      break;
+    }
+
+    if (presentMode == VK_PRESENT_MODE_FIFO_KHR) {
+      selectedPresentMode = presentMode;
+    }
+  }
+  NE_ASSERT(selectedPresentMode == VK_PRESENT_MODE_MAILBOX_KHR || selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR);
+  NE_LOG("Present mode: {}", selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR ? "V-Sync" : "Mailbox");
+
+  VkExtent2D selectedSwapExtent = surfaceCapabilities.currentExtent;
+  if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) // are we allow to differ?
+  {
+    VkExtent2D windowExtent = mWindow->getExtent();
+    selectedSwapExtent = {
+      .width = std::clamp<uint32_t>(windowExtent.width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width),
+      .height = std::clamp<uint32_t>(windowExtent.height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height)
+    };
+  }
+  // Minimum image count
+  uint32_t minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
+  if ((0 < surfaceCapabilities.maxImageCount) && (surfaceCapabilities.maxImageCount < minImageCount))
+  {
+    minImageCount = surfaceCapabilities.maxImageCount;
+  }
+  VkSwapchainCreateInfoKHR swapchainCreateInfo{
+    .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+    .surface = mSurface,
+    .minImageCount = minImageCount,
+    .imageFormat = selectedSurfaceFormat.format,
+    .imageColorSpace = selectedSurfaceFormat.colorSpace,
+    .imageExtent = selectedSwapExtent,
+    .imageArrayLayers = 1,
+    .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+    .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+    .preTransform = surfaceCapabilities.currentTransform,
+    .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+    .presentMode = selectedPresentMode,
+    .clipped = VK_TRUE,
+    .oldSwapchain = VK_NULL_HANDLE
+  };
+
+  VK_CHECK(vkCreateSwapchainKHR(mDevice, &swapchainCreateInfo, nullptr, &mSwapChain));
+
+  uint32_t swapchainImagesCount;
+  vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImagesCount, nullptr);
+  mSwapChainImages.resize(swapchainImagesCount);
+  vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImagesCount,mSwapChainImages.data());
+
+  mSwapChainImageFormat = selectedSurfaceFormat.format;
+  mSwapChainExtent = selectedSwapExtent;
 }
 
 uint32_t Renderer::findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice) {
@@ -356,22 +427,6 @@ void Renderer::querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportD
   vkGetPhysicalDeviceSurfacePresentModesKHR(iDevice, mSurface, &presentModeCount, nullptr);
   oSwapChainSupportDetails.mPresentModes.resize(presentModeCount);
   vkGetPhysicalDeviceSurfacePresentModesKHR(iDevice, mSurface, &presentModeCount, oSwapChainSupportDetails.mPresentModes.data());
-}
-
-VkSurfaceFormatKHR Renderer::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& iAvailableFormats)
-{
-  NE_ASSERT(!iAvailableFormats.empty());
-  return VkSurfaceFormatKHR();
-}
-
-VkPresentModeKHR Renderer::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& iAvailablePresentModes)
-{
-  return VkPresentModeKHR();
-}
-
-VkExtent2D Renderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& iCapabilities)
-{
-  return VkExtent2D();
 }
 
 } // namespace ne

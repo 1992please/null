@@ -22,9 +22,7 @@ public:
   const std::string& getWindowName() const { return mWindowName; }
   bool shouldClose();
   void processEvents();
-  VkExtent2D getExtent() {
-    return {static_cast<uint32_t>(mWidth), static_cast<uint32_t>(mHeight)};
-  }
+  VkExtent2D getExtent();
   bool wasWindowResized() { return mFrameBufferResized; }
   void resetWindowResizedFlag() { mFrameBufferResized = false; }
   GLFWwindow *getGLFWwindow() const { return mWindow; }

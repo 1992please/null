@@ -21,7 +21,6 @@ public:
   Renderer(Renderer&&) = delete;
   Renderer& operator=(Renderer&&) = delete;
 
-
 private:
   void createInstance();
   void setupDebugMessenger();
@@ -40,15 +39,11 @@ private:
   };
   void querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportDetails& oSwapChainSupportDetails);
 
-  VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& iAvailableFormats);
-  VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& iAvailablePresentModes);
-  VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& iCapabilities);
-
   // Member variables
 #if defined(NE_BUILD_DEBUG)
-  const bool enableValidationLayers = false;
-#else
   const bool enableValidationLayers = true;
+#else
+  const bool enableValidationLayers = false;
 #endif
 
   const std::vector<char const*> mValidationLayers = {
@@ -68,6 +63,12 @@ private:
   VkPhysicalDeviceProperties mPhysicalDeviceProperties;
   VkDevice mDevice;
   VkQueue mQueue;
+
+  VkSwapchainKHR mSwapChain;
+  std::vector<VkImage> mSwapChainImages;
+  VkFormat mSwapChainImageFormat;
+  VkFormat mSwapChainDepthFormat;
+  VkExtent2D mSwapChainExtent;
 };
 
 }
