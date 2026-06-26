@@ -63,6 +63,11 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
 }
 
 Renderer::~Renderer() {
+  for(VkImageView& imageView : mSwapChainImageViews) {
+    vkDestroyImageView(mDevice, imageView, nullptr);
+  }
+  mSwapChainImageViews.clear();
+
   vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
 
   vkDestroyDevice(mDevice, nullptr);
@@ -357,6 +362,28 @@ void Renderer::createSwapChain() {
 
   mSwapChainImageFormat = selectedSurfaceFormat.format;
   mSwapChainExtent = selectedSwapExtent;
+}
+
+void Renderer::createImageViews() {
+  VkImageViewCreateInfo imageViewCreateInfo{};
+  imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  imageViewCreateInfo.format = mSwapChainImageFormat;
+  imageViewCreateInfo.subresourceRange = {
+    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+    .baseMipLevel = 0,
+    .levelCount = 1,
+    .baseArrayLayer = 0,
+    .layerCount = 1
+  };
+
+  mSwapChainImageViews.resize(mSwapChainImages.size());
+  for(size_t i = 0; i < mSwapChainImages.size(); i++) {
+    imageViewCreateInfo.image = mSwapChainImages[i];
+    VkImageView imageView;
+    VK_CHECK(vkCreateImageView(mDevice, &imageViewCreateInfo, nullptr, &imageView));
+    mSwapChainImageViews[i] = imageView;
+  }
 }
 
 uint32_t Renderer::findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice) {

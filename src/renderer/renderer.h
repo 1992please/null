@@ -28,6 +28,7 @@ private:
   void pickPhysicalDevice();
   void createLogicalDevice();
   void createSwapChain();
+  void createImageViews();
 
   // Helper Functions
   uint32_t findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice);
@@ -66,6 +67,7 @@ private:
   VkFormat mSwapChainImageFormat;
   VkFormat mSwapChainDepthFormat;
   VkExtent2D mSwapChainExtent;
+  std::vector<VkImageView> mSwapChainImageViews;
 };
 
 } // namespace ne
