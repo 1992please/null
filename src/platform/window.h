@@ -12,12 +12,12 @@ namespace ne {
 
 class Window {
 public:
-  Window(int iWidth, int iHeight, const std::string &iName);
+  Window(int iWidth, int iHeight, const std::string& iName);
   ~Window();
 
   // Remove copy constructor
-  Window(const Window &) = delete;
-  Window &operator=(const Window &) = delete;
+  Window(const Window&) = delete;
+  Window& operator=(const Window&) = delete;
 
   const std::string& getWindowName() const { return mWindowName; }
   bool shouldClose();
@@ -25,13 +25,12 @@ public:
   VkExtent2D getExtent();
   bool wasWindowResized() { return mFrameBufferResized; }
   void resetWindowResizedFlag() { mFrameBufferResized = false; }
-  GLFWwindow *getGLFWwindow() const { return mWindow; }
+  GLFWwindow* getGLFWwindow() const { return mWindow; }
   std::vector<const char*> getRequiredInstanceExtensions();
-  VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
+  VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface);
 
 private:
-  static void frameBufferResizedCallback(GLFWwindow *window, int width,
-                                         int height);
+  static void frameBufferResizedCallback(GLFWwindow* window, int width, int height);
   void initWindow();
 
   int mWidth;
@@ -39,6 +38,6 @@ private:
   bool mFrameBufferResized;
 
   std::string mWindowName;
-  GLFWwindow *mWindow;
+  GLFWwindow* mWindow;
 };
 } // namespace ne

@@ -3,8 +3,8 @@
 #include <vulkan/vulkan.h>
 
 // std lib headers
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace ne {
 
@@ -46,11 +46,8 @@ private:
   const bool enableValidationLayers = false;
 #endif
 
-  const std::vector<char const*> mValidationLayers = {
-    "VK_LAYER_KHRONOS_validation"
-  };
-  const std::vector<const char *> mRequiredDeviceExtensions = {
-      VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+  const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
+  const std::vector<const char*> mRequiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
   Window* mWindow;
   std::string mEngineName;
@@ -71,4 +68,4 @@ private:
   VkExtent2D mSwapChainExtent;
 };
 
-}
+} // namespace ne

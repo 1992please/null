@@ -9,10 +9,8 @@
 
 namespace ne {
 
-Application::Application() {
-}
+Application::Application() {}
 
-Application::~Application() {
-}
+Application::~Application() {}
 
 } // namespace ne

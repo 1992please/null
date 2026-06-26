@@ -4,7 +4,7 @@
 #include <GLFW/glfw3.h>
 
 namespace ne {
-Window::Window(int iWidth, int iHeight, const std::string &iName)
+Window::Window(int iWidth, int iHeight, const std::string& iName)
     : mWidth(iWidth), mHeight(iHeight), mFrameBufferResized(false), mWindowName(iName) {
   initWindow();
 }
@@ -14,27 +14,18 @@ Window::~Window() {
   glfwTerminate();
 }
 
-bool Window::shouldClose()
-{
-    return glfwWindowShouldClose(mWindow);
-}
+bool Window::shouldClose() { return glfwWindowShouldClose(mWindow); }
 
-void Window::processEvents()
-{
-  glfwPollEvents();
-}
+void Window::processEvents() { glfwPollEvents(); }
 
-VkExtent2D Window::getExtent()
-{
+VkExtent2D Window::getExtent() {
   int width, height;
   glfwGetFramebufferSize(mWindow, &width, &height);
-  return { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+  return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
 }
 
-void Window::frameBufferResizedCallback(GLFWwindow *window, int width,
-                                        int height) {
-  Window *veWindow =
-      reinterpret_cast<Window *>(glfwGetWindowUserPointer(window));
+void Window::frameBufferResizedCallback(GLFWwindow* window, int width, int height) {
+  Window* veWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
   veWindow->mFrameBufferResized = true;
   veWindow->mWidth = width;
   veWindow->mHeight = height;
@@ -53,18 +44,16 @@ void Window::initWindow() {
   mWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
   glfwSetWindowUserPointer(mWindow, this);
   glfwSetFramebufferSizeCallback(mWindow, frameBufferResizedCallback);
-
 }
 
-std::vector<const char*> Window::getRequiredInstanceExtensions()
-{
+std::vector<const char*> Window::getRequiredInstanceExtensions() {
   uint32_t count = 0;
   const char** extensions = glfwGetRequiredInstanceExtensions(&count);
   std::vector<const char*> result(extensions, extensions + count);
   return result;
 }
 
-VkResult Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
+VkResult Window::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
   return glfwCreateWindowSurface(instance, mWindow, nullptr, surface);
 }
 } // namespace ne

@@ -6,13 +6,11 @@
 namespace ne {
 class Application {
 public:
-
-
   Application();
   virtual ~Application();
 
-  Application(const Application &) = delete;
-  Application &operator=(const Application &) = delete;
+  Application(const Application&) = delete;
+  Application& operator=(const Application&) = delete;
 
   virtual void run() = 0;
 
