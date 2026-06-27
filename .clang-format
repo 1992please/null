@@ -1,3 +1,13 @@
 BasedOnStyle: LLVM
+
 ColumnLimit: 120
 PointerAlignment: Left
+
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+# AlignConsecutiveAssignments:
+#   Enabled: true
+#   AcrossEmptyLines: false
+#   AcrossComments: false

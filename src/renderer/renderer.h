@@ -29,6 +29,7 @@ private:
   void createLogicalDevice();
   void createSwapChain();
   void createImageViews();
+  void createGraphicsPipeline();
 
   // Helper Functions
   uint32_t findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice);
@@ -38,7 +39,8 @@ private:
     std::vector<VkSurfaceFormatKHR> mFormats;
     std::vector<VkPresentModeKHR> mPresentModes;
   };
-  void querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportDetails& oSwapChainSupportDetails);
+  SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
+  [[nodiscard]] VkShaderModule createShaderModule(const std::string& iFilename) const;
 
   // Member variables
 #if defined(NE_BUILD_DEBUG)

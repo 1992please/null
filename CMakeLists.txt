@@ -9,7 +9,8 @@ set(ThirdPartyDir "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 set(SourceDir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(ShadersDir "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(BinDir "${CMAKE_BINARY_DIR}/bin")
-set(BinShaderDir "${BinDir}/compiled_shaders")
+set(RelativeBinShaderDirctory "compiled_shaders")
+set(BinShaderDir "${BinDir}/${RelativeBinShaderDirctory}")
 
 # ----------------------------------------------------------------------
 # Vulkan
@@ -54,7 +55,7 @@ file(GLOB_RECURSE ENGINE_SOURCE_FILES
 file(GLOB_RECURSE ENGINE_SHADERS
     LIST_DIRECTORIES false
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    shaders/*.frag shaders/*.vert shaders/*.comp
+    shaders/*.frag shaders/*.vert shaders/*.comp shaders/*.slang
 )
 
 if(MSVC)
@@ -83,6 +84,7 @@ target_compile_definitions(${EngineTarget} PRIVATE
   $<$<PLATFORM_ID:Darwin>:NE_PLATFORM_APPLE>
 
   NE_BUILD_DIR="${CMAKE_BINARY_DIR}"
+  NE_SHADER_DIR="${RelativeBinShaderDirctory}"
   GLFW_INCLUDE_VULKAN
 )
 
@@ -96,20 +98,36 @@ set_target_properties(${EngineTarget} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BinD
 # ----------------------------------------------------------------------
 # Shaders
 
-set(ShaderCompiler ${Vulkan_GLSLC_EXECUTABLE})
 file(MAKE_DIRECTORY ${BinShaderDir})
-
 set(CompiledShaders "")
+
 foreach(shader_file ${ENGINE_SHADERS})
   cmake_path(GET shader_file FILENAME shader_name)
+  cmake_path(GET shader_file EXTENSION shader_ext)
   set(spirv_file "${BinShaderDir}/${shader_name}.spv")
   set(absolute_shader_path "${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}")
-  add_custom_command(
-    OUTPUT ${spirv_file}
-    COMMAND ${ShaderCompiler} ${absolute_shader_path} -o ${spirv_file}
-    DEPENDS ${absolute_shader_path}
-    COMMENT "compiling shader ${shader_name} to SPIR-V"
-  )
+  if(shader_ext STREQUAL ".slang")
+    message(STATUS "SLANGC compile: ${absolute_shader_path}")
+    add_custom_command(
+      OUTPUT ${spirv_file}
+      COMMAND ${Vulkan_SLANGC_EXECUTABLE} ${absolute_shader_path}
+              -target spirv
+              -profile spirv_1_4
+              -emit-spirv-directly
+              -fvk-use-entrypoint-name
+              -o ${spirv_file}
+      DEPENDS ${absolute_shader_path}
+      COMMENT "compiling shader ${shader_name} to SPIR-V"
+    )
+  else()
+    message(STATUS "GLSLC compile: ${absolute_shader_path}")
+    add_custom_command(
+      OUTPUT ${spirv_file}
+      COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${absolute_shader_path} -o ${spirv_file}
+      DEPENDS ${absolute_shader_path}
+      COMMENT "compiling shader ${shader_name} to SPIR-V"
+    )
+  endif()
   list(APPEND CompiledShaders ${spirv_file})
 endforeach()
 
@@ -124,7 +142,7 @@ add_dependencies(${EngineTarget} Shaders)
 # Visual Studio
 if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${EngineTarget})
-  set_property(TARGET ${EngineTarget} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+  set_property(TARGET ${EngineTarget} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${BinDir})
   source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS})
   source_group("Misc" FILES ${ENGINE_UTILS})
   set_target_properties(glfw PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")

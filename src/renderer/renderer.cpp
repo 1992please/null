@@ -6,6 +6,7 @@
 // std
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT iMessageType,
@@ -60,10 +61,12 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   pickPhysicalDevice();
   createLogicalDevice();
   createSwapChain();
+  createImageViews();
+  createGraphicsPipeline();
 }
 
 Renderer::~Renderer() {
-  for(VkImageView& imageView : mSwapChainImageViews) {
+  for (VkImageView& imageView : mSwapChainImageViews) {
     vkDestroyImageView(mDevice, imageView, nullptr);
   }
   mSwapChainImageViews.clear();
@@ -202,8 +205,7 @@ void Renderer::pickPhysicalDevice() {
 
     bool supportsSwapChain = false;
     if (supportsAllRequiredExtensions) {
-      SwapChainSupportDetails swapChainSupport;
-      querySwapChainSupport(physicalDevice, swapChainSupport);
+      SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
       supportsSwapChain = !swapChainSupport.mFormats.empty() && !swapChainSupport.mPresentModes.empty();
     }
 
@@ -290,8 +292,7 @@ void Renderer::createLogicalDevice() {
 }
 
 void Renderer::createSwapChain() {
-  SwapChainSupportDetails swapChainSupport;
-  querySwapChainSupport(mPhysicalDevice, swapChainSupport);
+  SwapChainSupportDetails swapChainSupport = querySwapChainSupport(mPhysicalDevice);
   VkSurfaceCapabilitiesKHR surfaceCapabilities = swapChainSupport.mCapabilities;
 
   // Surface format
@@ -369,21 +370,39 @@ void Renderer::createImageViews() {
   imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
   imageViewCreateInfo.format = mSwapChainImageFormat;
-  imageViewCreateInfo.subresourceRange = {
-    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-    .baseMipLevel = 0,
-    .levelCount = 1,
-    .baseArrayLayer = 0,
-    .layerCount = 1
-  };
+  imageViewCreateInfo.subresourceRange = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                                          .baseMipLevel = 0,
+                                          .levelCount = 1,
+                                          .baseArrayLayer = 0,
+                                          .layerCount = 1};
 
   mSwapChainImageViews.resize(mSwapChainImages.size());
-  for(size_t i = 0; i < mSwapChainImages.size(); i++) {
+  for (size_t i = 0; i < mSwapChainImages.size(); i++) {
     imageViewCreateInfo.image = mSwapChainImages[i];
     VkImageView imageView;
     VK_CHECK(vkCreateImageView(mDevice, &imageViewCreateInfo, nullptr, &imageView));
     mSwapChainImageViews[i] = imageView;
   }
+}
+
+void Renderer::createGraphicsPipeline() {
+  VkShaderModule shaderModule = createShaderModule(NE_SHADER_DIR "/triangle.slang.spv");
+
+  VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo;
+  vertShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  vertShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+  vertShaderStageCreateInfo.module = shaderModule;
+  vertShaderStageCreateInfo.pName = "vertMain";
+
+  VkPipelineShaderStageCreateInfo fragShaderStageCreateInfo;
+  fragShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+  fragShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+  fragShaderStageCreateInfo.module = shaderModule;
+  fragShaderStageCreateInfo.pName = "fragMain";
+
+  VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageCreateInfo, fragShaderStageCreateInfo};
+
+  vkDestroyShaderModule(mDevice, shaderModule, nullptr);
 }
 
 uint32_t Renderer::findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice) {
@@ -410,7 +429,9 @@ uint32_t Renderer::findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevic
   return ~0U;
 }
 
-void Renderer::querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportDetails& oSwapChainSupportDetails) {
+Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevice iDevice) {
+  SwapChainSupportDetails oSwapChainSupportDetails;
+
   vkGetPhysicalDeviceSurfaceCapabilitiesKHR(iDevice, mSurface, &oSwapChainSupportDetails.mCapabilities);
 
   uint32_t formatCount;
@@ -423,6 +444,28 @@ void Renderer::querySwapChainSupport(VkPhysicalDevice iDevice, SwapChainSupportD
   oSwapChainSupportDetails.mPresentModes.resize(presentModeCount);
   vkGetPhysicalDeviceSurfacePresentModesKHR(iDevice, mSurface, &presentModeCount,
                                             oSwapChainSupportDetails.mPresentModes.data());
+
+  return oSwapChainSupportDetails;
+}
+
+VkShaderModule Renderer::createShaderModule(const std::string& iFilename) const {
+  std::ifstream file(iFilename, std::ios::ate | std::ios::binary);
+  NE_ASSERT(file.is_open(), "failed to open file!");
+
+  std::vector<char> fileBuffer(file.tellg());
+  file.seekg(0, std::ios::beg);
+  file.read(fileBuffer.data(), static_cast<std::streamsize>(fileBuffer.size()));
+  file.close();
+
+  VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+  shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  shaderModuleCreateInfo.codeSize = fileBuffer.size();
+  shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(fileBuffer.data());
+
+  VkShaderModule shaderModule;
+  VK_CHECK(vkCreateShaderModule(mDevice, &shaderModuleCreateInfo, nullptr, &shaderModule));
+
+  return shaderModule;
 }
 
 } // namespace ne
