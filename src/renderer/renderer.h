@@ -66,10 +66,12 @@ private:
 
   VkSwapchainKHR mSwapChain;
   std::vector<VkImage> mSwapChainImages;
-  VkFormat mSwapChainImageFormat;
-  VkFormat mSwapChainDepthFormat;
+  VkSurfaceFormatKHR mSwapChainSurfaceFormat;
   VkExtent2D mSwapChainExtent;
   std::vector<VkImageView> mSwapChainImageViews;
+
+  VkPipelineLayout mPipelineLayout;
+  VkPipeline mPipeline;
 };
 
 } // namespace ne
