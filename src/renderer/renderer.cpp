@@ -51,8 +51,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 namespace ne {
 
 Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName)
-    : mWindow(iWindow), mEngineName(iEngineName), mAppName(iAppName), mInstance(VK_NULL_HANDLE), mDebugMessenger(VK_NULL_HANDLE),
-      mPhysicalDevice(VK_NULL_HANDLE), mSwapChain(VK_NULL_HANDLE), mPipelineLayout(VK_NULL_HANDLE) {
+    : mWindow(iWindow), mEngineName(iEngineName), mAppName(iAppName) {
   createInstance();
   setupDebugMessenger();
   createSurface();
@@ -61,10 +60,13 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createSwapChain();
   createImageViews();
   createGraphicsPipeline();
+  createCommandPool();
+  createCommandBuffer();
 }
 
 Renderer::~Renderer() {
-  vkDestroyPipeline(mDevice, mPipeline, nullptr);
+  vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+  vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
   vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 
   for (VkImageView& imageView : mSwapChainImageViews) {
@@ -153,7 +155,6 @@ void Renderer::setupDebugMessenger() {
   VkDebugUtilsMessengerCreateInfoEXT createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   createInfo.pNext = nullptr;
-  createInfo.flags = 0;
   createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
   createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -178,8 +179,30 @@ void Renderer::pickPhysicalDevice() {
   for (VkPhysicalDevice& physicalDevice : physicalDevices) {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+    // Vulkan Support
     const bool supportsVulkanApi = physicalDeviceProperties.apiVersion >= VK_API_VERSION_1_3;
-    const bool supportRequiredQueueFamilies = findPhysicalDeviceQueueFamily(physicalDevice) != ~0U;
+
+    // Get supported device queue
+    uint32_t physicalDeviceQueueIndex = ~0U;
+    uint32_t deviceQueueFamilyPropertyCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &deviceQueueFamilyPropertyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> deviceQueueFamilyProperties(deviceQueueFamilyPropertyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &deviceQueueFamilyPropertyCount, deviceQueueFamilyProperties.data());
+    for (size_t queueIndex = 0; queueIndex < deviceQueueFamilyProperties.size(); queueIndex++) {
+      const auto& queueFamily = deviceQueueFamilyProperties[queueIndex];
+      if (queueFamily.queueCount <= 0) {
+        break;
+      }
+      if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, static_cast<uint32_t>(queueIndex), mSurface, &presentSupport);
+        if (presentSupport) {
+          physicalDeviceQueueIndex = static_cast<uint32_t>(queueIndex);
+          break;
+        }
+      }
+    }
+    const bool supportRequiredQueueFamilies = physicalDeviceQueueIndex != ~0U;
 
     uint32_t deviceExtensionPropertyCount;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionPropertyCount, nullptr);
@@ -242,6 +265,7 @@ void Renderer::pickPhysicalDevice() {
       pickedDeviceScore = deviceScore;
       mPhysicalDevice = physicalDevice;
       mPhysicalDeviceProperties = physicalDeviceProperties;
+      mPhysicalDeviceQueueIndex = physicalDeviceQueueIndex;
     }
   }
 
@@ -250,12 +274,11 @@ void Renderer::pickPhysicalDevice() {
 }
 
 void Renderer::createLogicalDevice() {
-  uint32_t queueFamilyIndex = findPhysicalDeviceQueueFamily(mPhysicalDevice);
-  NE_ASSERT(queueFamilyIndex != ~0U, "Couldn't find the queue for graphics and present.");
+  NE_ASSERT(mPhysicalDeviceQueueIndex != ~0U, "Couldn't find the queue for graphics and present.");
   float queuePriority = 0.5f;
   VkDeviceQueueCreateInfo deviceQueueCreateInfo{};
   deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-  deviceQueueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+  deviceQueueCreateInfo.queueFamilyIndex = mPhysicalDeviceQueueIndex;
   deviceQueueCreateInfo.queueCount = 1;
   deviceQueueCreateInfo.pQueuePriorities = &queuePriority;
   VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extDynamicFeatures{};
@@ -276,7 +299,6 @@ void Renderer::createLogicalDevice() {
   VkDeviceCreateInfo deviceCreateInfo{};
   deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceCreateInfo.pNext = &deviceFeatures;
-  deviceCreateInfo.flags = 0;
   deviceCreateInfo.queueCreateInfoCount = 1;
   deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
   deviceCreateInfo.enabledLayerCount = 0;
@@ -286,7 +308,7 @@ void Renderer::createLogicalDevice() {
   deviceCreateInfo.pEnabledFeatures = nullptr;
 
   VK_CHECK(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
-  vkGetDeviceQueue(mDevice, queueFamilyIndex, 0, &mQueue);
+  vkGetDeviceQueue(mDevice, mPhysicalDeviceQueueIndex, 0, &mQueue);
 }
 
 void Renderer::createSwapChain() {
@@ -505,31 +527,74 @@ void Renderer::createGraphicsPipeline() {
   graphicsPipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
   graphicsPipelineCreateInfo.basePipelineIndex = 0;
 
-  VK_CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mPipeline));
+  VK_CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mGraphicsPipeline));
 
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
 }
 
-uint32_t Renderer::findPhysicalDeviceQueueFamily(VkPhysicalDevice iPhysicalDevice) {
-  uint32_t deviceQueueFamilyPropertyCount;
-  vkGetPhysicalDeviceQueueFamilyProperties(iPhysicalDevice, &deviceQueueFamilyPropertyCount, nullptr);
-  std::vector<VkQueueFamilyProperties> deviceQueueFamilyProperties(deviceQueueFamilyPropertyCount);
-  vkGetPhysicalDeviceQueueFamilyProperties(iPhysicalDevice, &deviceQueueFamilyPropertyCount, deviceQueueFamilyProperties.data());
-  for (size_t queueIndex = 0; queueIndex < deviceQueueFamilyProperties.size(); queueIndex++) {
-    const auto& queueFamily = deviceQueueFamilyProperties[queueIndex];
-    if (queueFamily.queueCount <= 0) {
-      break;
-    }
+void Renderer::createCommandPool() {
+  VkCommandPoolCreateInfo commandPoolCreateInfo{};
+  commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+  commandPoolCreateInfo.queueFamilyIndex = mPhysicalDeviceQueueIndex;
 
-    if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-      VkBool32 presentSupport = false;
-      vkGetPhysicalDeviceSurfaceSupportKHR(iPhysicalDevice, static_cast<uint32_t>(queueIndex), mSurface, &presentSupport);
-      if (presentSupport) {
-        return static_cast<uint32_t>(queueIndex);
-      }
-    }
-  }
-  return ~0U;
+  VK_CHECK(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
+}
+
+void Renderer::createCommandBuffer() {
+  VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
+  commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  commandBufferAllocateInfo.commandPool = mCommandPool;
+  commandBufferAllocateInfo.commandBufferCount = 1;
+
+  VK_CHECK(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mCommandBuffer));
+}
+
+void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
+  VkCommandBufferBeginInfo commandBufferBeginInfo{};
+  commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  VK_CHECK(vkBeginCommandBuffer(mCommandBuffer, &commandBufferBeginInfo));
+
+  cmdTransitionImageLayout(
+    iImageIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, // Discard any previous state and optimize for rendering.
+    VK_ACCESS_2_NONE, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, // No prior memory access needs to be completed or flushed.
+    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+  VkRenderingAttachmentInfo colorAttachmentInfo{};
+  colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+  colorAttachmentInfo.imageView = mSwapChainImageViews[iImageIndex];
+  colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+  colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  colorAttachmentInfo.clearValue = {0.1f, 0.1f, 0.1f, 1.0f};
+
+  VkRenderingInfo renderingInfo{};
+  renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+  renderingInfo.renderArea = {.offset = {0, 0}, .extent = mSwapChainExtent};
+  renderingInfo.layerCount = 1, renderingInfo.colorAttachmentCount = 1;
+  renderingInfo.pColorAttachments = &colorAttachmentInfo;
+
+  vkCmdBeginRendering(mCommandBuffer, &renderingInfo);
+  vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+  VkViewport viewport = {.x = 0.0f,
+                         .y = 0.0f,
+                         .width = (float)mSwapChainExtent.width,
+                         .height = (float)mSwapChainExtent.height,
+                         .minDepth = 0.0f,
+                         .maxDepth = 1.0f};
+  VkRect2D scissor = {.offset = {0, 0}, .extent = mSwapChainExtent};
+  vkCmdSetViewport(mCommandBuffer, 0, 1, &viewport);
+  vkCmdSetScissor(mCommandBuffer, 0, 1, &scissor);
+  vkCmdDraw(mCommandBuffer, 3, 1, 0, 0);
+  vkCmdEndRendering(mCommandBuffer);
+
+  cmdTransitionImageLayout(
+    iImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, // Image optimizion from rendering to display engine
+    VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE, // Flush the color attachment write caches before proceeding
+    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR); // All subsequent commands must wait
+
+  vkEndCommandBuffer(mCommandBuffer);
 }
 
 Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevice iDevice) {
@@ -568,6 +633,31 @@ VkShaderModule Renderer::createShaderModule(const std::string& iFilename) const 
   VK_CHECK(vkCreateShaderModule(mDevice, &shaderModuleCreateInfo, nullptr, &shaderModule));
 
   return shaderModule;
+}
+
+void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout,
+                                     VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
+                                     VkPipelineStageFlags2 iDstStageMask) {
+  VkImageMemoryBarrier2 imageMemoryBarrier;
+  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+  imageMemoryBarrier.srcStageMask = iSrcStageMask;
+  imageMemoryBarrier.srcAccessMask = iSrcAccessMask;
+  imageMemoryBarrier.dstStageMask = iDstStageMask;
+  imageMemoryBarrier.dstAccessMask = iDstAccessMask;
+  imageMemoryBarrier.oldLayout = iOldLayout;
+  imageMemoryBarrier.newLayout = iNewLayout;
+  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.image = mSwapChainImages[iImageIndex];
+  imageMemoryBarrier.subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
+
+  VkDependencyInfo dependencyInfo{};
+  dependencyInfo.dependencyFlags = 0;
+  dependencyInfo.imageMemoryBarrierCount = 1;
+  dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
+
+  vkCmdPipelineBarrier2(mCommandBuffer, &dependencyInfo);
 }
 
 } // namespace ne
