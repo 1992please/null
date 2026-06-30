@@ -62,9 +62,14 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createGraphicsPipeline();
   createCommandPool();
   createCommandBuffer();
+  createSyncObjects();
 }
 
 Renderer::~Renderer() {
+  vkDestroySemaphore(mDevice, mRenderFinishedSemaphore, nullptr);
+  vkDestroySemaphore(mDevice, mPresentCompleteSemaphore, nullptr);
+  vkDestroyFence(mDevice, mDrawFence, nullptr);
+
   vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
   vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
   vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
@@ -229,12 +234,9 @@ void Renderer::pickPhysicalDevice() {
       supportsSwapChain = !swapChainSupport.mFormats.empty() && !swapChainSupport.mPresentModes.empty();
     }
 
-    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extDynamicFeatures{};
-    extDynamicFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
-    extDynamicFeatures.pNext = NULL; // End of the chain
     VkPhysicalDeviceVulkan13Features vulkan13Features{};
     vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    vulkan13Features.pNext = &extDynamicFeatures;
+    vulkan13Features.pNext = nullptr;
     VkPhysicalDeviceVulkan11Features vulkan11Features{};
     vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
     vulkan11Features.pNext = &vulkan13Features;
@@ -245,8 +247,7 @@ void Renderer::pickPhysicalDevice() {
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
     // Check support for features you need
-    bool supportsRequiredFeatures =
-        vulkan11Features.shaderDrawParameters && vulkan13Features.dynamicRendering && extDynamicFeatures.extendedDynamicState;
+    bool supportsRequiredFeatures = vulkan11Features.shaderDrawParameters && vulkan13Features.dynamicRendering && vulkan13Features.synchronization2;
 
     // this features are a must to continue using this device
     if (!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain &&
@@ -281,18 +282,15 @@ void Renderer::createLogicalDevice() {
   deviceQueueCreateInfo.queueFamilyIndex = mPhysicalDeviceQueueIndex;
   deviceQueueCreateInfo.queueCount = 1;
   deviceQueueCreateInfo.pQueuePriorities = &queuePriority;
-  VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extDynamicFeatures{};
-  extDynamicFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT;
-  extDynamicFeatures.pNext = NULL; // End of the chain
-  extDynamicFeatures.extendedDynamicState = true;
   VkPhysicalDeviceVulkan13Features vulkan13Features{};
   vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-  vulkan13Features.pNext = &extDynamicFeatures;
-  vulkan13Features.dynamicRendering = true;
+  vulkan13Features.pNext = nullptr;
+  vulkan13Features.dynamicRendering = VK_TRUE;
+  vulkan13Features.synchronization2 = VK_TRUE;
   VkPhysicalDeviceVulkan11Features vulkan11Features{};
   vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
   vulkan11Features.pNext = &vulkan13Features;
-  vulkan11Features.shaderDrawParameters = true;
+  vulkan11Features.shaderDrawParameters = VK_TRUE;
   VkPhysicalDeviceFeatures2 deviceFeatures{};
   deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
   deviceFeatures.pNext = &vulkan11Features; // Start of the chain
@@ -301,8 +299,6 @@ void Renderer::createLogicalDevice() {
   deviceCreateInfo.pNext = &deviceFeatures;
   deviceCreateInfo.queueCreateInfoCount = 1;
   deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
-  deviceCreateInfo.enabledLayerCount = 0;
-  deviceCreateInfo.ppEnabledLayerNames = nullptr;
   deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(mRequiredDeviceExtensions.size());
   deviceCreateInfo.ppEnabledExtensionNames = mRequiredDeviceExtensions.data();
   deviceCreateInfo.pEnabledFeatures = nullptr;
@@ -341,7 +337,7 @@ void Renderer::createSwapChain() {
   NE_LOG("Present mode: {}", selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR ? "V-Sync" : "Mailbox");
 
   VkExtent2D selectedSwapExtent = surfaceCapabilities.currentExtent;
-  if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) // are we allow to differ?
+  if (surfaceCapabilities.currentExtent.width == UINT32_MAX) // are we allow to differ?
   {
     VkExtent2D windowExtent = mWindow->getExtent();
     selectedSwapExtent = {.width = std::clamp<uint32_t>(windowExtent.width, surfaceCapabilities.minImageExtent.width,
@@ -551,15 +547,27 @@ void Renderer::createCommandBuffer() {
   VK_CHECK(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mCommandBuffer));
 }
 
+void Renderer::createSyncObjects() {
+  VkSemaphoreCreateInfo semaphoreCreateInfo{};
+  semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+  VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mPresentCompleteSemaphore));
+  VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphore));
+  VkFenceCreateInfo fenceCreateInfo{};
+  fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+  fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+  VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mDrawFence));
+}
+
 void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
   VkCommandBufferBeginInfo commandBufferBeginInfo{};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   VK_CHECK(vkBeginCommandBuffer(mCommandBuffer, &commandBufferBeginInfo));
 
   cmdTransitionImageLayout(
-    iImageIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, // Discard any previous state and optimize for rendering.
-    VK_ACCESS_2_NONE, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, // No prior memory access needs to be completed or flushed.
-    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+      iImageIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, // Discard any previous state and optimize for rendering.
+      VK_ACCESS_2_NONE, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, // No prior memory access needs to be completed or flushed.
+      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -590,11 +598,53 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
   vkCmdEndRendering(mCommandBuffer);
 
   cmdTransitionImageLayout(
-    iImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, // Image optimizion from rendering to display engine
-    VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE, // Flush the color attachment write caches before proceeding
-    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR); // All subsequent commands must wait
+      iImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, // Image optimizion from rendering to display engine
+      VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE, // Flush the color attachment write caches before proceeding
+      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR); // All subsequent commands must wait
+  VK_CHECK(vkEndCommandBuffer(mCommandBuffer));
+}
 
-  vkEndCommandBuffer(mCommandBuffer);
+void Renderer::drawFrame() {
+  VK_CHECK(vkWaitForFences(mDevice, 1, &mDrawFence, VK_TRUE, UINT64_MAX));
+  vkResetFences(mDevice, 1, &mDrawFence);
+  uint32_t imageIndex;
+  VK_CHECK(vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mPresentCompleteSemaphore, VK_NULL_HANDLE, &imageIndex));
+  recordCommandBuffer(imageIndex);
+
+  VkSemaphoreSubmitInfo waitSemaphoreInfo{};
+  waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  waitSemaphoreInfo.semaphore = mPresentCompleteSemaphore;
+  waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+  VkCommandBufferSubmitInfo commandBufferInfo{};
+  commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  commandBufferInfo.commandBuffer = mCommandBuffer;
+
+  VkSemaphoreSubmitInfo signalSemaphoreInfo{};
+  signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
+  signalSemaphoreInfo.semaphore = mRenderFinishedSemaphore;
+  signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+  VkSubmitInfo2 submitInfo2{};
+  submitInfo2.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submitInfo2.pNext = NULL;
+  submitInfo2.flags = 0;
+  submitInfo2.waitSemaphoreInfoCount = 1;
+  submitInfo2.pWaitSemaphoreInfos = &waitSemaphoreInfo;
+  submitInfo2.commandBufferInfoCount = 1;
+  submitInfo2.pCommandBufferInfos = &commandBufferInfo;
+  submitInfo2.signalSemaphoreInfoCount = 1;
+  submitInfo2.pSignalSemaphoreInfos = &signalSemaphoreInfo;
+  VK_CHECK(vkQueueSubmit2(mQueue, 1, &submitInfo2, mDrawFence));
+
+  VkPresentInfoKHR presentInfo{};
+  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+  presentInfo.waitSemaphoreCount = 1;
+  presentInfo.pWaitSemaphores = &mRenderFinishedSemaphore;
+  presentInfo.swapchainCount = 1;
+  presentInfo.pSwapchains = &mSwapChain;
+  presentInfo.pImageIndices = &imageIndex;
+  VK_CHECK(vkQueuePresentKHR(mQueue, &presentInfo));
 }
 
 Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevice iDevice) {
@@ -636,8 +686,8 @@ VkShaderModule Renderer::createShaderModule(const std::string& iFilename) const 
 }
 
 void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout,
-                                     VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
-                                     VkPipelineStageFlags2 iDstStageMask) {
+                                        VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
+                                        VkPipelineStageFlags2 iDstStageMask) {
   VkImageMemoryBarrier2 imageMemoryBarrier;
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   imageMemoryBarrier.srcStageMask = iSrcStageMask;
@@ -653,6 +703,7 @@ void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOld
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
 
   VkDependencyInfo dependencyInfo{};
+  dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
   dependencyInfo.dependencyFlags = 0;
   dependencyInfo.imageMemoryBarrierCount = 1;
   dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;

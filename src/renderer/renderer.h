@@ -21,6 +21,8 @@ public:
   Renderer(Renderer&&) = delete;
   Renderer& operator=(Renderer&&) = delete;
 
+  void drawFrame();
+
 private:
   void createInstance();
   void setupDebugMessenger();
@@ -32,6 +34,7 @@ private:
   void createGraphicsPipeline();
   void createCommandPool();
   void createCommandBuffer();
+  void createSyncObjects();
   void recordCommandBuffer(uint32_t iImageIndex);
 
   // utility functions
@@ -43,7 +46,7 @@ private:
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
   [[nodiscard]] VkShaderModule createShaderModule(const std::string& iFilename) const;
   void cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
-                             VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
+                                VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
   // Member variables
 #if defined(NE_BUILD_DEBUG)
   const bool enableValidationLayers = true;
@@ -77,6 +80,10 @@ private:
   VkPipeline mGraphicsPipeline = VK_NULL_HANDLE;
   VkCommandPool mCommandPool = VK_NULL_HANDLE;
   VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
+
+  VkSemaphore mPresentCompleteSemaphore = VK_NULL_HANDLE;
+  VkSemaphore mRenderFinishedSemaphore = VK_NULL_HANDLE;
+  VkFence mDrawFence = VK_NULL_HANDLE;
 };
 
 } // namespace ne

@@ -2,7 +2,6 @@
 #include "core/core.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
-#include "renderer/utils.h"
 
 namespace ne {
 
@@ -18,6 +17,7 @@ void BasicApp::run() {
 
   while (!mWindow->shouldClose()) {
     mWindow->processEvents();
+    mRenderer->drawFrame();
   }
 
   NE_LOG("BasicApp Done!");
