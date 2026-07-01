@@ -31,11 +31,8 @@ private:
   void pickPhysicalDevice();
   void createLogicalDevice();
   void createSwapChain();
-  void createImageViews();
   void createGraphicsPipeline();
-  void createCommandPool();
-  void createCommandBuffers();
-  void createSyncObjects();
+  void createFrames();
   void recordCommandBuffer(uint32_t iImageIndex);
 
   // utility functions
@@ -74,21 +71,29 @@ private:
   VkQueue mQueue = VK_NULL_HANDLE;
 
   VkSwapchainKHR mSwapChain = VK_NULL_HANDLE;
-  std::vector<VkImage> mSwapChainImages;
   VkSurfaceFormatKHR mSwapChainSurfaceFormat = {};
   VkExtent2D mSwapChainExtent = {};
-  std::vector<VkImageView> mSwapChainImageViews;
+
+  struct SwapchainImageContext {
+    VkImage mImage = VK_NULL_HANDLE;
+    VkImageView mImageView = VK_NULL_HANDLE;
+    VkSemaphore mRenderFinishedSemaphore = VK_NULL_HANDLE;
+  };
+  std::vector<SwapchainImageContext> mSwapChainImages;
 
   VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
   VkPipeline mGraphicsPipeline = VK_NULL_HANDLE;
-  VkCommandPool mCommandPool = VK_NULL_HANDLE;
-  std::vector<VkCommandBuffer> mCommandBuffers;
 
-  std::vector<VkSemaphore> mPresentCompleteSemaphores;
-  std::vector<VkSemaphore> mRenderFinishedSemaphores;
-  std::vector<VkFence> mDrawFences;
-
+  struct FrameContext{
+    VkCommandPool mCommandPool = VK_NULL_HANDLE;
+    VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
+    VkSemaphore mPresentCompleteSemaphore = VK_NULL_HANDLE;
+    VkFence mDrawFence = VK_NULL_HANDLE;
+  };
+  std::vector<FrameContext> mFrames;
   uint32_t mFrameIndex = 0;
+
+  std::vector<VkFence> mDrawFences;
 };
 
 } // namespace ne

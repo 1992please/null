@@ -34,32 +34,24 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   pickPhysicalDevice();
   createLogicalDevice();
   createSwapChain();
-  createImageViews();
   createGraphicsPipeline();
-  createCommandPool();
-  createCommandBuffers();
-  createSyncObjects();
+  createFrames();
 }
 
 Renderer::~Renderer() {
-  for(int i = 0; i < mRenderFinishedSemaphores.size(); i++) {
-    vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
-  }
-  for(int i = 0; i < mPresentCompleteSemaphores.size(); i++) {
-    vkDestroySemaphore(mDevice, mPresentCompleteSemaphores[i], nullptr);
-  }
-  for(int i = 0; i < mDrawFences.size(); i++) {
-    vkDestroyFence(mDevice, mDrawFences[i], nullptr);
+  for(FrameContext frame : mFrames) {
+    vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
+    vkDestroySemaphore(mDevice, frame.mPresentCompleteSemaphore, nullptr);
+    vkDestroyFence(mDevice, frame.mDrawFence, nullptr);
   }
 
-  vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
   vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
   vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 
-  for (VkImageView& imageView : mSwapChainImageViews) {
-    vkDestroyImageView(mDevice, imageView, nullptr);
+  for (SwapchainImageContext& image : mSwapChainImages) {
+    vkDestroyImageView(mDevice, image.mImageView, nullptr);
+    vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
   }
-  mSwapChainImageViews.clear();
 
   vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
 
@@ -358,27 +350,29 @@ void Renderer::createSwapChain() {
 
   uint32_t swapchainImagesCount;
   vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImagesCount, nullptr);
-  mSwapChainImages.resize(swapchainImagesCount);
-  vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImagesCount, mSwapChainImages.data());
+  std::vector<VkImage> swapChainImages(swapchainImagesCount);
+  vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImagesCount, swapChainImages.data());
 
   mSwapChainSurfaceFormat = selectedSurfaceFormat;
   mSwapChainExtent = selectedSwapExtent;
-}
 
-void Renderer::createImageViews() {
-  VkImageViewCreateInfo imageViewCreateInfo{};
-  imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-  imageViewCreateInfo.format = mSwapChainSurfaceFormat.format;
-  imageViewCreateInfo.subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
-
-  mSwapChainImageViews.resize(mSwapChainImages.size());
-  for (size_t i = 0; i < mSwapChainImages.size(); i++) {
-    imageViewCreateInfo.image = mSwapChainImages[i];
-    VkImageView imageView;
-    VK_CHECK(vkCreateImageView(mDevice, &imageViewCreateInfo, nullptr, &imageView));
-    mSwapChainImageViews[i] = imageView;
+  NE_ASSERT(mSwapChainImages.empty());
+  mSwapChainImages.resize(swapChainImages.size());
+  for(int i = 0; i < swapChainImages.size(); i++) {
+    mSwapChainImages[i].mImage = swapChainImages[i];
+    // Create Image view for the swapchain image
+    VkImageViewCreateInfo imageViewCreateInfo{};
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = mSwapChainSurfaceFormat.format;
+    imageViewCreateInfo.subresourceRange = {
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
+    imageViewCreateInfo.image = swapChainImages[i];
+    VK_CHECK(vkCreateImageView(mDevice, &imageViewCreateInfo, nullptr, &mSwapChainImages[i].mImageView));
+    // Create Semaphore for starting display to the image
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mSwapChainImages[i].mRenderFinishedSemaphore));
   }
 }
 
@@ -516,52 +510,37 @@ void Renderer::createGraphicsPipeline() {
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
 }
 
-void Renderer::createCommandPool() {
-  VkCommandPoolCreateInfo commandPoolCreateInfo{};
-  commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-  commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-  commandPoolCreateInfo.queueFamilyIndex = mPhysicalDeviceQueueIndex;
+void Renderer::createFrames() {
+  NE_ASSERT(mFrames.empty());
+  mFrames.resize(MAX_FRAMES_IN_FLIGHT);
+  for(int i = 0; i < mFrames.size(); i++) {
+    // We create a command Pool per frame because reseting it
+    // Reclaims all command memory in one bulk operation, eliminating fragmentation
+    VkCommandPoolCreateInfo commandPoolCreateInfo{};
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.queueFamilyIndex = mPhysicalDeviceQueueIndex;
+    VK_CHECK(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mFrames[i].mCommandPool));
 
-  VK_CHECK(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
-}
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandPool = mFrames[i].mCommandPool;
+    commandBufferAllocateInfo.commandBufferCount = 1;
+    VK_CHECK(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mFrames[i].mCommandBuffer));
 
-void Renderer::createCommandBuffers() {
-  VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
-  commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-  commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-  commandBufferAllocateInfo.commandPool = mCommandPool;
-  commandBufferAllocateInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
+    VkSemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mFrames[i].mPresentCompleteSemaphore));
 
-  mCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-  VK_CHECK(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, mCommandBuffers.data()));
-}
-
-void Renderer::createSyncObjects() {
-  NE_ASSERT(mRenderFinishedSemaphores.empty() && mPresentCompleteSemaphores.empty() && mDrawFences.empty());
-  mRenderFinishedSemaphores.resize(mSwapChainImages.size());
-  mPresentCompleteSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-  mDrawFences.resize(MAX_FRAMES_IN_FLIGHT);
-
-  VkSemaphoreCreateInfo semaphoreCreateInfo{};
-  semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  for (size_t i = 0; i < mRenderFinishedSemaphores.size(); i++) {
-    VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphores[i]));
+    VkFenceCreateInfo fenceCreateInfo{};
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+    VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
   }
-  for (size_t i = 0; i < mPresentCompleteSemaphores.size(); i++) {
-    VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mPresentCompleteSemaphores[i]));
-  }
-  
-  VkFenceCreateInfo fenceCreateInfo{};
-  fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-  fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-  for (size_t i = 0; i < mDrawFences.size(); i++) {
-    VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mDrawFences[i]));
-  }
-
 }
 
 void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
-  auto& commandBuffer = mCommandBuffers[mFrameIndex];
+  auto& commandBuffer = mFrames[mFrameIndex].mCommandBuffer;
 
   VkCommandBufferBeginInfo commandBufferBeginInfo{};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -575,7 +554,7 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-  colorAttachmentInfo.imageView = mSwapChainImageViews[iImageIndex];
+  colorAttachmentInfo.imageView = mSwapChainImages[iImageIndex].mImageView;
   colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
   colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -609,26 +588,28 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
 }
 
 void Renderer::drawFrame() {
-  VK_CHECK(vkWaitForFences(mDevice, 1, &mDrawFences[mFrameIndex], VK_TRUE, UINT64_MAX));
-  vkResetFences(mDevice, 1, &mDrawFences[mFrameIndex]);
+  auto& currentFrame = mFrames[mFrameIndex];
+  
+  VK_CHECK(vkWaitForFences(mDevice, 1, &currentFrame.mDrawFence, VK_TRUE, UINT64_MAX));
+  vkResetFences(mDevice, 1, &currentFrame.mDrawFence);
   uint32_t imageIndex;
-  VK_CHECK(vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mPresentCompleteSemaphores[mFrameIndex], VK_NULL_HANDLE, &imageIndex));
+  VK_CHECK(vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore, VK_NULL_HANDLE, &imageIndex));
 
-  vkResetCommandBuffer(mCommandBuffers[mFrameIndex], 0);
+  vkResetCommandPool(mDevice, currentFrame.mCommandPool, 0);
   recordCommandBuffer(imageIndex);
 
   VkSemaphoreSubmitInfo waitSemaphoreInfo{};
   waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  waitSemaphoreInfo.semaphore = mPresentCompleteSemaphores[mFrameIndex];
+  waitSemaphoreInfo.semaphore = currentFrame.mPresentCompleteSemaphore;
   waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
   VkCommandBufferSubmitInfo commandBufferInfo{};
   commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-  commandBufferInfo.commandBuffer = mCommandBuffers[mFrameIndex];
+  commandBufferInfo.commandBuffer = currentFrame.mCommandBuffer;
 
   VkSemaphoreSubmitInfo signalSemaphoreInfo{};
   signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  signalSemaphoreInfo.semaphore = mRenderFinishedSemaphores[imageIndex];
+  signalSemaphoreInfo.semaphore = mSwapChainImages[imageIndex].mRenderFinishedSemaphore;
   signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   VkSubmitInfo2 submitInfo2{};
@@ -641,12 +622,12 @@ void Renderer::drawFrame() {
   submitInfo2.pCommandBufferInfos = &commandBufferInfo;
   submitInfo2.signalSemaphoreInfoCount = 1;
   submitInfo2.pSignalSemaphoreInfos = &signalSemaphoreInfo;
-  VK_CHECK(vkQueueSubmit2(mQueue, 1, &submitInfo2, mDrawFences[mFrameIndex]));
+  VK_CHECK(vkQueueSubmit2(mQueue, 1, &submitInfo2, currentFrame.mDrawFence));
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = &mRenderFinishedSemaphores[imageIndex];
+  presentInfo.pWaitSemaphores = &mSwapChainImages[imageIndex].mRenderFinishedSemaphore;
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = &mSwapChain;
   presentInfo.pImageIndices = &imageIndex;
@@ -710,7 +691,7 @@ void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOld
   imageMemoryBarrier.newLayout = iNewLayout;
   imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.image = mSwapChainImages[iImageIndex];
+  imageMemoryBarrier.image = mSwapChainImages[iImageIndex].mImage;
   imageMemoryBarrier.subresourceRange = {
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
 
@@ -720,7 +701,7 @@ void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOld
   dependencyInfo.imageMemoryBarrierCount = 1;
   dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
 
-  vkCmdPipelineBarrier2(mCommandBuffers[mFrameIndex], &dependencyInfo);
+  vkCmdPipelineBarrier2(mFrames[mFrameIndex].mCommandBuffer, &dependencyInfo);
 }
 
 } // namespace ne
