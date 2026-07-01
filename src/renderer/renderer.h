@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <Volk/volk.h>
 
 // std lib headers
 #include <string>
@@ -22,6 +22,7 @@ public:
   Renderer& operator=(Renderer&&) = delete;
 
   void drawFrame();
+  void cleanup();
 
 private:
   void createInstance();
@@ -33,7 +34,7 @@ private:
   void createImageViews();
   void createGraphicsPipeline();
   void createCommandPool();
-  void createCommandBuffer();
+  void createCommandBuffers();
   void createSyncObjects();
   void recordCommandBuffer(uint32_t iImageIndex);
 
@@ -47,15 +48,17 @@ private:
   [[nodiscard]] VkShaderModule createShaderModule(const std::string& iFilename) const;
   void cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
                                 VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
+
+  const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
+  const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
+  const std::vector<const char*> mRequiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+
   // Member variables
 #if defined(NE_BUILD_DEBUG)
   const bool enableValidationLayers = true;
 #else
   const bool enableValidationLayers = false;
 #endif
-
-  const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
-  const std::vector<const char*> mRequiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
   Window* mWindow;
   std::string mEngineName;
@@ -79,11 +82,13 @@ private:
   VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
   VkPipeline mGraphicsPipeline = VK_NULL_HANDLE;
   VkCommandPool mCommandPool = VK_NULL_HANDLE;
-  VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
+  std::vector<VkCommandBuffer> mCommandBuffers;
 
-  VkSemaphore mPresentCompleteSemaphore = VK_NULL_HANDLE;
-  VkSemaphore mRenderFinishedSemaphore = VK_NULL_HANDLE;
-  VkFence mDrawFence = VK_NULL_HANDLE;
+  std::vector<VkSemaphore> mPresentCompleteSemaphores;
+  std::vector<VkSemaphore> mRenderFinishedSemaphores;
+  std::vector<VkFence> mDrawFences;
+
+  uint32_t mFrameIndex = 0;
 };
 
 } // namespace ne

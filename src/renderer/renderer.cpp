@@ -24,30 +24,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
   return VK_FALSE;
 }
 
-// Function to create the debug messenger
-VkResult CreateDebugUtilsMessengerEXT(VkInstance iInstance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-                                      const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) {
-
-  auto vkCreateDebugUtilsMessengerEXT =
-      (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(iInstance, "vkCreateDebugUtilsMessengerEXT");
-
-  if (vkCreateDebugUtilsMessengerEXT != nullptr) {
-    return vkCreateDebugUtilsMessengerEXT(iInstance, pCreateInfo, pAllocator, pMessenger);
-  } else {
-    return VK_ERROR_EXTENSION_NOT_PRESENT;
-  }
-}
-
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) {
-
-  auto vkDestroyDebugUtilsMessengerEXT =
-      (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-
-  if (vkDestroyDebugUtilsMessengerEXT != nullptr) {
-    vkDestroyDebugUtilsMessengerEXT(instance, messenger, pAllocator);
-  }
-}
-
 namespace ne {
 
 Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName)
@@ -61,14 +37,20 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createImageViews();
   createGraphicsPipeline();
   createCommandPool();
-  createCommandBuffer();
+  createCommandBuffers();
   createSyncObjects();
 }
 
 Renderer::~Renderer() {
-  vkDestroySemaphore(mDevice, mRenderFinishedSemaphore, nullptr);
-  vkDestroySemaphore(mDevice, mPresentCompleteSemaphore, nullptr);
-  vkDestroyFence(mDevice, mDrawFence, nullptr);
+  for(int i = 0; i < mRenderFinishedSemaphores.size(); i++) {
+    vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
+  }
+  for(int i = 0; i < mPresentCompleteSemaphores.size(); i++) {
+    vkDestroySemaphore(mDevice, mPresentCompleteSemaphores[i], nullptr);
+  }
+  for(int i = 0; i < mDrawFences.size(); i++) {
+    vkDestroyFence(mDevice, mDrawFences[i], nullptr);
+  }
 
   vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
   vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
@@ -82,14 +64,16 @@ Renderer::~Renderer() {
   vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
 
   vkDestroyDevice(mDevice, nullptr);
-  if (enableValidationLayers) {
-    DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+  if (mDebugMessenger != VK_NULL_HANDLE) {
+    vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
   }
   vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
   vkDestroyInstance(mInstance, nullptr);
 }
 
 void Renderer::createInstance() {
+  VK_CHECK(volkInitialize());
+
   VkApplicationInfo appInfo{};
   appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
   appInfo.pApplicationName = mAppName.c_str();
@@ -150,6 +134,8 @@ void Renderer::createInstance() {
   createInfo.ppEnabledExtensionNames = windowExtensions.data();
 
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &mInstance));
+
+  volkLoadInstance(mInstance);
 }
 
 void Renderer::setupDebugMessenger() {
@@ -165,8 +151,8 @@ void Renderer::setupDebugMessenger() {
                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
   createInfo.pfnUserCallback = debugCallback;
   createInfo.pUserData = nullptr; // optional user data
-
-  VK_CHECK(CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
+  
+  VK_CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
 }
 
 void Renderer::createSurface() { VK_CHECK(mWindow->createWindowSurface(mInstance, &mSurface)); }
@@ -304,6 +290,8 @@ void Renderer::createLogicalDevice() {
   deviceCreateInfo.pEnabledFeatures = nullptr;
 
   VK_CHECK(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
+  volkLoadDevice(mDevice);
+
   vkGetDeviceQueue(mDevice, mPhysicalDeviceQueueIndex, 0, &mQueue);
 }
 
@@ -537,31 +525,47 @@ void Renderer::createCommandPool() {
   VK_CHECK(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
 }
 
-void Renderer::createCommandBuffer() {
+void Renderer::createCommandBuffers() {
   VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
   commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
   commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
   commandBufferAllocateInfo.commandPool = mCommandPool;
-  commandBufferAllocateInfo.commandBufferCount = 1;
+  commandBufferAllocateInfo.commandBufferCount = MAX_FRAMES_IN_FLIGHT;
 
-  VK_CHECK(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mCommandBuffer));
+  mCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+  VK_CHECK(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, mCommandBuffers.data()));
 }
 
 void Renderer::createSyncObjects() {
+  NE_ASSERT(mRenderFinishedSemaphores.empty() && mPresentCompleteSemaphores.empty() && mDrawFences.empty());
+  mRenderFinishedSemaphores.resize(mSwapChainImages.size());
+  mPresentCompleteSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+  mDrawFences.resize(MAX_FRAMES_IN_FLIGHT);
+
   VkSemaphoreCreateInfo semaphoreCreateInfo{};
   semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-  VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mPresentCompleteSemaphore));
-  VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphore));
+  for (size_t i = 0; i < mRenderFinishedSemaphores.size(); i++) {
+    VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mRenderFinishedSemaphores[i]));
+  }
+  for (size_t i = 0; i < mPresentCompleteSemaphores.size(); i++) {
+    VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mPresentCompleteSemaphores[i]));
+  }
+  
   VkFenceCreateInfo fenceCreateInfo{};
   fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
   fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-  VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mDrawFence));
+  for (size_t i = 0; i < mDrawFences.size(); i++) {
+    VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mDrawFences[i]));
+  }
+
 }
 
 void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
+  auto& commandBuffer = mCommandBuffers[mFrameIndex];
+
   VkCommandBufferBeginInfo commandBufferBeginInfo{};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-  VK_CHECK(vkBeginCommandBuffer(mCommandBuffer, &commandBufferBeginInfo));
+  VK_CHECK(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 
   cmdTransitionImageLayout(
       iImageIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, // Discard any previous state and optimize for rendering.
@@ -583,8 +587,8 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
   renderingInfo.layerCount = 1, renderingInfo.colorAttachmentCount = 1;
   renderingInfo.pColorAttachments = &colorAttachmentInfo;
 
-  vkCmdBeginRendering(mCommandBuffer, &renderingInfo);
-  vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
+  vkCmdBeginRendering(commandBuffer, &renderingInfo);
+  vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
   VkViewport viewport = {.x = 0.0f,
                          .y = 0.0f,
                          .width = (float)mSwapChainExtent.width,
@@ -592,37 +596,39 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
                          .minDepth = 0.0f,
                          .maxDepth = 1.0f};
   VkRect2D scissor = {.offset = {0, 0}, .extent = mSwapChainExtent};
-  vkCmdSetViewport(mCommandBuffer, 0, 1, &viewport);
-  vkCmdSetScissor(mCommandBuffer, 0, 1, &scissor);
-  vkCmdDraw(mCommandBuffer, 3, 1, 0, 0);
-  vkCmdEndRendering(mCommandBuffer);
+  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+  vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+  vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+  vkCmdEndRendering(commandBuffer);
 
   cmdTransitionImageLayout(
       iImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, // Image optimizion from rendering to display engine
       VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE, // Flush the color attachment write caches before proceeding
-      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT_KHR); // All subsequent commands must wait
-  VK_CHECK(vkEndCommandBuffer(mCommandBuffer));
+      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT); // All subsequent commands must wait
+  VK_CHECK(vkEndCommandBuffer(commandBuffer));
 }
 
 void Renderer::drawFrame() {
-  VK_CHECK(vkWaitForFences(mDevice, 1, &mDrawFence, VK_TRUE, UINT64_MAX));
-  vkResetFences(mDevice, 1, &mDrawFence);
+  VK_CHECK(vkWaitForFences(mDevice, 1, &mDrawFences[mFrameIndex], VK_TRUE, UINT64_MAX));
+  vkResetFences(mDevice, 1, &mDrawFences[mFrameIndex]);
   uint32_t imageIndex;
-  VK_CHECK(vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mPresentCompleteSemaphore, VK_NULL_HANDLE, &imageIndex));
+  VK_CHECK(vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mPresentCompleteSemaphores[mFrameIndex], VK_NULL_HANDLE, &imageIndex));
+
+  vkResetCommandBuffer(mCommandBuffers[mFrameIndex], 0);
   recordCommandBuffer(imageIndex);
 
   VkSemaphoreSubmitInfo waitSemaphoreInfo{};
   waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  waitSemaphoreInfo.semaphore = mPresentCompleteSemaphore;
+  waitSemaphoreInfo.semaphore = mPresentCompleteSemaphores[mFrameIndex];
   waitSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
   VkCommandBufferSubmitInfo commandBufferInfo{};
   commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-  commandBufferInfo.commandBuffer = mCommandBuffer;
+  commandBufferInfo.commandBuffer = mCommandBuffers[mFrameIndex];
 
   VkSemaphoreSubmitInfo signalSemaphoreInfo{};
   signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  signalSemaphoreInfo.semaphore = mRenderFinishedSemaphore;
+  signalSemaphoreInfo.semaphore = mRenderFinishedSemaphores[imageIndex];
   signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   VkSubmitInfo2 submitInfo2{};
@@ -635,16 +641,22 @@ void Renderer::drawFrame() {
   submitInfo2.pCommandBufferInfos = &commandBufferInfo;
   submitInfo2.signalSemaphoreInfoCount = 1;
   submitInfo2.pSignalSemaphoreInfos = &signalSemaphoreInfo;
-  VK_CHECK(vkQueueSubmit2(mQueue, 1, &submitInfo2, mDrawFence));
+  VK_CHECK(vkQueueSubmit2(mQueue, 1, &submitInfo2, mDrawFences[mFrameIndex]));
 
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = &mRenderFinishedSemaphore;
+  presentInfo.pWaitSemaphores = &mRenderFinishedSemaphores[imageIndex];
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = &mSwapChain;
   presentInfo.pImageIndices = &imageIndex;
   VK_CHECK(vkQueuePresentKHR(mQueue, &presentInfo));
+
+  mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void Renderer::cleanup() {
+  vkDeviceWaitIdle(mDevice);
 }
 
 Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevice iDevice) {
@@ -688,7 +700,7 @@ VkShaderModule Renderer::createShaderModule(const std::string& iFilename) const 
 void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout,
                                         VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
                                         VkPipelineStageFlags2 iDstStageMask) {
-  VkImageMemoryBarrier2 imageMemoryBarrier;
+  VkImageMemoryBarrier2 imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   imageMemoryBarrier.srcStageMask = iSrcStageMask;
   imageMemoryBarrier.srcAccessMask = iSrcAccessMask;
@@ -708,7 +720,7 @@ void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOld
   dependencyInfo.imageMemoryBarrierCount = 1;
   dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
 
-  vkCmdPipelineBarrier2(mCommandBuffer, &dependencyInfo);
+  vkCmdPipelineBarrier2(mCommandBuffers[mFrameIndex], &dependencyInfo);
 }
 
 } // namespace ne

@@ -14,7 +14,7 @@ set(BinShaderDir "${BinDir}/${RelativeBinShaderDirctory}")
 
 # ----------------------------------------------------------------------
 # Vulkan
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED COMPONENTS volk)
 find_program(Vulkan_SLANGC_EXECUTABLE slangc HINTS $ENV{VULKAN_SDK}/bin REQUIRED)
 message(STATUS "glslc: ${Vulkan_GLSLC_EXECUTABLE}")
 message(STATUS "slang: ${Vulkan_SLANGC_EXECUTABLE}")
@@ -68,11 +68,11 @@ target_sources(${EngineTarget} PRIVATE ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS} 
 set_source_files_properties(${ENGINE_SHADERS} ${ENGINE_UTILS} PROPERTIES HEADER_FILE_ONLY TRUE)
 target_include_directories(${EngineTarget} PRIVATE ${SourceDir})
 target_link_libraries(${EngineTarget} PRIVATE
+  Vulkan::volk
   glfw
   glm
   cgltf
   spdlog
-  Vulkan::Vulkan
 )
 target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CONFIG:Debug>:NE_BUILD_DEBUG>
@@ -85,7 +85,8 @@ target_compile_definitions(${EngineTarget} PRIVATE
 
   NE_BUILD_DIR="${CMAKE_BINARY_DIR}"
   NE_SHADER_DIR="${RelativeBinShaderDirctory}"
-  GLFW_INCLUDE_VULKAN
+
+  VK_NO_PROTOTYPES
 )
 
 target_compile_options(${EngineTarget} PRIVATE

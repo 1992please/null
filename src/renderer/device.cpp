@@ -73,6 +73,8 @@ Device::~Device() {
 }
 
 void Device::createInstance() {
+  VK_CHECK(volkInitialize());
+
   NE_ASSERT(!enableValidationLayers || checkValidationLayerSupport(),
             "validation layers requested, but not available!");
 
@@ -108,6 +110,8 @@ void Device::createInstance() {
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &mInstance));
 
   hasGflwRequiredInstanceExtensions();
+
+  volkLoadInstance(mInstance);
 }
 
 void Device::pickPhysicalDevice() {
@@ -170,6 +174,7 @@ void Device::createLogicalDevice() {
   createInfo.ppEnabledLayerNames = nullptr;
 
   VK_CHECK(vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice));
+  volkLoadDevice(mDevice);
 
   vkGetDeviceQueue(mDevice, indices.mGraphicsFamily, 0, &mGraphicsQueue);
   vkGetDeviceQueue(mDevice, indices.mPresentFamily, 0, &mPresentQueue);

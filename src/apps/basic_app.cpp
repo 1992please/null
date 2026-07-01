@@ -19,6 +19,7 @@ void BasicApp::run() {
     mWindow->processEvents();
     mRenderer->drawFrame();
   }
+  mRenderer->cleanup();
 
   NE_LOG("BasicApp Done!");
 }
