@@ -4,9 +4,20 @@
 #include <GLFW/glfw3.h>
 
 namespace ne {
-Window::Window(int iWidth, int iHeight, const std::string& iName)
-    : mWidth(iWidth), mHeight(iHeight), mFrameBufferResized(false), mWindowName(iName) {
-  initWindow();
+Window::Window(int iWidth, int iHeight, const std::string& iName) {
+  glfwInit();
+  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+  // NOTE: NADER remove this when you support resizable
+  // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+  // make sure the window is floating for now
+  // #if defined(NE_PLATFORM_LINUX)
+  //   glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+  // #endif
+
+  mWindow = glfwCreateWindow(iWidth, iHeight, iName.c_str(), nullptr, nullptr);
+
+  // this not needed for now since we don't use any callbacks
+  // glfwSetWindowUserPointer(mWindow, this);
 }
 
 Window::~Window() {
@@ -14,39 +25,19 @@ Window::~Window() {
   glfwTerminate();
 }
 
-bool Window::shouldClose() { return glfwWindowShouldClose(mWindow); }
-
 void Window::processEvents() { glfwPollEvents(); }
 
-VkExtent2D Window::getExtent() {
-  int width, height;
-  glfwGetFramebufferSize(mWindow, &width, &height);
-  return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)};
-}
+void Window::waitEvents() { glfwWaitEvents(); }
 
-void Window::frameBufferResizedCallback(GLFWwindow* window, int width, int height) {
-  Window* veWindow = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
-  veWindow->mFrameBufferResized = true;
-  veWindow->mWidth = width;
-  veWindow->mHeight = height;
-}
+const char* Window::getWindowName() const { return glfwGetWindowTitle(mWindow); }
 
-void Window::initWindow() {
-  glfwInit();
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-  // NOTE: NADER remove this when you support resizable
-  // make sure the window is floating for now
-#if defined(NE_PLATFORM_LINUX)
-  glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
-#endif
+bool Window::shouldClose() const { return glfwWindowShouldClose(mWindow); }
 
-  mWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
-  glfwSetWindowUserPointer(mWindow, this);
-  glfwSetFramebufferSizeCallback(mWindow, frameBufferResizedCallback);
-}
+void Window::getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const { glfwGetFramebufferSize(mWindow, oWidth, oHeight); }
 
-std::vector<const char*> Window::getRequiredInstanceExtensions() {
+void Window::getWindowSize(int32_t* oWidth, int32_t* oHeight) const { glfwGetWindowSize(mWindow, oWidth, oHeight); }
+
+std::vector<const char*> Window::getRequiredInstanceExtensions() const {
   uint32_t count = 0;
   const char** extensions = glfwGetRequiredInstanceExtensions(&count);
   std::vector<const char*> result(extensions, extensions + count);

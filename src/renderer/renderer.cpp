@@ -35,11 +35,11 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createLogicalDevice();
   createSwapChain();
   createGraphicsPipeline();
-  createFrames();
+  createFramesResources();
 }
 
 Renderer::~Renderer() {
-  for(FrameContext frame : mFrames) {
+  for (FrameResources frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
     vkDestroySemaphore(mDevice, frame.mPresentCompleteSemaphore, nullptr);
     vkDestroyFence(mDevice, frame.mDrawFence, nullptr);
@@ -48,12 +48,7 @@ Renderer::~Renderer() {
   vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
   vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 
-  for (SwapchainImageContext& image : mSwapChainImages) {
-    vkDestroyImageView(mDevice, image.mImageView, nullptr);
-    vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
-  }
-
-  vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+  cleanupSwapChain();
 
   vkDestroyDevice(mDevice, nullptr);
   if (mDebugMessenger != VK_NULL_HANDLE) {
@@ -143,7 +138,7 @@ void Renderer::setupDebugMessenger() {
                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
   createInfo.pfnUserCallback = debugCallback;
   createInfo.pUserData = nullptr; // optional user data
-  
+
   VK_CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
 }
 
@@ -225,7 +220,8 @@ void Renderer::pickPhysicalDevice() {
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
     // Check support for features you need
-    bool supportsRequiredFeatures = vulkan11Features.shaderDrawParameters && vulkan13Features.dynamicRendering && vulkan13Features.synchronization2;
+    bool supportsRequiredFeatures =
+        vulkan11Features.shaderDrawParameters && vulkan13Features.dynamicRendering && vulkan13Features.synchronization2;
 
     // this features are a must to continue using this device
     if (!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain &&
@@ -314,15 +310,15 @@ void Renderer::createSwapChain() {
     }
   }
   NE_ASSERT(selectedPresentMode == VK_PRESENT_MODE_MAILBOX_KHR || selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR);
-  NE_LOG("Present mode: {}", selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR ? "V-Sync" : "Mailbox");
 
   VkExtent2D selectedSwapExtent = surfaceCapabilities.currentExtent;
   if (surfaceCapabilities.currentExtent.width == UINT32_MAX) // are we allow to differ?
   {
-    VkExtent2D windowExtent = mWindow->getExtent();
-    selectedSwapExtent = {.width = std::clamp<uint32_t>(windowExtent.width, surfaceCapabilities.minImageExtent.width,
+    int32_t frameBufferWidth, frameBufferHeight;
+    mWindow->getFrameBufferSize(&frameBufferWidth, &frameBufferHeight);
+    selectedSwapExtent = {.width = std::clamp<uint32_t>(frameBufferWidth, surfaceCapabilities.minImageExtent.width,
                                                         surfaceCapabilities.maxImageExtent.width),
-                          .height = std::clamp<uint32_t>(windowExtent.height, surfaceCapabilities.minImageExtent.height,
+                          .height = std::clamp<uint32_t>(frameBufferHeight, surfaceCapabilities.minImageExtent.height,
                                                          surfaceCapabilities.maxImageExtent.height)};
   }
   // Minimum image count
@@ -358,7 +354,7 @@ void Renderer::createSwapChain() {
 
   NE_ASSERT(mSwapChainImages.empty());
   mSwapChainImages.resize(swapChainImages.size());
-  for(int i = 0; i < swapChainImages.size(); i++) {
+  for (size_t i = 0; i < swapChainImages.size(); i++) {
     mSwapChainImages[i].mImage = swapChainImages[i];
     // Create Image view for the swapchain image
     VkImageViewCreateInfo imageViewCreateInfo{};
@@ -374,6 +370,10 @@ void Renderer::createSwapChain() {
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mSwapChainImages[i].mRenderFinishedSemaphore));
   }
+
+  NE_LOG("SwapChain:\n\tPresent mode: {}\n\tImage count: {}\n\tImage size: {} x {}",
+         selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR ? "V-Sync" : "Mailbox", swapChainImages.size(), selectedSwapExtent.width,
+         selectedSwapExtent.height);
 }
 
 void Renderer::createGraphicsPipeline() {
@@ -510,10 +510,10 @@ void Renderer::createGraphicsPipeline() {
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
 }
 
-void Renderer::createFrames() {
+void Renderer::createFramesResources() {
   NE_ASSERT(mFrames.empty());
   mFrames.resize(MAX_FRAMES_IN_FLIGHT);
-  for(int i = 0; i < mFrames.size(); i++) {
+  for (size_t i = 0; i < mFrames.size(); i++) {
     // We create a command Pool per frame because reseting it
     // Reclaims all command memory in one bulk operation, eliminating fragmentation
     VkCommandPoolCreateInfo commandPoolCreateInfo{};
@@ -546,11 +546,11 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
   VK_CHECK(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 
-  cmdTransitionImageLayout(
-      iImageIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, // Discard any previous state and optimize for rendering.
-      VK_ACCESS_2_NONE, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, // No prior memory access needs to be completed or flushed.
-      VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
-
+  cmdTransitionImageLayout(iImageIndex, VK_IMAGE_LAYOUT_UNDEFINED,
+                           VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, // Discard any previous state and optimize for rendering.
+                           VK_ACCESS_2_NONE,
+                           VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, // No prior memory access needs to be completed or flushed.
+                           VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -581,7 +581,8 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
   vkCmdEndRendering(commandBuffer);
 
   cmdTransitionImageLayout(
-      iImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, // Image optimizion from rendering to display engine
+      iImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+      VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,                          // Image optimizion from rendering to display engine
       VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE, // Flush the color attachment write caches before proceeding
       VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT); // All subsequent commands must wait
   VK_CHECK(vkEndCommandBuffer(commandBuffer));
@@ -589,11 +590,20 @@ void Renderer::recordCommandBuffer(uint32_t iImageIndex) {
 
 void Renderer::drawFrame() {
   auto& currentFrame = mFrames[mFrameIndex];
-  
+
   VK_CHECK(vkWaitForFences(mDevice, 1, &currentFrame.mDrawFence, VK_TRUE, UINT64_MAX));
-  vkResetFences(mDevice, 1, &currentFrame.mDrawFence);
+
   uint32_t imageIndex;
-  VK_CHECK(vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore, VK_NULL_HANDLE, &imageIndex));
+  VkResult result =
+      vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore, VK_NULL_HANDLE, &imageIndex);
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    recreateSwapChain();
+    return;
+  }
+  VK_CHECK(result);
+
+  // only reset when we have work to submit so as not to block the function
+  vkResetFences(mDevice, 1, &currentFrame.mDrawFence);
 
   vkResetCommandPool(mDevice, currentFrame.mCommandPool, 0);
   recordCommandBuffer(imageIndex);
@@ -631,13 +641,42 @@ void Renderer::drawFrame() {
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = &mSwapChain;
   presentInfo.pImageIndices = &imageIndex;
-  VK_CHECK(vkQueuePresentKHR(mQueue, &presentInfo));
+  result = vkQueuePresentKHR(mQueue, &presentInfo);
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+    recreateSwapChain();
+    return;
+  }
+  VK_CHECK(result);
 
   mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Renderer::cleanup() {
+void Renderer::waitIdle() { vkDeviceWaitIdle(mDevice); }
+
+void Renderer::recreateSwapChain() {
+  int32_t width = 0, height = 0;
+  mWindow->getFrameBufferSize(&width, &height);
+  while (width == 0 || height == 0) {
+    mWindow->waitEvents();
+    mWindow->getFrameBufferSize(&width, &height);
+  }
+
   vkDeviceWaitIdle(mDevice);
+  cleanupSwapChain();
+  createSwapChain();
+}
+
+void Renderer::cleanupSwapChain() {
+  NE_ASSERT(!mSwapChainImages.empty());
+
+  for (SwapchainImageResources& image : mSwapChainImages) {
+    vkDestroyImageView(mDevice, image.mImageView, nullptr);
+    vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
+  }
+  mSwapChainImages.clear();
+
+  vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+  mSwapChain = VK_NULL_HANDLE;
 }
 
 Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevice iDevice) {
@@ -679,8 +718,8 @@ VkShaderModule Renderer::createShaderModule(const std::string& iFilename) const 
 }
 
 void Renderer::cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout,
-                                        VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
-                                        VkPipelineStageFlags2 iDstStageMask) {
+                                        VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
+                                        VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask) {
   VkImageMemoryBarrier2 imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   imageMemoryBarrier.srcStageMask = iSrcStageMask;

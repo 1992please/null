@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Volk/volk.h>
+#include <volk/volk.h>
 
 // std
 #include <string>
@@ -19,25 +19,18 @@ public:
   Window(const Window&) = delete;
   Window& operator=(const Window&) = delete;
 
-  const std::string& getWindowName() const { return mWindowName; }
-  bool shouldClose();
+  bool shouldClose() const;
   void processEvents();
-  VkExtent2D getExtent();
-  bool wasWindowResized() { return mFrameBufferResized; }
-  void resetWindowResizedFlag() { mFrameBufferResized = false; }
+  void waitEvents();
+  void getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const;
+  void getWindowSize(int32_t* oWidth, int32_t* oHeight) const;
   GLFWwindow* getGLFWwindow() const { return mWindow; }
-  std::vector<const char*> getRequiredInstanceExtensions();
+  const char* getWindowName() const;
+  std::vector<const char*> getRequiredInstanceExtensions() const;
   VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface);
 
 private:
-  static void frameBufferResizedCallback(GLFWwindow* window, int width, int height);
-  void initWindow();
-
-  int mWidth;
-  int mHeight;
-  bool mFrameBufferResized;
-
-  std::string mWindowName;
+  // screen coordinates width and height
   GLFWwindow* mWindow;
 };
 } // namespace ne

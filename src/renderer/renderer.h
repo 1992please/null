@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Volk/volk.h>
+#include <volk/volk.h>
 
 // std lib headers
 #include <string>
@@ -22,7 +22,7 @@ public:
   Renderer& operator=(Renderer&&) = delete;
 
   void drawFrame();
-  void cleanup();
+  void waitIdle();
 
 private:
   void createInstance();
@@ -32,7 +32,7 @@ private:
   void createLogicalDevice();
   void createSwapChain();
   void createGraphicsPipeline();
-  void createFrames();
+  void createFramesResources();
   void recordCommandBuffer(uint32_t iImageIndex);
 
   // utility functions
@@ -43,8 +43,11 @@ private:
   };
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
   [[nodiscard]] VkShaderModule createShaderModule(const std::string& iFilename) const;
-  void cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
-                                VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
+  void cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout,
+                                VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
+                                VkPipelineStageFlags2 iDstStageMask);
+  void recreateSwapChain();
+  void cleanupSwapChain();
 
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
   const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
@@ -74,23 +77,23 @@ private:
   VkSurfaceFormatKHR mSwapChainSurfaceFormat = {};
   VkExtent2D mSwapChainExtent = {};
 
-  struct SwapchainImageContext {
+  struct SwapchainImageResources {
     VkImage mImage = VK_NULL_HANDLE;
     VkImageView mImageView = VK_NULL_HANDLE;
     VkSemaphore mRenderFinishedSemaphore = VK_NULL_HANDLE;
   };
-  std::vector<SwapchainImageContext> mSwapChainImages;
+  std::vector<SwapchainImageResources> mSwapChainImages;
 
   VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
   VkPipeline mGraphicsPipeline = VK_NULL_HANDLE;
 
-  struct FrameContext{
+  struct FrameResources {
     VkCommandPool mCommandPool = VK_NULL_HANDLE;
     VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
     VkSemaphore mPresentCompleteSemaphore = VK_NULL_HANDLE;
     VkFence mDrawFence = VK_NULL_HANDLE;
   };
-  std::vector<FrameContext> mFrames;
+  std::vector<FrameResources> mFrames;
   uint32_t mFrameIndex = 0;
 
   std::vector<VkFence> mDrawFences;
