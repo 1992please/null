@@ -3,6 +3,7 @@
 #include <volk/volk.h>
 
 // std
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,8 @@ namespace ne {
 
 class Window {
 public:
+  using FrameBufferResizeCallback = std::function<void()>;
+
   Window(int iWidth, int iHeight, const std::string& iName);
   ~Window();
 
@@ -29,8 +32,12 @@ public:
   std::vector<const char*> getRequiredInstanceExtensions() const;
   VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface);
 
+  void setFrameBufferResizeCallback(FrameBufferResizeCallback iCallback) {  mFrameBufferResizeCallback = std::move(iCallback); }
 private:
+  static void framebufferResizeCallback(GLFWwindow* iWindow, int iWidth, int iHeight);
+
   // screen coordinates width and height
   GLFWwindow* mWindow;
+  FrameBufferResizeCallback mFrameBufferResizeCallback;
 };
 } // namespace ne

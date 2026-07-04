@@ -16,7 +16,6 @@ set(BinShaderDir "${BinDir}/${RelativeBinShaderDirctory}")
 # Vulkan
 find_package(Vulkan REQUIRED COMPONENTS volk)
 find_program(Vulkan_SLANGC_EXECUTABLE slangc HINTS $ENV{VULKAN_SDK}/bin REQUIRED)
-message(STATUS "glslc: ${Vulkan_GLSLC_EXECUTABLE}")
 message(STATUS "slang: ${Vulkan_SLANGC_EXECUTABLE}")
 
 # ----------------------------------------------------------------------
@@ -104,31 +103,20 @@ set(CompiledShaders "")
 
 foreach(shader_file ${ENGINE_SHADERS})
   cmake_path(GET shader_file FILENAME shader_name)
-  cmake_path(GET shader_file EXTENSION shader_ext)
   set(spirv_file "${BinShaderDir}/${shader_name}.spv")
   set(absolute_shader_path "${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}")
-  if(shader_ext STREQUAL ".slang")
-    message(STATUS "SLANGC compile: ${absolute_shader_path}")
-    add_custom_command(
-      OUTPUT ${spirv_file}
-      COMMAND ${Vulkan_SLANGC_EXECUTABLE} ${absolute_shader_path}
-              -target spirv
-              -profile spirv_1_4
-              -emit-spirv-directly
-              -fvk-use-entrypoint-name
-              -o ${spirv_file}
-      DEPENDS ${absolute_shader_path}
-      COMMENT "compiling shader ${shader_name} to SPIR-V"
-    )
-  else()
-    message(STATUS "GLSLC compile: ${absolute_shader_path}")
-    add_custom_command(
-      OUTPUT ${spirv_file}
-      COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${absolute_shader_path} -o ${spirv_file}
-      DEPENDS ${absolute_shader_path}
-      COMMENT "compiling shader ${shader_name} to SPIR-V"
-    )
-  endif()
+  message(STATUS "SLANGC compile: ${absolute_shader_path}")
+  add_custom_command(
+    OUTPUT ${spirv_file}
+    COMMAND ${Vulkan_SLANGC_EXECUTABLE} ${absolute_shader_path}
+            -target spirv
+            -profile spirv_1_4
+            -emit-spirv-directly
+            -fvk-use-entrypoint-name
+            -o ${spirv_file}
+    DEPENDS ${absolute_shader_path}
+    COMMENT "compiling shader ${shader_name} to SPIR-V"
+  )
   list(APPEND CompiledShaders ${spirv_file})
 endforeach()
 

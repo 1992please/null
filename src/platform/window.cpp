@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 namespace ne {
+
 Window::Window(int iWidth, int iHeight, const std::string& iName) {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -16,8 +17,8 @@ Window::Window(int iWidth, int iHeight, const std::string& iName) {
 
   mWindow = glfwCreateWindow(iWidth, iHeight, iName.c_str(), nullptr, nullptr);
 
-  // this not needed for now since we don't use any callbacks
-  // glfwSetWindowUserPointer(mWindow, this);
+  glfwSetWindowUserPointer(mWindow, this);
+  glfwSetFramebufferSizeCallback(mWindow, framebufferResizeCallback);
 }
 
 Window::~Window() {
@@ -47,4 +48,14 @@ std::vector<const char*> Window::getRequiredInstanceExtensions() const {
 VkResult Window::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
   return glfwCreateWindowSurface(instance, mWindow, nullptr, surface);
 }
+
+void Window::framebufferResizeCallback(GLFWwindow* iGLFWindow, int iWidth, int iHeight) {
+  Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
+  NE_UNUSED(iWidth);
+  NE_UNUSED(iHeight);
+  if(window->mFrameBufferResizeCallback) {
+    window->mFrameBufferResizeCallback();
+  }
+}
+
 } // namespace ne

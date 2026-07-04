@@ -21,8 +21,16 @@ public:
   Renderer(Renderer&&) = delete;
   Renderer& operator=(Renderer&&) = delete;
 
-  void drawFrame();
+  VkCommandBuffer beginFrame();
+  void endFrame();
+  void beginRendering(VkCommandBuffer iCommandBuffer);
+  void endRendering(VkCommandBuffer iCommandBuffer);
+
   void waitIdle();
+
+  VkDevice getDevice() const { return mDevice; }
+  const VkSurfaceFormatKHR& getSwapChainSurfaceFormat() const { return mSwapChainSurfaceFormat; }
+  VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
 
 private:
   void createInstance();
@@ -31,9 +39,7 @@ private:
   void pickPhysicalDevice();
   void createLogicalDevice();
   void createSwapChain();
-  void createGraphicsPipeline();
   void createFramesResources();
-  void recordCommandBuffer(uint32_t iImageIndex);
 
   // utility functions
   struct SwapChainSupportDetails {
@@ -42,10 +48,9 @@ private:
     std::vector<VkPresentModeKHR> mPresentModes;
   };
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
-  [[nodiscard]] VkShaderModule createShaderModule(const std::string& iFilename) const;
-  void cmdTransitionImageLayout(uint32_t iImageIndex, VkImageLayout iOldLayout, VkImageLayout iNewLayout,
-                                VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
-                                VkPipelineStageFlags2 iDstStageMask);
+  void cmdTransitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iImageIndex, VkImageLayout iOldLayout,
+                                VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
+                                VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
   void recreateSwapChain();
   void cleanupSwapChain();
 
@@ -84,9 +89,6 @@ private:
   };
   std::vector<SwapchainImageResources> mSwapChainImages;
 
-  VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
-  VkPipeline mGraphicsPipeline = VK_NULL_HANDLE;
-
   struct FrameResources {
     VkCommandPool mCommandPool = VK_NULL_HANDLE;
     VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
@@ -95,8 +97,8 @@ private:
   };
   std::vector<FrameResources> mFrames;
   uint32_t mFrameIndex = 0;
-
-  std::vector<VkFence> mDrawFences;
+  uint32_t mImageIndex = 0;
+  bool mFrameBufferResized = false;
 };
 
 } // namespace ne

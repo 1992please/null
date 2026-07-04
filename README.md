@@ -4,8 +4,8 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 ## TODO
 1. [x] rename ".src/core/types.h" to "src/core/defines.h".
-2. [>] rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
-3. [ ] one VkCommandPool per frame-in-flight
+2. [x] rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
+3. [x] one VkCommandPool per frame-in-flight
 3. [ ] ktx texture library.
 4. [ ] Investigate Caching the pipeline.
 
