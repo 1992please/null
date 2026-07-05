@@ -6,8 +6,16 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 1. [x] rename ".src/core/types.h" to "src/core/defines.h".
 2. [x] rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
 3. [x] one VkCommandPool per frame-in-flight
-3. [ ] ktx texture library.
-4. [ ] Investigate Caching the pipeline.
+
+## Investigate
+1. [ ] Vertex puling (single buffer)
+2. [ ] Uniforms (Bindless)
+3. [ ] Draw Call Generation (Draw indirect)
+4. [ ] The Buffer Device Address (BDA) feature
+5. [ ] The Staging buffer
+6. [ ] ktx texture library.
+7. [ ] Investigate Caching the pipeline.
+
 
 ## Project Overview
 This project is a custom Vulkan-based rendering engine designed for loading and viewing 3D models (glTF). It focuses on low-level control, performance, and modern graphics techniques.
@@ -50,11 +58,33 @@ null/
 - CMake 3.22+
 - Vulkan SDK
 - A C++20 compatible compiler (GCC 11+, Clang 13+, MSVC 2022)
+- **Ninja** build system (required by the configure presets)
 
-### Building
-```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
-```
-The executable and compiled shaders will be located in the `bin/` directory within the build folder.
+### Building (Linux & Windows)
+We use CMake Presets (`CMakePresets.json`) to manage build configurations. Each preset specifies **Ninja** as the generator and configures its own build directory under `build/<preset_name>`.
+
+1. **Configure** the project using one of the available configure presets (`debug`, `development`, or `shipping`):
+   ```bash
+   # Debug build
+   cmake --preset=debug
+
+   # Development build (RelWithDebInfo)
+   cmake --preset=development
+
+   # Shipping build (Release)
+   cmake --preset=shipping
+   ```
+
+2. **Build** the project by pointing to the appropriate build folder:
+   ```bash
+   # Build debug
+   cmake --build build/debug
+
+   # Build development
+   cmake --build build/development
+
+   # Build shipping
+   cmake --build build/shipping
+   ```
+
+The executable and compiled shaders will be located in the `build/<preset_name>/bin/` directory (e.g., `build/debug/bin/`).

@@ -10,6 +10,8 @@
 
 namespace ne {
 
+class Renderer;
+
 class Mesh {
 public:
   struct Vertex {
@@ -26,7 +28,7 @@ public:
     }
   };
 
-  Mesh(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const std::vector<Vertex>& iVertices);
+  Mesh(Renderer* iRenderer, const std::vector<Vertex>& iVertices);
   virtual ~Mesh() = default;
 
   Mesh(const Mesh&) = delete;
@@ -42,7 +44,7 @@ private:
 
 class TriangleMesh : public Mesh {
 public:
-  TriangleMesh(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice) : Mesh(iDevice, iPhysicalDevice, getTriangleVertices()) {}
+  TriangleMesh(Renderer* iRenderer) : Mesh(iRenderer, getTriangleVertices()) {}
 
 private:
   static std::vector<Vertex> getTriangleVertices() {

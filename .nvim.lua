@@ -1,50 +1,81 @@
 -- Build configuration
-vim.opt.makeprg = "cmake --build build"
--- vim.opt.errorformat = "%f:%l:%c: %m,%f:%l: %m"
 local executable_name = "null_engine"
-local build_dir = "build/bin"
-local executable_path = vim.fn.getcwd() .. "/" .. build_dir .. "/" .. executable_name
 local presets = { "debug", "development", "shipping" }
 local current_preset_index = 1
 local term_buf = nil
 
+local function get_build_dir(preset)
+  return "build/" .. preset .. "/bin"
+end
+
+local function get_executable_path(preset)
+  return vim.fn.getcwd() .. "/" .. get_build_dir(preset) .. "/" .. executable_name
+end
+
+local function update_preset()
+  local preset = presets[current_preset_index]
+  vim.opt.makeprg = "cmake --build build/" .. preset
+  
+  local dap_ok, dap = pcall(require, 'dap')
+  if dap_ok then
+    dap.configurations.cpp = {
+      {
+        name = "Launch file",
+        type = "codelldb",
+        request = "launch",
+        program = get_executable_path(preset),
+        cwd = "${workspaceFolder}/" .. get_build_dir(preset),
+        stopOnEntry = false,
+      },
+    }
+  end
+
+  print("Build type: " .. preset)
+end
+
+-- Initialize the default preset (debug) silently on load
+update_preset()
+
 -- Build type switching
 vim.keymap.set('n', '<F4>', function()
   current_preset_index = current_preset_index % #presets + 1
-  print("Build type: " .. presets[current_preset_index])
+  update_preset()
 end, { desc = 'Toggle Build Type' })
 
--- Cmake build files
+-- Configure project
 vim.keymap.set('n', '<F5>', function()
   local preset = presets[current_preset_index]
-  vim.cmd('!rm -rf build')
   vim.cmd('!cmake --preset ' .. preset)
-  print("Clean build: " .. preset)
-end, { desc = 'Clean Build' })
+  print("Configured: " .. preset)
+end, { desc = 'Configure Project' })
 
 -- Build project
 vim.keymap.set('n', '<F6>', function()
-  vim.cmd('make')         -- Run cmake --build build
+  vim.cmd('make')         -- Run cmake --build build/<preset>
   vim.cmd('cwindow')      -- Open quickfix if errors
 end, { desc = 'Build Project' })
 
 -- Run Executable
 vim.keymap.set('n', '<F7>', function()
-  if vim.fn.filereadable(executable_path) == 1 then
+  local preset = presets[current_preset_index]
+  local bdir = get_build_dir(preset)
+  local exe_path = get_executable_path(preset)
+  if vim.fn.filereadable(exe_path) == 1 then
     -- Close old terminal if it exists
     if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
       vim.api.nvim_buf_delete(term_buf, { force = true })
     end
-    vim.cmd('split | terminal cd ' .. build_dir .. '&& ./' .. executable_name)
+    vim.cmd('split | terminal cd ' .. bdir .. ' && ./' .. executable_name)
     term_buf = vim.api.nvim_get_current_buf()
   else
-    print("Executable not found: " .. executable_path .. ". Run build first (F5)")
+    print("Executable not found: " .. exe_path .. ". Run build first (F5)")
   end
 end, { desc = 'Run Executable' })
 
 -- Show logs
 vim.keymap.set('n', '<leader>ll', function()
-  local log_path = build_dir .. "/logs/engine.log"
+  local preset = presets[current_preset_index]
+  local log_path = get_build_dir(preset) .. "/logs/engine.log"
   if vim.fn.filereadable(log_path) == 1 then
     vim.cmd('split ' .. log_path)
     vim.cmd('setlocal autoread')
@@ -52,17 +83,5 @@ vim.keymap.set('n', '<leader>ll', function()
     print("Log file not found: " .. log_path)
   end
 end, { desc = 'View Engine Log' })
-
-local dap = require('dap')
-dap.configurations.cpp = {
-  {
-    name = "Launch file",
-    type = "codelldb",
-    request = "launch",
-    program = executable_path,
-    cwd = "${workspaceFolder}/" .. build_dir,
-    stopOnEntry = false,
-  },
-}
 
 print("Lua Config Loaded successfully!!!!")

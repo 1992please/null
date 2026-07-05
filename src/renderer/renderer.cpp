@@ -5,7 +5,6 @@
 
 // std
 #include <algorithm>
-#include <cstring>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT iMessageType,
@@ -47,6 +46,10 @@ Renderer::~Renderer() {
   }
 
   cleanupSwapChain();
+
+  if (mOneTimeCommandPool != VK_NULL_HANDLE) {
+    vkDestroyCommandPool(mDevice, mOneTimeCommandPool, nullptr);
+  }
 
   vkDestroyDevice(mDevice, nullptr);
   if (mDebugMessenger != VK_NULL_HANDLE) {
@@ -401,6 +404,20 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
   }
+  
+  // Create our one time Command buffer
+  VkCommandPoolCreateInfo oneTimePoolInfo{};
+  oneTimePoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+  oneTimePoolInfo.queueFamilyIndex = mPhysicalDeviceQueueIndex;
+  oneTimePoolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+  VK_CHECK(vkCreateCommandPool(mDevice, &oneTimePoolInfo, nullptr, &mOneTimeCommandPool));
+
+  VkCommandBufferAllocateInfo oneTimeAllocInfo{};
+  oneTimeAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+  oneTimeAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+  oneTimeAllocInfo.commandPool = mOneTimeCommandPool;
+  oneTimeAllocInfo.commandBufferCount = 1;
+  VK_CHECK(vkAllocateCommandBuffers(mDevice, &oneTimeAllocInfo, &mOneTimeCommandBuffer));
 }
 
 VkCommandBuffer Renderer::beginFrame() {
@@ -520,6 +537,18 @@ void Renderer::endRendering(VkCommandBuffer iCommandBuffer) {
 
 void Renderer::waitIdle() { vkDeviceWaitIdle(mDevice); }
 
+void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+  VkCommandBuffer commandBuffer = beginOneTimeCommand();
+
+  VkBufferCopy bufferCopy{};
+  bufferCopy.srcOffset = 0;
+  bufferCopy.dstOffset = 0;
+  bufferCopy.size = size;
+  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
+
+  endOneTimeCommand(commandBuffer);
+}
+
 void Renderer::recreateSwapChain() {
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
@@ -544,6 +573,35 @@ void Renderer::cleanupSwapChain() {
 
   vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
   mSwapChain = VK_NULL_HANDLE;
+}
+
+VkCommandBuffer Renderer::beginOneTimeCommand() {
+  VkCommandBufferBeginInfo beginInfo{};
+  beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+  beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+  VK_CHECK(vkBeginCommandBuffer(mOneTimeCommandBuffer, &beginInfo));
+
+  return mOneTimeCommandBuffer;
+}
+
+void Renderer::endOneTimeCommand(VkCommandBuffer iCommandBuffer) {
+  NE_ASSERT(iCommandBuffer == mOneTimeCommandBuffer);
+  VK_CHECK(vkEndCommandBuffer(iCommandBuffer));
+
+  VkCommandBufferSubmitInfo commandBufferInfo{};
+  commandBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+  commandBufferInfo.commandBuffer = iCommandBuffer;
+
+  VkSubmitInfo2 submitInfo{};
+  submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
+  submitInfo.commandBufferInfoCount = 1;
+  submitInfo.pCommandBufferInfos = &commandBufferInfo;
+
+  VK_CHECK(vkQueueSubmit2(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
+  VK_CHECK(vkQueueWaitIdle(mQueue));
+
+  VK_CHECK(vkResetCommandPool(mDevice, mOneTimeCommandPool, 0));
 }
 
 Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevice iDevice) {

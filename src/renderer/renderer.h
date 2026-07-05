@@ -28,6 +28,8 @@ public:
 
   void waitIdle();
 
+  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
   VkDevice getDevice() const { return mDevice; }
   const VkSurfaceFormatKHR& getSwapChainSurfaceFormat() const { return mSwapChainSurfaceFormat; }
   VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
@@ -53,6 +55,8 @@ private:
                                 VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
   void recreateSwapChain();
   void cleanupSwapChain();
+  [[nodiscard]] VkCommandBuffer beginOneTimeCommand();
+  [[nodiscard]] void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
   const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
@@ -82,6 +86,9 @@ private:
   VkSurfaceFormatKHR mSwapChainSurfaceFormat = {};
   VkExtent2D mSwapChainExtent = {};
 
+  VkCommandPool mOneTimeCommandPool = VK_NULL_HANDLE;
+  VkCommandBuffer mOneTimeCommandBuffer = VK_NULL_HANDLE;
+
   struct SwapchainImageResources {
     VkImage mImage = VK_NULL_HANDLE;
     VkImageView mImageView = VK_NULL_HANDLE;
@@ -96,6 +103,7 @@ private:
     VkFence mDrawFence = VK_NULL_HANDLE;
   };
   std::vector<FrameResources> mFrames;
+
   uint32_t mFrameIndex = 0;
   uint32_t mImageIndex = 0;
   bool mFrameBufferResized = false;

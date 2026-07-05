@@ -2,8 +2,6 @@
 #include "core/core.h"
 #include "renderer/utils.h"
 
-#include <cstring>
-
 namespace ne {
 
 Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage,
@@ -17,20 +15,22 @@ Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize si
 
   VK_CHECK(vkCreateBuffer(mDevice, &bufferInfo, nullptr, &mBuffer));
 
-  VkMemoryRequirements memRequirements;
-  vkGetBufferMemoryRequirements(mDevice, mBuffer, &memRequirements);
+  VkMemoryRequirements memoryRequirements;
+  vkGetBufferMemoryRequirements(mDevice, mBuffer, &memoryRequirements);
 
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+  VkMemoryAllocateInfo memoryAllocateInfo{};
+  memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  memoryAllocateInfo.allocationSize = memoryRequirements.size;
+  memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties);
 
-  VK_CHECK(vkAllocateMemory(mDevice, &allocInfo, nullptr, &mMemory));
+  VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
   VK_CHECK(vkBindBufferMemory(mDevice, mBuffer, mMemory, 0));
 }
 
 Buffer::~Buffer() {
-  unmap();
+  if (mMapped) {
+    unmapMemory();
+  }
   if (mBuffer != VK_NULL_HANDLE) {
     vkDestroyBuffer(mDevice, mBuffer, nullptr);
   }
@@ -39,25 +39,21 @@ Buffer::~Buffer() {
   }
 }
 
-void Buffer::map(VkDeviceSize size, VkDeviceSize offset) {
-  if (mMapped == nullptr) {
-    VK_CHECK(vkMapMemory(mDevice, mMemory, offset, size, 0, &mMapped));
-  }
-}
-
-void Buffer::unmap() {
-  if (mMapped != nullptr) {
-    vkUnmapMemory(mDevice, mMemory);
-    mMapped = nullptr;
-  }
+void Buffer::mapMemory(VkDeviceSize size, VkDeviceSize offset) {
+  NE_ASSERT(!mMapped);
+  VK_CHECK(vkMapMemory(mDevice, mMemory, offset, size, 0, &mMapped));
 }
 
 void Buffer::writeToBuffer(const void* data, VkDeviceSize size, VkDeviceSize offset) {
+  NE_ASSERT(mMapped);
   VkDeviceSize writeSize = (size == VK_WHOLE_SIZE) ? mBufferSize - offset : size;
-  if (mMapped == nullptr) {
-    map(writeSize, offset);
-  }
   std::memcpy(static_cast<char*>(mMapped) + offset, data, writeSize);
+}
+
+void Buffer::unmapMemory() {
+  NE_ASSERT(mMapped);
+  vkUnmapMemory(mDevice, mMemory);
+  mMapped = nullptr;
 }
 
 uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
