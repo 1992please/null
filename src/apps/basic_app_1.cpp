@@ -11,7 +11,14 @@ BasicApp1::BasicApp1() {
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App");
   mRenderer = std::make_unique<Renderer>(mWindow.get(), mEngineName, "Basic App");
 
-  mMesh = std::make_unique<TriangleMesh>(mRenderer.get());
+  const std::vector<Mesh::Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                                        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+                                        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+  const std::vector<uint32_t> indices = {0, 1, 2, 2, 3, 0};
+
+  mMesh = std::make_unique<Mesh>(mRenderer.get(), vertices, indices);
 
   Pipeline::Config config{};
   config.mShaderPath = NE_SHADER_DIR "/triangle_1.slang.spv";

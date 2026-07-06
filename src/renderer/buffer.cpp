@@ -1,12 +1,15 @@
 #include "renderer/buffer.h"
 #include "core/core.h"
+#include "renderer/renderer.h"
 #include "renderer/utils.h"
+
+// std
+#include <cstring>
 
 namespace ne {
 
-Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage,
-               VkMemoryPropertyFlags properties)
-    : mDevice(device), mPhysicalDevice(physicalDevice), mBufferSize(size) {
+Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
+    : mDevice(iRenderer->getDevice()), mPhysicalDevice(iRenderer->getPhysicalDevice()), mBufferSize(size) {
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = size;

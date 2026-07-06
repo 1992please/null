@@ -56,7 +56,7 @@ private:
   void recreateSwapChain();
   void cleanupSwapChain();
   [[nodiscard]] VkCommandBuffer beginOneTimeCommand();
-  [[nodiscard]] void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
+  void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
   const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};

@@ -28,7 +28,7 @@ public:
     }
   };
 
-  Mesh(Renderer* iRenderer, const std::vector<Vertex>& iVertices);
+  Mesh(Renderer* iRenderer, const std::vector<Vertex>& iVertices, const std::vector<uint32_t> iIndices);
   virtual ~Mesh() = default;
 
   Mesh(const Mesh&) = delete;
@@ -39,17 +39,9 @@ public:
 
 private:
   uint32_t mVertexCount = 0;
+  uint32_t mIndexCount = 0;
   std::unique_ptr<Buffer> mVertexBuffer;
-};
-
-class TriangleMesh : public Mesh {
-public:
-  TriangleMesh(Renderer* iRenderer) : Mesh(iRenderer, getTriangleVertices()) {}
-
-private:
-  static std::vector<Vertex> getTriangleVertices() {
-    return {{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
-  }
+  std::unique_ptr<Buffer> mIndexBuffer;
 };
 
 } // namespace ne

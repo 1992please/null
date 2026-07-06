@@ -4,9 +4,11 @@
 
 namespace ne {
 
+class Renderer;
+
 class Buffer {
 public:
-  Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage,
+  Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
          VkMemoryPropertyFlags properties);
   ~Buffer();
 

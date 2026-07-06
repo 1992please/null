@@ -3,18 +3,21 @@
 A high-performance, cross-platform 3D model viewer and rendering engine built with C++20 and Vulkan.
 
 ## TODO
-1. [x] rename ".src/core/types.h" to "src/core/defines.h".
-2. [x] rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
-3. [x] one VkCommandPool per frame-in-flight
+- [x] Rename ".src/core/types.h" to "src/core/defines.h".
+- [x] Rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
+- [x] One VkCommandPool per frame-in-flight.
+- [x] Index buffer
+- [ ] One Buffer for both Index and vertex buffers.
 
 ## Investigate
-1. [ ] Vertex puling (single buffer)
-2. [ ] Uniforms (Bindless)
-3. [ ] Draw Call Generation (Draw indirect)
-4. [ ] The Buffer Device Address (BDA) feature
-5. [ ] The Staging buffer
-6. [ ] ktx texture library.
-7. [ ] Investigate Caching the pipeline.
+- [ ] Vertex puling (single buffer)
+- [ ] Uniforms (Bindless)
+- [ ] Draw Call Generation (Draw indirect)
+- [ ] The Buffer Device Address (BDA) feature
+- [ ] Mesh Shader / Raytracing / Resterization
+- [x] The Staging buffer
+- [ ] ktx texture library.
+- [ ] Investigate Caching the pipeline.
 
 
 ## Project Overview
@@ -34,10 +37,8 @@ This project is a custom Vulkan-based rendering engine designed for loading and 
 2. [x] **Logging**: Integrated `spdlog` for structured engine logging.
 3. [x] **Windowing**: Robust GLFW window abstraction.
 4. [>] **Vulkan Pipeline**: Graphics pipeline initialization and first triangle. (In Progress)
-5. [ ] **Memory Management**: Manual allocation transitioning to VMA.
-6. [ ] **Asset Loading**: Integrated `cgltf` for glTF/GLB model parsing.
-7. [ ] **Renderer**: Swapchain management, framebuffers, and command buffers.
-8. [ ] **Camera & Input**: Interactive orbital camera and input handling.
+5. [ ] **Asset Loading**: Integrated `cgltf` for glTF/GLB model parsing.
+6. [ ] **Camera & Input**: Interactive orbital camera and input handling.
 
 ## Folder Structure
 ```
