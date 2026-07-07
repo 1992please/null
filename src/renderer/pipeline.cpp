@@ -10,7 +10,7 @@
 namespace ne {
 
 Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRenderer->getDevice()) {
-  VkShaderModule shaderModule = createShaderModule(iConfig.mShaderPath);
+  VkShaderModule shaderModule = createShaderModule(iConfig.mShaderName);
 
   VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo{};
   vertShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -102,8 +102,8 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   layoutCreateInfo.setLayoutCount = 0;
   layoutCreateInfo.pSetLayouts = nullptr;
-  layoutCreateInfo.pushConstantRangeCount = 0;
-  layoutCreateInfo.pPushConstantRanges = nullptr;
+  layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iConfig.mPushConstantRanges.size());
+  layoutCreateInfo.pPushConstantRanges = iConfig.mPushConstantRanges.empty() ? nullptr : iConfig.mPushConstantRanges.data();
   VK_CHECK(vkCreatePipelineLayout(mDevice, &layoutCreateInfo, nullptr, &mPipelineLayout));
 
   // Dynamic Renderring
@@ -156,9 +156,10 @@ void Pipeline::bind(VkCommandBuffer iCommandBuffer) {
   vkCmdBindPipeline(iCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline);
 }
 
-VkShaderModule Pipeline::createShaderModule(const std::string& iFilename) {
-  std::ifstream file(iFilename, std::ios::ate | std::ios::binary);
-  NE_ASSERT(file.is_open(), "failed to open file: {}", iFilename);
+VkShaderModule Pipeline::createShaderModule(const std::string& iShaderName) {
+  std::string fullPath = std::string(NE_SHADER_DIR) + "/" + iShaderName + ".spv";
+  std::ifstream file(fullPath, std::ios::ate | std::ios::binary);
+  NE_ASSERT(file.is_open(), "failed to open file: {}", fullPath);
 
   std::vector<char> fileBuffer(file.tellg());
   file.seekg(0, std::ios::beg);

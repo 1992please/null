@@ -12,7 +12,7 @@ BasicApp::BasicApp() {
   mRenderer = std::make_unique<Renderer>(mWindow.get(), mEngineName, "Basic App");
 
   Pipeline::Config config{};
-  config.mShaderPath = NE_SHADER_DIR "/triangle.slang.spv";
+  config.mShaderName = "triangle";
   mPipeline = std::make_unique<Pipeline>(mRenderer.get(), config);
 }
 

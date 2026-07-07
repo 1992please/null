@@ -11,9 +11,10 @@ class Renderer;
 class Pipeline {
 public:
   struct Config {
-    std::string mShaderPath;
+    std::string mShaderName;
     std::vector<VkVertexInputBindingDescription> mVertexBindingDescriptions;
     std::vector<VkVertexInputAttributeDescription> mVertexAttributeDescriptions;
+    std::vector<VkPushConstantRange> mPushConstantRanges;
   };
   Pipeline(Renderer* iRenderer,const Config& iConfig);
   ~Pipeline();

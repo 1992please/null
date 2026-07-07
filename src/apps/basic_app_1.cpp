@@ -21,7 +21,7 @@ BasicApp1::BasicApp1() {
   mMesh = std::make_unique<Mesh>(mRenderer.get(), vertices, indices);
 
   Pipeline::Config config{};
-  config.mShaderPath = NE_SHADER_DIR "/triangle_1.slang.spv";
+  config.mShaderName = "triangle_1";
   config.mVertexBindingDescriptions = {Mesh::Vertex::getBindingDescription()};
   auto attribs = Mesh::Vertex::getAttributeDescriptions();
   config.mVertexAttributeDescriptions = {attribs.begin(), attribs.end()};

@@ -102,7 +102,7 @@ file(MAKE_DIRECTORY ${BinShaderDir})
 set(CompiledShaders "")
 
 foreach(shader_file ${ENGINE_SHADERS})
-  cmake_path(GET shader_file FILENAME shader_name)
+  get_filename_component(shader_name ${shader_file} NAME_WE)
   set(spirv_file "${BinShaderDir}/${shader_name}.spv")
   set(absolute_shader_path "${CMAKE_CURRENT_SOURCE_DIR}/${shader_file}")
   message(STATUS "SLANGC compile: ${absolute_shader_path}")

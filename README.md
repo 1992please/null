@@ -7,18 +7,34 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] Rewrite the vulkan renderer using vulkan 1.4 instead of 1.0
 - [x] One VkCommandPool per frame-in-flight.
 - [x] Index buffer
+- [x] Implement MVP matrices using Push Constants.
+- [ ] Understanding the vector math being MVP
 - [ ] One Buffer for both Index and vertex buffers.
+- [ ] Transition MVP/Uniforms to Option 3 for modern GPU-driven rendering.
 
 ## Investigate
-- [ ] Vertex puling (single buffer)
-- [ ] Uniforms (Bindless)
+- [ ] Vertex pulling (single buffer)
+- [ ] Uniforms (Bindless) combined with BDA (Buffer Device Address) [Planned as Option 3]
 - [ ] Draw Call Generation (Draw indirect)
 - [ ] The Buffer Device Address (BDA) feature
-- [ ] Mesh Shader / Raytracing / Resterization
+- [ ] Mesh Shader / Raytracing / Rasterization
 - [x] The Staging buffer
 - [ ] ktx texture library.
 - [ ] Investigate Caching the pipeline.
 
+ Data Type                                       | Modern Method | How to Pass
+-------------------------------------------------|---------------|-------------------------------------------------
+ Small / Frequent / Indexing metadata (Material  | Push          | Pass directly via  vkCmdPushConstants
+ ID, GPU pointers)                               | Constants     |
+-------------------------------------------------|---------------|-------------------------------------------------
+ Large structures / Per-object data (Transforms, | Buffer Device | Pass 64-bit address in Push Constants, read as
+ material structs)                               | Address (BDA) | buffer reference in shader
+-------------------------------------------------|---------------|-------------------------------------------------
+ Textures / Samplers                             | Bindless      | Bind globally once, pass texture index in Push
+                                                 | Array         | Constants
+-------------------------------------------------|---------------|-------------------------------------------------
+ Global / Frame-level constants (Time, ViewProj  | Global UBO or | Dynamic UBO bound once per frame/pass, or BDA
+ matrix)                                         | BDA           | passed via Push Constants
 
 ## Project Overview
 This project is a custom Vulkan-based rendering engine designed for loading and viewing 3D models (glTF). It focuses on low-level control, performance, and modern graphics techniques.
@@ -36,7 +52,7 @@ This project is a custom Vulkan-based rendering engine designed for loading and 
 1. [x] **Core Foundation**: Project setup with CMake, GLFW, and Vulkan.
 2. [x] **Logging**: Integrated `spdlog` for structured engine logging.
 3. [x] **Windowing**: Robust GLFW window abstraction.
-4. [>] **Vulkan Pipeline**: Graphics pipeline initialization and first triangle. (In Progress)
+4. [x] **Vulkan Pipeline**: Graphics pipeline initialization, first triangle, and MVP via push constants.
 5. [ ] **Asset Loading**: Integrated `cgltf` for glTF/GLB model parsing.
 6. [ ] **Camera & Input**: Interactive orbital camera and input handling.
 
