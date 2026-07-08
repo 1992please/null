@@ -46,7 +46,12 @@ Renderer::~Renderer() {
     vkDestroyFence(mDevice, frame.mDrawFence, nullptr);
   }
 
-  cleanupSwapChain();
+  for (SwapchainImageResources& image : mSwapChainImages) {
+    vkDestroyImageView(mDevice, image.mImageView, nullptr);
+    vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
+  }
+
+  vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
 
   if (mOneTimeCommandPool != VK_NULL_HANDLE) {
     vkDestroyCommandPool(mDevice, mOneTimeCommandPool, nullptr);
@@ -285,7 +290,7 @@ void Renderer::createLogicalDevice() {
   vkGetDeviceQueue(mDevice, mPhysicalDeviceQueueIndex, 0, &mQueue);
 }
 
-void Renderer::createSwapChain() {
+void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
   SwapChainSupportDetails swapChainSupport = querySwapChainSupport(mPhysicalDevice);
   VkSurfaceCapabilitiesKHR surfaceCapabilities = swapChainSupport.mCapabilities;
 
@@ -342,7 +347,7 @@ void Renderer::createSwapChain() {
   swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   swapchainCreateInfo.presentMode = selectedPresentMode;
   swapchainCreateInfo.clipped = VK_TRUE;
-  swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+  swapchainCreateInfo.oldSwapchain = iOldSwapchain;
 
   VK_CHECK(vkCreateSwapchainKHR(mDevice, &swapchainCreateInfo, nullptr, &mSwapChain));
 
@@ -559,21 +564,24 @@ void Renderer::recreateSwapChain() {
   }
 
   vkDeviceWaitIdle(mDevice);
-  cleanupSwapChain();
-  createSwapChain();
-}
 
-void Renderer::cleanupSwapChain() {
-  NE_ASSERT(!mSwapChainImages.empty());
-
+  // Destroy old image views and semaphores
   for (SwapchainImageResources& image : mSwapChainImages) {
     vkDestroyImageView(mDevice, image.mImageView, nullptr);
     vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
   }
   mSwapChainImages.clear();
 
-  vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+  VkSwapchainKHR oldSwapChain = mSwapChain;
   mSwapChain = VK_NULL_HANDLE;
+
+  // Create the new swapchain, passing the old swapchain for resource recycling
+  createSwapChain(oldSwapChain);
+
+  // Safely destroy the old swapchain now that the new one is created
+  if (oldSwapChain != VK_NULL_HANDLE) {
+    vkDestroySwapchainKHR(mDevice, oldSwapChain, nullptr);
+  }
 }
 
 VkCommandBuffer Renderer::beginOneTimeCommand() {

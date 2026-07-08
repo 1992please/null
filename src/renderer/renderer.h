@@ -40,7 +40,7 @@ private:
   void createSurface();
   void pickPhysicalDevice();
   void createLogicalDevice();
-  void createSwapChain();
+  void createSwapChain(VkSwapchainKHR iOldSwapchain = VK_NULL_HANDLE);
   void createFramesResources();
 
   // utility functions
@@ -54,7 +54,6 @@ private:
                                 VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
                                 VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
   void recreateSwapChain();
-  void cleanupSwapChain();
   [[nodiscard]] VkCommandBuffer beginOneTimeCommand();
   void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
