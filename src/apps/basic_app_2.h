@@ -4,6 +4,7 @@
 
 // std
 #include <memory>
+#include <vector>
 
 namespace ne {
 
@@ -11,6 +12,7 @@ class Window;
 class Renderer;
 class Pipeline;
 class Mesh;
+class Buffer;
  
 class BasicApp2 : public Application {
 public:
@@ -28,5 +30,7 @@ private:
   std::unique_ptr<Renderer> mRenderer;
   std::unique_ptr<Pipeline> mPipeline;
   std::unique_ptr<Mesh> mMesh;
+
+  std::vector<std::unique_ptr<Buffer>> mUniformBuffers;
 };
 } // namespace ne

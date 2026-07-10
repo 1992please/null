@@ -1,7 +1,13 @@
-struct VSInput {
-  float2 inPosition;
-  float3 inColor;
+struct Vertex {
+  float2 pos;
+  float3 color;
 };
+
+struct PushConstants {
+  Vertex* vertices;
+};
+
+[vk::push_constant] PushConstants pc;
 
 struct VSOutput {
   float4 pos : SV_Position;
@@ -9,10 +15,11 @@ struct VSOutput {
 };
 
 [shader("vertex")]
-VSOutput vertMain(VSInput input) {
+VSOutput vertMain(uint vid : SV_VertexID) {
   VSOutput output;
-  output.pos = float4(input.inPosition, 0.0, 1.0);
-  output.color = input.inColor;
+  Vertex v = pc.vertices[vid];
+  output.pos = float4(v.pos, 0.0, 1.0);
+  output.color = v.color;
   return output;
 }
 

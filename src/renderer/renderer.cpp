@@ -217,9 +217,12 @@ void Renderer::pickPhysicalDevice() {
     VkPhysicalDeviceVulkan13Features vulkan13Features{};
     vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     vulkan13Features.pNext = nullptr;
+    VkPhysicalDeviceVulkan12Features vulkan12Features{};
+    vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12Features.pNext = &vulkan13Features;
     VkPhysicalDeviceVulkan11Features vulkan11Features{};
     vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-    vulkan11Features.pNext = &vulkan13Features;
+    vulkan11Features.pNext = &vulkan12Features;
     VkPhysicalDeviceFeatures2 features2{};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features2.pNext = &vulkan11Features; // Start of the chain
@@ -227,8 +230,9 @@ void Renderer::pickPhysicalDevice() {
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
     // Check support for features you need
-    bool supportsRequiredFeatures =
-        vulkan11Features.shaderDrawParameters && vulkan13Features.dynamicRendering && vulkan13Features.synchronization2;
+    bool supportsRequiredFeatures = vulkan11Features.shaderDrawParameters && vulkan12Features.bufferDeviceAddress &&
+                                    vulkan12Features.scalarBlockLayout && vulkan13Features.dynamicRendering &&
+                                    vulkan13Features.synchronization2;
 
     // this features are a must to continue using this device
     if (!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain &&
@@ -268,9 +272,14 @@ void Renderer::createLogicalDevice() {
   vulkan13Features.pNext = nullptr;
   vulkan13Features.dynamicRendering = VK_TRUE;
   vulkan13Features.synchronization2 = VK_TRUE;
+  VkPhysicalDeviceVulkan12Features vulkan12Features{};
+  vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+  vulkan12Features.pNext = &vulkan13Features;
+  vulkan12Features.bufferDeviceAddress = VK_TRUE;
+  vulkan12Features.scalarBlockLayout = VK_TRUE;
   VkPhysicalDeviceVulkan11Features vulkan11Features{};
   vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
-  vulkan11Features.pNext = &vulkan13Features;
+  vulkan11Features.pNext = &vulkan12Features;
   vulkan11Features.shaderDrawParameters = VK_TRUE;
   VkPhysicalDeviceFeatures2 deviceFeatures{};
   deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;

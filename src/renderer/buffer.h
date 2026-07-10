@@ -20,6 +20,8 @@ public:
   void writeToBuffer(const void* data, VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
   void unmapMemory();
 
+  VkDeviceAddress getDeviceAddress() const;
+
   VkBuffer getBuffer() const { return mBuffer; }
   VkDeviceSize getBufferSize() const { return mBufferSize; }
 

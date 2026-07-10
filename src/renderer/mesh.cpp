@@ -22,7 +22,7 @@ Mesh::Mesh(Renderer* iRenderer, const std::vector<Vertex>& iVertices, const std:
 
     // Create device-local vertex buffer
     mVertexBuffer =
-        std::make_unique<Buffer>(iRenderer, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        std::make_unique<Buffer>(iRenderer, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Copy data from staging buffer to device-local vertex buffer
@@ -44,20 +44,12 @@ Mesh::Mesh(Renderer* iRenderer, const std::vector<Vertex>& iVertices, const std:
     stagingBuffer.unmapMemory();
 
     // Create device-local vertex buffer
-    mIndexBuffer =
-        std::make_unique<Buffer>(iRenderer, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    mIndexBuffer = std::make_unique<Buffer>(iRenderer, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     // Copy data from staging buffer to device-local vertex buffer
     iRenderer->copyBuffer(stagingBuffer.getBuffer(), mIndexBuffer->getBuffer(), bufferSize);
   }
-}
-
-void Mesh::bind(VkCommandBuffer iCommandBuffer) {
-  VkDeviceSize offset = 0;
-  VkBuffer vertexBuffer = mVertexBuffer->getBuffer();
-  vkCmdBindVertexBuffers(iCommandBuffer, 0, 1, &vertexBuffer, &offset);
-  vkCmdBindIndexBuffer(iCommandBuffer, mIndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 }
 
 void Mesh::draw(VkCommandBuffer iCommandBuffer) { vkCmdDrawIndexed(iCommandBuffer, mIndexCount, 1, 0, 0, 0); }

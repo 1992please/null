@@ -7,6 +7,10 @@
 
 namespace ne {
 
+struct PushConstants {
+  VkDeviceAddress vertices;
+};
+
 BasicApp1::BasicApp1() {
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App");
   mRenderer = std::make_unique<Renderer>(mWindow.get(), mEngineName, "Basic App");
@@ -22,9 +26,13 @@ BasicApp1::BasicApp1() {
 
   Pipeline::Config config{};
   config.mShaderName = "triangle_1";
-  config.mVertexBindingDescriptions = {Mesh::Vertex::getBindingDescription()};
-  auto attribs = Mesh::Vertex::getAttributeDescriptions();
-  config.mVertexAttributeDescriptions = {attribs.begin(), attribs.end()};
+
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  pushConstantRange.offset = 0;
+  pushConstantRange.size = sizeof(PushConstants);
+  config.mPushConstantRanges = {pushConstantRange};
+
   mPipeline = std::make_unique<Pipeline>(mRenderer.get(), config);
 }
 
@@ -39,9 +47,15 @@ void BasicApp1::run() {
     if (auto cmd = mRenderer->beginFrame()) {
       mRenderer->beginRendering(cmd);
 
-      // Bind and draw vertex-buffered triangle
+      // Bind and draw triangle using BDA
       mPipeline->bind(cmd);
-      mMesh->bind(cmd);
+      vkCmdBindIndexBuffer(cmd, mMesh->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+      PushConstants pc{};
+      pc.vertices = mMesh->getVertexBufferAddress();
+
+      vkCmdPushConstants(cmd, mPipeline->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pc);
+
       mMesh->draw(cmd);
 
       mRenderer->endRendering(cmd);

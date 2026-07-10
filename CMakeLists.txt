@@ -54,7 +54,7 @@ file(GLOB_RECURSE ENGINE_SOURCE_FILES
 file(GLOB_RECURSE ENGINE_SHADERS
     LIST_DIRECTORIES false
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
-    shaders/*.frag shaders/*.vert shaders/*.comp shaders/*.slang
+    shaders/*.slang  shaders/*.comp
 )
 
 if(MSVC)

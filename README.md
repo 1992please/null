@@ -8,19 +8,22 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] One VkCommandPool per frame-in-flight.
 - [x] Index buffer
 - [x] Implement MVP matrices using Push Constants.
-- [ ] Understanding the vector math being MVP
+- [x] Understanding the vector math being MVP
+- [x] Build BDA system for transfering Global Uniforms
+- [x] Build BDA system for transfering Per-object Uniforms
+- [x] Send Vertex Data with BDA
+- [ ] Draw Indeces using MDI (Multidraw indirect)
 - [ ] One Buffer for both Index and vertex buffers.
-- [ ] Transition MVP/Uniforms to Option 3 for modern GPU-driven rendering.
+- [ ] Transition MVP/Uniforms to Option 3 for modern GPU-driven rendering. (single buffer)
+- [ ] Bindless arrays/descriptors for textures.
 
 ## Investigate
-- [ ] Vertex pulling (single buffer)
-- [ ] Uniforms (Bindless) combined with BDA (Buffer Device Address) [Planned as Option 3]
-- [ ] Draw Call Generation (Draw indirect)
-- [ ] The Buffer Device Address (BDA) feature
-- [ ] Mesh Shader / Raytracing / Rasterization
-- [x] The Staging buffer
-- [ ] ktx texture library.
-- [ ] Investigate Caching the pipeline.
+- scalarBlockLayout
+- minUniformBufferOffsetAlignment and minStorageBufferOffsetAlignment
+- Research if we should keep the namesspace ne.
+- Should we create our own Math library that will contain logic like constructing View/Project materix.
+- ktx texture library.
+- Investigate Caching the pipeline.
 
  Data Type                                       | Modern Method | How to Pass
 -------------------------------------------------|---------------|-------------------------------------------------

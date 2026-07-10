@@ -25,6 +25,12 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   memoryAllocateInfo.allocationSize = memoryRequirements.size;
   memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties);
+  if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
+		VkMemoryAllocateFlagsInfo allocateFlagsInfo{};
+		allocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+	  allocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+    memoryAllocateInfo.pNext = &allocateFlagsInfo;
+  }
 
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
   VK_CHECK(vkBindBufferMemory(mDevice, mBuffer, mMemory, 0));
@@ -57,6 +63,13 @@ void Buffer::unmapMemory() {
   NE_ASSERT(mMapped);
   vkUnmapMemory(mDevice, mMemory);
   mMapped = nullptr;
+}
+
+VkDeviceAddress Buffer::getDeviceAddress() const {
+  VkBufferDeviceAddressInfo addressInfo{};
+  addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+  addressInfo.buffer = mBuffer;
+  return vkGetBufferDeviceAddress(mDevice, &addressInfo);
 }
 
 uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {

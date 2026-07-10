@@ -1,6 +1,7 @@
 #include "apps/basic_app_2.h"
 #include "core/core.h"
 #include "platform/window.h"
+#include "renderer/buffer.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/renderer.h"
@@ -10,13 +11,22 @@
 
 namespace ne {
 
-struct PushConstants {
-  glm::mat4 model;
+struct GlobalUniforms {
   glm::mat4 viewProj;
 };
 
+struct ObjectUniforms {
+  glm::mat4 model;
+};
+
+struct PushConstants {
+  VkDeviceAddress vertices;
+  VkDeviceAddress globalUniforms;
+  VkDeviceAddress objectUniforms;
+};
+
 BasicApp2::BasicApp2() {
-  mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App");
+  mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (BDA & Vertex Pulling)");
   mRenderer = std::make_unique<Renderer>(mWindow.get(), mEngineName, "Basic App");
 
   const std::vector<Mesh::Vertex> vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
@@ -30,9 +40,6 @@ BasicApp2::BasicApp2() {
 
   Pipeline::Config config{};
   config.mShaderName = "triangle_2";
-  config.mVertexBindingDescriptions = {Mesh::Vertex::getBindingDescription()};
-  auto attribs = Mesh::Vertex::getAttributeDescriptions();
-  config.mVertexAttributeDescriptions = {attribs.begin(), attribs.end()};
 
   // Configure Push Constant Range
   VkPushConstantRange pushConstantRange{};
@@ -42,6 +49,17 @@ BasicApp2::BasicApp2() {
   config.mPushConstantRanges = {pushConstantRange};
 
   mPipeline = std::make_unique<Pipeline>(mRenderer.get(), config);
+
+  // Allocate a single Uniform Buffer per Frame-in-Flight (holds both Global & Per-object uniforms)
+  uint32_t framesInFlight = 2; // Hardcoded matches Renderer::MAX_FRAMES_IN_FLIGHT
+  mUniformBuffers.resize(framesInFlight);
+  for (uint32_t i = 0; i < framesInFlight; i++) {
+    mUniformBuffers[i] = std::make_unique<Buffer>(
+        mRenderer.get(), sizeof(glm::mat4) * 2, // Space for viewProj (64B) and model (64B)
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    mUniformBuffers[i]->mapMemory();
+  }
 }
 
 BasicApp2::~BasicApp2() {}
@@ -57,7 +75,12 @@ void BasicApp2::run() {
 
       // Bind and draw vertex-buffered triangle
       mPipeline->bind(cmd);
-      mMesh->bind(cmd);
+
+      // Retrieve current frame index for dynamic uniforms
+      uint32_t frameIdx = mRenderer->getCurrentFrameIndex();
+
+      // Bind index buffer (we draw using indices but retrieve vertex data via BDA)
+      vkCmdBindIndexBuffer(cmd, mMesh->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
       // Calculate MVP matrices
       float time = static_cast<float>(glfwGetTime());
@@ -76,9 +99,25 @@ void BasicApp2::run() {
       // Vulkan projection correction (Y points down, GLM is Y points up)
       proj[1][1] *= -1.0f;
 
+      glm::mat4 viewProj = proj * view;
+
+      // Update dynamic uniform buffer at offsets 0 (global) and 64 (per-object)
+      GlobalUniforms globalUniforms;
+      globalUniforms.viewProj = viewProj;
+      mUniformBuffers[frameIdx]->writeToBuffer(&globalUniforms, sizeof(GlobalUniforms), 0);
+      ObjectUniforms objectUniforms;
+      objectUniforms.model = model;
+      mUniformBuffers[frameIdx]->writeToBuffer(&objectUniforms, sizeof(ObjectUniforms), sizeof(GlobalUniforms));
+
+      // Compute addresses
+      VkDeviceAddress baseAddr = mUniformBuffers[frameIdx]->getDeviceAddress();
+      VkDeviceAddress globalAddr = baseAddr;
+      VkDeviceAddress perObjectAddr = baseAddr + sizeof(GlobalUniforms);
+
       PushConstants pc{};
-      pc.model = model;
-      pc.viewProj = proj * view;
+      pc.vertices = mMesh->getVertexBufferAddress();
+      pc.globalUniforms = globalAddr;
+      pc.objectUniforms = perObjectAddr;
 
       vkCmdPushConstants(cmd, mPipeline->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pc);
 

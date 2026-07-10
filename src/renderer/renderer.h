@@ -27,6 +27,7 @@ public:
   void endRendering(VkCommandBuffer iCommandBuffer);
 
   void waitIdle();
+  uint32_t getCurrentFrameIndex() const { return mFrameIndex; }
 
   void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 

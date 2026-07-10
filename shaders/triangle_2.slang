@@ -1,25 +1,35 @@
-struct VSInput {
-  float2 inPosition;
-  float3 inColor;
+struct Vertex {
+  float2 pos;
+  float3 color;
 };
+
+struct GlobalUniforms {
+  float4x4 viewProj;
+};
+
+struct ObjectUniforms {
+  float4x4 model;
+};
+
+struct PushConstants {
+  Vertex* vertices;
+  GlobalUniforms* globalUniforms;
+  ObjectUniforms* objectUniforms;
+};
+
+[vk::push_constant] PushConstants pc;
 
 struct VSOutput {
   float4 pos : SV_Position;
   float3 color;
 };
 
-struct PushConstants {
-  float4x4 model;
-  float4x4 viewProj;
-};
-
-[vk::push_constant] PushConstants pc;
-
 [shader("vertex")]
-VSOutput vertMain(VSInput input) {
+VSOutput vertMain(uint vid : SV_VertexID) {
   VSOutput output;
-  output.pos = mul(pc.viewProj, mul(pc.model, float4(input.inPosition, 0.0, 1.0)));
-  output.color = input.inColor;
+  Vertex v = pc.vertices[vid];
+  output.pos = mul(pc.globalUniforms->viewProj, mul(pc.objectUniforms->model, float4(v.pos, 0.0, 1.0)));
+  output.color = v.color;
   return output;
 }
 
