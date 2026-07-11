@@ -49,7 +49,6 @@ void BasicApp1::run() {
 
       // Bind and draw triangle using BDA
       mPipeline->bind(cmd);
-      vkCmdBindIndexBuffer(cmd, mMesh->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
       PushConstants pc{};
       pc.vertices = mMesh->getVertexBufferAddress();

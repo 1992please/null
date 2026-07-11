@@ -6,6 +6,7 @@
 #include "renderer/pipeline.h"
 #include "renderer/renderer.h"
 
+#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
@@ -49,17 +50,6 @@ BasicApp2::BasicApp2() {
   config.mPushConstantRanges = {pushConstantRange};
 
   mPipeline = std::make_unique<Pipeline>(mRenderer.get(), config);
-
-  // Allocate a single Uniform Buffer per Frame-in-Flight (holds both Global & Per-object uniforms)
-  uint32_t framesInFlight = 2; // Hardcoded matches Renderer::MAX_FRAMES_IN_FLIGHT
-  mUniformBuffers.resize(framesInFlight);
-  for (uint32_t i = 0; i < framesInFlight; i++) {
-    mUniformBuffers[i] = std::make_unique<Buffer>(
-        mRenderer.get(), sizeof(glm::mat4) * 2, // Space for viewProj (64B) and model (64B)
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    mUniformBuffers[i]->mapMemory();
-  }
 }
 
 BasicApp2::~BasicApp2() {}
@@ -76,12 +66,6 @@ void BasicApp2::run() {
       // Bind and draw vertex-buffered triangle
       mPipeline->bind(cmd);
 
-      // Retrieve current frame index for dynamic uniforms
-      uint32_t frameIdx = mRenderer->getCurrentFrameIndex();
-
-      // Bind index buffer (we draw using indices but retrieve vertex data via BDA)
-      vkCmdBindIndexBuffer(cmd, mMesh->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
       // Calculate MVP matrices
       float time = static_cast<float>(glfwGetTime());
       
@@ -89,30 +73,24 @@ void BasicApp2::run() {
       glm::mat4 model = glm::rotate(glm::mat4(1.0f), time * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
       // View: Look from (0,0,-2) down to (0,0,0) with Up=(0,1,0)
-      glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+      glm::mat4 view = math::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
       // Projection: 45 degree field of view, aspect ratio, near=0.1, far=10.0
       int32_t width, height;
       mWindow->getFrameBufferSize(&width, &height);
       float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : 1.0f;
-      glm::mat4 proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
-      // Vulkan projection correction (Y points down, GLM is Y points up)
-      proj[1][1] *= -1.0f;
+      glm::mat4 proj = math::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
 
       glm::mat4 viewProj = proj * view;
 
-      // Update dynamic uniform buffer at offsets 0 (global) and 64 (per-object)
+      // Update dynamic uniform buffer via UploadBuffer
       GlobalUniforms globalUniforms;
       globalUniforms.viewProj = viewProj;
-      mUniformBuffers[frameIdx]->writeToBuffer(&globalUniforms, sizeof(GlobalUniforms), 0);
+      VkDeviceAddress globalAddr = mRenderer->getUploadBuffer()->upload(&globalUniforms, sizeof(GlobalUniforms));
+
       ObjectUniforms objectUniforms;
       objectUniforms.model = model;
-      mUniformBuffers[frameIdx]->writeToBuffer(&objectUniforms, sizeof(ObjectUniforms), sizeof(GlobalUniforms));
-
-      // Compute addresses
-      VkDeviceAddress baseAddr = mUniformBuffers[frameIdx]->getDeviceAddress();
-      VkDeviceAddress globalAddr = baseAddr;
-      VkDeviceAddress perObjectAddr = baseAddr + sizeof(GlobalUniforms);
+      VkDeviceAddress perObjectAddr = mRenderer->getUploadBuffer()->upload(&objectUniforms, sizeof(ObjectUniforms));
 
       PushConstants pc{};
       pc.vertices = mMesh->getVertexBufferAddress();

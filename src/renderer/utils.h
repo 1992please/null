@@ -23,3 +23,12 @@
       std::abort();                                                                                                    \
     }                                                                                                                  \
   } while (false)
+
+namespace ne {
+
+template <typename T>
+constexpr T alignUp(T value, T alignment) {
+  return (value + alignment - 1) & ~(alignment - 1);
+}
+
+} // namespace ne

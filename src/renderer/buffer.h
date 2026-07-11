@@ -20,6 +20,10 @@ public:
   void writeToBuffer(const void* data, VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
   void unmapMemory();
 
+
+  VkDeviceAddress upload(const void* data, VkDeviceSize size, VkDeviceSize alignment = 16);
+  void resetUploadOffset() { mUploadOffset = 0; }
+
   VkDeviceAddress getDeviceAddress() const;
 
   VkBuffer getBuffer() const { return mBuffer; }
@@ -35,6 +39,7 @@ private:
   VkDeviceMemory mMemory = VK_NULL_HANDLE;
   void* mMapped = nullptr;
   VkDeviceSize mBufferSize = 0;
+  VkDeviceSize mUploadOffset = 0; // Added for linear allocation
 };
 
 } // namespace ne

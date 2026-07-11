@@ -3,12 +3,22 @@
 #include <volk/volk.h>
 
 // std lib headers
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace ne {
 
 class Window;
+class Buffer;
+
+struct GeometryAllocation {
+  VkDeviceAddress vertexAddress = 0;
+  VkDeviceSize vertexOffset = 0;
+  VkDeviceSize indexOffset = 0;
+  uint32_t vertexCount = 0;
+  uint32_t indexCount = 0;
+};
 
 class Renderer {
 public:
@@ -29,11 +39,18 @@ public:
   void waitIdle();
   uint32_t getCurrentFrameIndex() const { return mFrameIndex; }
 
-  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0);
 
   VkDevice getDevice() const { return mDevice; }
   const VkSurfaceFormatKHR& getSwapChainSurfaceFormat() const { return mSwapChainSurfaceFormat; }
   VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
+
+  GeometryAllocation allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, uint32_t vertexCount,
+                                      const std::vector<uint32_t>& indices);
+
+  Buffer* getGlobalVertexBuffer() const { return mGlobalVertexBuffer.get(); }
+  Buffer* getGlobalIndexBuffer() const { return mGlobalIndexBuffer.get(); }
+  Buffer* getUploadBuffer() const { return mFrames[mFrameIndex].mUploadBuffer.get(); }
 
 private:
   void createInstance();
@@ -101,8 +118,18 @@ private:
     VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
     VkSemaphore mPresentCompleteSemaphore = VK_NULL_HANDLE;
     VkFence mDrawFence = VK_NULL_HANDLE;
+    std::unique_ptr<Buffer> mUploadBuffer;
   };
   std::vector<FrameResources> mFrames;
+ 
+  // Global Geometry Buffers
+  std::unique_ptr<Buffer> mGlobalVertexBuffer;
+  std::unique_ptr<Buffer> mGlobalIndexBuffer;
+  VkDeviceSize mCurrentVertexOffset = 0;
+  VkDeviceSize mCurrentIndexOffset = 0;
+
+  const VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024; // 64 MB
+  const VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;  // 32 MB
 
   uint32_t mFrameIndex = 0;
   uint32_t mImageIndex = 0;

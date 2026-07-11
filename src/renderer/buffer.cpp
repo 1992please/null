@@ -86,4 +86,18 @@ uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
   return ~0U;
 }
 
+VkDeviceAddress Buffer::upload(const void* data, VkDeviceSize size, VkDeviceSize alignment) {
+  NE_ASSERT(mMapped, "Buffer must be mapped before uploading!");
+  VkDeviceSize alignedOffset = alignUp(mUploadOffset, alignment);
+  NE_ASSERT(alignedOffset + size <= mBufferSize, "Buffer overflow! Increase buffer size.");
+
+  mUploadOffset = alignedOffset;
+  std::memcpy(static_cast<char*>(mMapped) + mUploadOffset, data, size);
+
+  VkDeviceAddress address = getDeviceAddress() + mUploadOffset;
+  mUploadOffset += size;
+
+  return address;
+}
+
 } // namespace ne

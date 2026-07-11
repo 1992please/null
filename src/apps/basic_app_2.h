@@ -4,7 +4,6 @@
 
 // std
 #include <memory>
-#include <vector>
 
 namespace ne {
 
@@ -30,7 +29,5 @@ private:
   std::unique_ptr<Renderer> mRenderer;
   std::unique_ptr<Pipeline> mPipeline;
   std::unique_ptr<Mesh> mMesh;
-
-  std::vector<std::unique_ptr<Buffer>> mUniformBuffers;
 };
 } // namespace ne

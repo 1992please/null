@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderer/buffer.h"
+#include "renderer/renderer.h"
 #include <glm/glm.hpp>
 #include <volk/volk.h>
 
@@ -9,8 +10,6 @@
 #include <vector>
 
 namespace ne {
-
-class Renderer;
 
 class Mesh {
 public:
@@ -27,14 +26,13 @@ public:
 
   void draw(VkCommandBuffer iCommandBuffer);
 
-  VkDeviceAddress getVertexBufferAddress() const { return mVertexBuffer->getDeviceAddress(); }
-  Buffer* getIndexBuffer() const { return mIndexBuffer.get(); }
+  VkDeviceAddress getVertexBufferAddress() const { return mAllocation.vertexAddress; }
+  VkDeviceSize getIndexBufferOffset() const { return mAllocation.indexOffset; }
+  uint32_t getIndexCount() const { return mAllocation.indexCount; }
 
 private:
-  uint32_t mVertexCount = 0;
-  uint32_t mIndexCount = 0;
-  std::unique_ptr<Buffer> mVertexBuffer;
-  std::unique_ptr<Buffer> mIndexBuffer;
+  Renderer* mRenderer = nullptr;
+  GeometryAllocation mAllocation;
 };
 
 } // namespace ne

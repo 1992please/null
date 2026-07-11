@@ -1,6 +1,7 @@
 #include "renderer/renderer.h"
 #include "core/core.h"
 #include "platform/window.h"
+#include "renderer/buffer.h"
 #include "renderer/utils.h"
 
 // std
@@ -37,13 +38,28 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createLogicalDevice();
   createSwapChain();
   createFramesResources();
+
+  mGlobalVertexBuffer = std::make_unique<Buffer>(
+      this, VERTEX_POOL_SIZE,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  mGlobalIndexBuffer = std::make_unique<Buffer>(
+      this, INDEX_POOL_SIZE,
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
 Renderer::~Renderer() {
-  for (FrameResources frame : mFrames) {
+  // Release buffers before destroying the device
+  mGlobalVertexBuffer.reset();
+  mGlobalIndexBuffer.reset();
+
+  for (FrameResources& frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
     vkDestroySemaphore(mDevice, frame.mPresentCompleteSemaphore, nullptr);
     vkDestroyFence(mDevice, frame.mDrawFence, nullptr);
+    frame.mUploadBuffer.reset();
   }
 
   for (SwapchainImageResources& image : mSwapChainImages) {
@@ -418,6 +434,12 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
+
+    mFrames[i].mUploadBuffer = std::make_unique<Buffer>(
+        this, 2 * 1024 * 1024,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    mFrames[i].mUploadBuffer->mapMemory();
   }
   
   // Create our one time Command buffer
@@ -453,6 +475,9 @@ VkCommandBuffer Renderer::beginFrame() {
   vkResetFences(mDevice, 1, &currentFrame.mDrawFence);
 
   vkResetCommandPool(mDevice, currentFrame.mCommandPool, 0);
+
+  // Reset transient uniform allocations for this frame
+  currentFrame.mUploadBuffer->resetUploadOffset();
 
   VkCommandBufferBeginInfo commandBufferBeginInfo{};
   commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -540,6 +565,9 @@ void Renderer::beginRendering(VkCommandBuffer iCommandBuffer) {
   VkRect2D scissor = {.offset = {0, 0}, .extent = mSwapChainExtent};
   vkCmdSetViewport(iCommandBuffer, 0, 1, &viewport);
   vkCmdSetScissor(iCommandBuffer, 0, 1, &scissor);
+
+  // Bind global index buffer once at the start of the rendering pass
+  vkCmdBindIndexBuffer(iCommandBuffer, mGlobalIndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 }
 
 void Renderer::endRendering(VkCommandBuffer iCommandBuffer) {
@@ -552,12 +580,12 @@ void Renderer::endRendering(VkCommandBuffer iCommandBuffer) {
 
 void Renderer::waitIdle() { vkDeviceWaitIdle(mDevice); }
 
-void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
+void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset) {
   VkCommandBuffer commandBuffer = beginOneTimeCommand();
 
   VkBufferCopy bufferCopy{};
-  bufferCopy.srcOffset = 0;
-  bufferCopy.dstOffset = 0;
+  bufferCopy.srcOffset = srcOffset;
+  bufferCopy.dstOffset = dstOffset;
   bufferCopy.size = size;
   vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
 
@@ -664,6 +692,55 @@ void Renderer::cmdTransitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t
   dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
 
   vkCmdPipelineBarrier2(iCommandBuffer, &dependencyInfo);
+}
+
+GeometryAllocation Renderer::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, uint32_t vertexCount,
+                                              const std::vector<uint32_t>& indices) {
+  VkDeviceSize indexSize = indices.size() * sizeof(uint32_t);
+
+  // Align offsets to 16 bytes for safety
+  VkDeviceSize alignedVertexOffset = alignUp(mCurrentVertexOffset, static_cast<VkDeviceSize>(16));
+  VkDeviceSize alignedIndexOffset = alignUp(mCurrentIndexOffset, static_cast<VkDeviceSize>(16));
+
+  NE_ASSERT(alignedVertexOffset + vertexSize <= VERTEX_POOL_SIZE, "Vertex pool out of memory!");
+  NE_ASSERT(alignedIndexOffset + indexSize <= INDEX_POOL_SIZE, "Index pool out of memory!");
+
+  mCurrentVertexOffset = alignedVertexOffset;
+  mCurrentIndexOffset = alignedIndexOffset;
+
+  // Staging and copy for vertices
+  {
+    Buffer stagingBuffer(this, vertexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    stagingBuffer.mapMemory(vertexSize);
+    stagingBuffer.writeToBuffer(vertexData, vertexSize);
+    stagingBuffer.unmapMemory();
+
+    copyBuffer(stagingBuffer.getBuffer(), mGlobalVertexBuffer->getBuffer(), vertexSize, 0, mCurrentVertexOffset);
+  }
+
+  // Staging and copy for indices
+  {
+    Buffer stagingBuffer(this, indexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    stagingBuffer.mapMemory(indexSize);
+    stagingBuffer.writeToBuffer(indices.data(), indexSize);
+    stagingBuffer.unmapMemory();
+
+    copyBuffer(stagingBuffer.getBuffer(), mGlobalIndexBuffer->getBuffer(), indexSize, 0, mCurrentIndexOffset);
+  }
+
+  GeometryAllocation alloc{};
+  alloc.vertexAddress = mGlobalVertexBuffer->getDeviceAddress() + mCurrentVertexOffset;
+  alloc.vertexOffset = mCurrentVertexOffset;
+  alloc.indexOffset = mCurrentIndexOffset;
+  alloc.vertexCount = vertexCount;
+  alloc.indexCount = static_cast<uint32_t>(indices.size());
+
+  mCurrentVertexOffset += vertexSize;
+  mCurrentIndexOffset += indexSize;
+
+  return alloc;
 }
 
 } // namespace ne
