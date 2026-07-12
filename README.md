@@ -13,27 +13,22 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 
 ## 📌 TODO / Task Board
-- [x] Rename `.src/core/types.h` to `src/core/defines.h`.
-- [x] Rewrite the Vulkan renderer using Vulkan 1.4 instead of 1.0.
-- [x] One `VkCommandPool` per frame-in-flight.
-- [x] Index buffer implementation.
 - [x] Implement MVP matrices using Push Constants.
 - [x] Understand the vector math behind MVP.
 - [x] Build BDA system for transferring Global Uniforms.
 - [x] Build BDA system for transferring Per-object Uniforms.
 - [x] Send Vertex Data with BDA.
+- [x] Use build presets in cmake
+- [x] Investigate if we should optimize the allocation of staging buffers.
+- [x] Investigate if it's worth creating allocator for vulkan objects.
 - [ ] Draw Indices using MDI (Multi-Draw Indirect).
-- [ ] Unified buffer for both Index and Vertex buffers.
-- [ ] Transition MVP/Uniforms to single-buffer modern GPU-driven rendering.
+- [ ] Building custome View/Project matrix in our math library.
 - [ ] Bindless arrays/descriptors for textures.
 - [ ] Integrate `cgltf` parsing into rendering pools.
 - [ ] Interactive orbital camera and input handling.
 
 ## 🔍 Investigation Board
-- **`scalarBlockLayout`**: Layout matching for buffers to simplify structure alignments in shaders.
-- **Offset Alignments**: Handling `minUniformBufferOffsetAlignment` and `minStorageBufferOffsetAlignment`.
-- **Namespace Design**: Evaluating whether to maintain `ne::` namespace or transition.
-- **Math Library**: Creating our own Math library containing logic like constructing View/Project matrices.
+- **Multi Draw Indirect**: host-visible/coherent buffers for the indirect argument buffers for ease of CPU updates, or device-local buffers written via a compute shader or transfer staging buffer.
 - **Texture Compression**: KTX texture library integration.
 - **Pipeline Caching**: Investigate caching Vulkan pipelines.
 
@@ -45,13 +40,13 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 * **Tech Stack**: C++20, GLFW, GLM, cgltf, spdlog, CMake.
 
 ## 📂 Project Directory Map
-- [shaders/](file:///D:/nader_data/development/null/shaders) - Slang shader source code.
-- [src/apps/](file:///D:/nader_data/development/null/src/apps) - Sequential demo applications & application base.
-- [src/core/](file:///D:/nader_data/development/null/src/core) - Core defines and logger.
-- [src/platform/](file:///D:/nader_data/development/null/src/platform) - GLFW window abstraction.
-- [src/renderer/](file:///D:/nader_data/development/null/src/renderer) - Vulkan renderer interface & buffers implementation.
-- [CMakePresets.json](file:///D:/nader_data/development/null/CMakePresets.json) - Build configurations.
-- [build.ps1](file:///D:/nader_data/development/null/build.ps1) - Windows build script wrapper.
+- [shaders/] Slang shader source code.
+- [src/apps/] Sequential demo applications & application base.
+- [src/core/] Core defines and logger.
+- [src/platform/] GLFW window abstraction.
+- [src/renderer/] Vulkan renderer interface & buffers implementation.
+- [CMakePresets.json] Build configurations.
+- [build.ps1] Windows build script wrapper.
 
 ## 🛠️ Building the Project
 
@@ -71,7 +66,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 cmake --preset=[debug|development|shipping]
 
 # Build preset
-cmake --build build/[debug|development|shipping]
+cmake --build --preset [debug|development|shipping]
 ```
 
 ## 📄 License

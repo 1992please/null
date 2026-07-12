@@ -2,6 +2,7 @@
 #include "core/core.h"
 #include "platform/window.h"
 #include "renderer/buffer.h"
+#include "renderer/geometry_allocator.h"
 #include "renderer/utils.h"
 
 // std
@@ -39,21 +40,13 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createSwapChain();
   createFramesResources();
 
-  mGlobalVertexBuffer = std::make_unique<Buffer>(
-      this, VERTEX_POOL_SIZE,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-  mGlobalIndexBuffer = std::make_unique<Buffer>(
-      this, INDEX_POOL_SIZE,
-      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  const VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024; // 64 MB
+  const VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;  // 32 MB
+  mGeometryAllocator = std::make_unique<GeometryAllocator>(this, VERTEX_POOL_SIZE, INDEX_POOL_SIZE);
 }
 
 Renderer::~Renderer() {
-  // Release buffers before destroying the device
-  mGlobalVertexBuffer.reset();
-  mGlobalIndexBuffer.reset();
+  mGeometryAllocator.reset();
 
   for (FrameResources& frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
@@ -567,7 +560,7 @@ void Renderer::beginRendering(VkCommandBuffer iCommandBuffer) {
   vkCmdSetScissor(iCommandBuffer, 0, 1, &scissor);
 
   // Bind global index buffer once at the start of the rendering pass
-  vkCmdBindIndexBuffer(iCommandBuffer, mGlobalIndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(iCommandBuffer, mGeometryAllocator->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 }
 
 void Renderer::endRendering(VkCommandBuffer iCommandBuffer) {
@@ -692,55 +685,6 @@ void Renderer::cmdTransitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t
   dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
 
   vkCmdPipelineBarrier2(iCommandBuffer, &dependencyInfo);
-}
-
-GeometryAllocation Renderer::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, uint32_t vertexCount,
-                                              const std::vector<uint32_t>& indices) {
-  VkDeviceSize indexSize = indices.size() * sizeof(uint32_t);
-
-  // Align offsets to 16 bytes for safety
-  VkDeviceSize alignedVertexOffset = alignUp(mCurrentVertexOffset, static_cast<VkDeviceSize>(16));
-  VkDeviceSize alignedIndexOffset = alignUp(mCurrentIndexOffset, static_cast<VkDeviceSize>(16));
-
-  NE_ASSERT(alignedVertexOffset + vertexSize <= VERTEX_POOL_SIZE, "Vertex pool out of memory!");
-  NE_ASSERT(alignedIndexOffset + indexSize <= INDEX_POOL_SIZE, "Index pool out of memory!");
-
-  mCurrentVertexOffset = alignedVertexOffset;
-  mCurrentIndexOffset = alignedIndexOffset;
-
-  // Staging and copy for vertices
-  {
-    Buffer stagingBuffer(this, vertexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    stagingBuffer.mapMemory(vertexSize);
-    stagingBuffer.writeToBuffer(vertexData, vertexSize);
-    stagingBuffer.unmapMemory();
-
-    copyBuffer(stagingBuffer.getBuffer(), mGlobalVertexBuffer->getBuffer(), vertexSize, 0, mCurrentVertexOffset);
-  }
-
-  // Staging and copy for indices
-  {
-    Buffer stagingBuffer(this, indexSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    stagingBuffer.mapMemory(indexSize);
-    stagingBuffer.writeToBuffer(indices.data(), indexSize);
-    stagingBuffer.unmapMemory();
-
-    copyBuffer(stagingBuffer.getBuffer(), mGlobalIndexBuffer->getBuffer(), indexSize, 0, mCurrentIndexOffset);
-  }
-
-  GeometryAllocation alloc{};
-  alloc.vertexAddress = mGlobalVertexBuffer->getDeviceAddress() + mCurrentVertexOffset;
-  alloc.vertexOffset = mCurrentVertexOffset;
-  alloc.indexOffset = mCurrentIndexOffset;
-  alloc.vertexCount = vertexCount;
-  alloc.indexCount = static_cast<uint32_t>(indices.size());
-
-  mCurrentVertexOffset += vertexSize;
-  mCurrentIndexOffset += indexSize;
-
-  return alloc;
 }
 
 } // namespace ne

@@ -1,15 +1,14 @@
 #pragma once
 
 #include "renderer/buffer.h"
-#include "renderer/renderer.h"
 #include <glm/glm.hpp>
 #include <volk/volk.h>
 
-#include <array>
-#include <memory>
 #include <vector>
 
 namespace ne {
+
+class Renderer;
 
 class Mesh {
 public:
@@ -26,13 +25,14 @@ public:
 
   void draw(VkCommandBuffer iCommandBuffer);
 
-  VkDeviceAddress getVertexBufferAddress() const { return mAllocation.vertexAddress; }
-  VkDeviceSize getIndexBufferOffset() const { return mAllocation.indexOffset; }
-  uint32_t getIndexCount() const { return mAllocation.indexCount; }
+  VkDeviceAddress getVertexBufferAddress() const { return mVertexAddress; }
 
 private:
-  Renderer* mRenderer = nullptr;
-  GeometryAllocation mAllocation;
+  uint32_t mVertexCount = 0;
+  uint32_t mIndexCount = 0;
+
+  VkDeviceAddress mVertexAddress = 0;
+  uint32_t mFirstIndex = 0;
 };
 
 } // namespace ne

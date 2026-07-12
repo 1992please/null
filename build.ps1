@@ -35,7 +35,7 @@ cmake --preset $Preset
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Building preset: $Preset..." -ForegroundColor Green
-cmake --build "build/$Preset"
+cmake --build --preset $Preset
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Build Succeeded!" -ForegroundColor Green

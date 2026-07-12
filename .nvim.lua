@@ -20,7 +20,7 @@ local function update_preset()
   local preset = presets[current_preset_index]
 
   -- set the build command
-  vim.opt.makeprg = "cmake --build build/" .. preset
+  vim.opt.makeprg = "cmake --build --preset " .. preset
 
   -- set the debug command
   local dap_ok, dap = pcall(require, 'dap')
@@ -64,7 +64,7 @@ end, { desc = 'Configure Project' })
 
 -- Build project
 vim.keymap.set('n', '<F6>', function()
-  vim.cmd('make')         -- Run cmake --build build/<preset>
+  vim.cmd('make')         -- Run cmake --build --preset <preset>
   vim.cmd('cwindow')      -- Open quickfix if errors
 end, { desc = 'Build Project' })
 
