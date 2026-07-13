@@ -26,6 +26,8 @@ public:
   void draw(VkCommandBuffer iCommandBuffer);
 
   VkDeviceAddress getVertexBufferAddress() const { return mVertexAddress; }
+  uint32_t getIndexCount() const { return mIndexCount; }
+  uint32_t getFirstIndex() const { return mFirstIndex; }
 
 private:
   uint32_t mVertexCount = 0;

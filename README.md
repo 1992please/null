@@ -32,6 +32,12 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - **Texture Compression**: KTX texture library integration.
 - **Pipeline Caching**: Investigate caching Vulkan pipelines.
 
+## What modern high-performance game engines rendering is designed:
+1. **Bindless Geometry**: All mesh data (vertices/indices) is stored in large GPU buffers, and accessed in shaders via pointers (Buffer Device Address) or descriptor tables (bindless indexing).
+2. **Bindless Materials & Per-Instance Data**: Per-instance metadata (such as model matrices, material IDs, custom tints, textures) are stored in structured buffers. The shaders access them using dynamic indexing based on the instance ID.
+3. **Dynamic Host-Mapped Buffers**: Engines use dynamic mapped host-visible buffers (Upload Buffers/Ring Buffers) to stream instance data and indirect commands generated on the CPU directly to the GPU without staging overhead.
+4. **Draw Command Generation / Sorting**: The CPU/Engine framework exposes a simple `drawMesh(Mesh, Transform, MaterialProperties)` API. The renderer gathers these draw requests, groups/sorts them by shader/pipeline, and dynamically writes instance data and indirect draw commands into dynamic buffers, submitting them in batches.
+
 ## ⚡ Core Technical Specs (AI & Agent Context)
 * **Graphics API**: Vulkan 1.4 (via `volk` meta-loader). No traditional Render Passes/Framebuffers (Dynamic Rendering only).
 * **Shader Pipeline**: Compiled from Slang (`.slang`, `.comp`) to SPIR-V 1.4 via `slangc` at build time.

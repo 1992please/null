@@ -241,7 +241,7 @@ void Renderer::pickPhysicalDevice() {
     // Check support for features you need
     bool supportsRequiredFeatures = vulkan11Features.shaderDrawParameters && vulkan12Features.bufferDeviceAddress &&
                                     vulkan12Features.scalarBlockLayout && vulkan13Features.dynamicRendering &&
-                                    vulkan13Features.synchronization2;
+                                    vulkan13Features.synchronization2 && features2.features.multiDrawIndirect;
 
     // this features are a must to continue using this device
     if (!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain &&
@@ -293,6 +293,7 @@ void Renderer::createLogicalDevice() {
   VkPhysicalDeviceFeatures2 deviceFeatures{};
   deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
   deviceFeatures.pNext = &vulkan11Features; // Start of the chain
+  deviceFeatures.features.multiDrawIndirect = VK_TRUE;
   VkDeviceCreateInfo deviceCreateInfo{};
   deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceCreateInfo.pNext = &deviceFeatures;
@@ -430,7 +431,8 @@ void Renderer::createFramesResources() {
 
     mFrames[i].mUploadBuffer = std::make_unique<Buffer>(
         this, 2 * 1024 * 1024,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
     mFrames[i].mUploadBuffer->mapMemory();
   }

@@ -20,7 +20,7 @@ public:
 
   struct Allocation {
     VkDeviceAddress mVertexAddress = 0;
-    VkDeviceSize mFirstIndex = 0;
+    uint32_t mFirstIndex = 0;
   };
   Allocation allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, const std::vector<uint32_t>& indices);
 
