@@ -8,7 +8,7 @@
 
 namespace ne {
 
-class Renderer;
+class GeometryAllocator;
 
 class Mesh {
 public:
@@ -17,7 +17,7 @@ public:
     glm::vec3 mColor;
   };
 
-  Mesh(Renderer* iRenderer, const std::vector<Vertex>& iVertices, const std::vector<uint32_t> iIndices);
+  Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVertices, const std::vector<uint32_t> iIndices);
   virtual ~Mesh() = default;
 
   Mesh(const Mesh&) = delete;

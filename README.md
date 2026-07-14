@@ -21,16 +21,39 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] Use build presets in cmake
 - [x] Investigate if we should optimize the allocation of staging buffers.
 - [x] Investigate if it's worth creating allocator for vulkan objects.
-- [ ] Draw Indices using MDI (Multi-Draw Indirect).
-- [ ] Building custome View/Project matrix in our math library.
+- [x] Draw Indices using MDI (Multi-Draw Indirect).
+- [x] Building custom View/Project matrix in our math library.
+- [x] Maybe we should move GeometryAllocation to RendererManager
+- [ ] Research which buffers should be update everyframe and which we shouldn't.
 - [ ] Bindless arrays/descriptors for textures.
 - [ ] Integrate `cgltf` parsing into rendering pools.
 - [ ] Interactive orbital camera and input handling.
+- [ ] Refactor unified Renderer to clean up structures for GPU culling.
+- [ ] Implement GPU Frustum & Occlusion Culling via Compute Shaders.
+- [ ] Integrate Vulkan Memory Allocator (VMA) or custom paging sub-allocator.
+- [ ] Design Render Graph (Frame Graph) architecture for transient resources/barriers.
 
 ## 🔍 Investigation Board
 - **Multi Draw Indirect**: host-visible/coherent buffers for the indirect argument buffers for ease of CPU updates, or device-local buffers written via a compute shader or transfer staging buffer.
 - **Texture Compression**: KTX texture library integration.
 - **Pipeline Caching**: Investigate caching Vulkan pipelines.
+- **Multi-threaded Command Recording** we Split  RenderManager  to distribute  mDrawBatches among parallel workers and record to secondary command buffers.
+
+## 🎨 Renderer Lifecycle & Future Scaling
+Currently, `RenderManager::drawScene()` is a single, self-contained call that internally handles starting the frame, recording draw commands, and ending/presenting the frame. This eliminates temporal coupling and minimizes swapchain acquisition latency by running CPU scene preparation before acquiring the swapchain image.
+
+### Future Transition to Context-Driven Encoder Pattern
+When the engine scales to require:
+* **Multi-pass rendering** (e.g., shadow mapping passes, post-processing, UI overlays).
+* **Compute pre-passes** (e.g., GPU occlusion culling, physics dispatches).
+* **Multi-threaded command recording**.
+
+We will evolve this design into a stateless **Context-Driven Encoder Pattern**:
+1. `beginFrame()` returns a transient `RenderContext` object encapsulating active command buffers and frame-in-flight resources.
+2. The context exposes `beginRenderPass()` which returns a scoped `RenderPassEncoder` to record pass-specific commands.
+3. `endFrame(RenderContext)` handles queue submission and presentation.
+
+Since `RenderManager` does not maintain frame-specific class member state, this transition will be a natural evolution rather than a painful rewrite.
 
 ## What modern high-performance game engines rendering is designed:
 1. **Bindless Geometry**: All mesh data (vertices/indices) is stored in large GPU buffers, and accessed in shaders via pointers (Buffer Device Address) or descriptor tables (bindless indexing).

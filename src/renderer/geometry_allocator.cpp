@@ -20,7 +20,7 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
-GeometryAllocator::Allocation GeometryAllocator::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize,
+GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize,
                                                                   const std::vector<uint32_t>& indices) {
   VkDeviceSize indexSize = indices.size() * sizeof(uint32_t);
 
@@ -47,7 +47,7 @@ GeometryAllocator::Allocation GeometryAllocator::allocateGeometry(const void* ve
   mStagingBuffer->writeToBuffer(indices.data(), indexSize, 0);
   mRenderer->copyBuffer(mStagingBuffer->getBuffer(), mIndexBuffer->getBuffer(), indexSize, 0, mCurrentIndexOffset);
 
-  Allocation alloc{};
+  GeometryAllocation alloc{};
   alloc.mVertexAddress = mVertexBuffer->getDeviceAddress() + mCurrentVertexOffset;
   alloc.mFirstIndex = static_cast<uint32_t>(mCurrentIndexOffset / sizeof(uint32_t));
 

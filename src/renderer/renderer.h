@@ -11,7 +11,6 @@ namespace ne {
 
 class Window;
 class Buffer;
-class GeometryAllocator;
 
 class Renderer {
 public:
@@ -26,8 +25,6 @@ public:
 
   VkCommandBuffer beginFrame();
   void endFrame();
-  void beginRendering(VkCommandBuffer iCommandBuffer);
-  void endRendering(VkCommandBuffer iCommandBuffer);
 
   void waitIdle();
   uint32_t getCurrentFrameIndex() const { return mFrameIndex; }
@@ -38,15 +35,20 @@ public:
   const VkSurfaceFormatKHR& getSwapChainSurfaceFormat() const { return mSwapChainSurfaceFormat; }
   VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
 
-  struct GeometryAllocation {
-    VkDeviceAddress mVertexAddress = 0;
-    VkDeviceSize mFirstIndex = 0;
-  };
-
-  GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
   Buffer* getUploadBuffer() const { return mFrames[mFrameIndex].mUploadBuffer.get(); }
+  void recreateUploadBuffer(VkDeviceSize newSize);
+
+  VkExtent2D getSwapChainExtent() const { return mSwapChainExtent; }
+  VkImageView getActiveSwapChainImageView() const { return mSwapChainImages[mImageIndex].mImageView; }
+  uint32_t getActiveSwapChainImageIndex() const { return mImageIndex; }
+
+  void transitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iImageIndex, VkImageLayout iOldLayout,
+                             VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
+                             VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
 
 private:
+  std::unique_ptr<Buffer> createUploadBuffer(VkDeviceSize size);
+
   void createInstance();
   void setupDebugMessenger();
   void createSurface();
@@ -62,14 +64,12 @@ private:
     std::vector<VkPresentModeKHR> mPresentModes;
   };
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
-  void cmdTransitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iImageIndex, VkImageLayout iOldLayout,
-                                VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
-                                VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask);
   void recreateSwapChain();
   [[nodiscard]] VkCommandBuffer beginOneTimeCommand();
   void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
+  const VkDeviceSize DEFAULT_UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;
   const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
   const std::vector<const char*> mRequiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
@@ -116,7 +116,7 @@ private:
   };
   std::vector<FrameResources> mFrames;
 
-  std::unique_ptr<GeometryAllocator> mGeometryAllocator;
+
 
   uint32_t mFrameIndex = 0;
   uint32_t mImageIndex = 0;

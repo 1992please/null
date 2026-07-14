@@ -9,6 +9,11 @@ namespace ne {
 
 class Renderer;
 
+struct GeometryAllocation {
+  VkDeviceAddress mVertexAddress = 0;
+  uint32_t mFirstIndex = 0;
+};
+
 class GeometryAllocator {
 public:
   GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize);
@@ -18,11 +23,7 @@ public:
   GeometryAllocator(const GeometryAllocator&) = delete;
   GeometryAllocator& operator=(const GeometryAllocator&) = delete;
 
-  struct Allocation {
-    VkDeviceAddress mVertexAddress = 0;
-    uint32_t mFirstIndex = 0;
-  };
-  Allocation allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, const std::vector<uint32_t>& indices);
+  GeometryAllocation allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, const std::vector<uint32_t>& indices);
 
   Buffer* getVertexBuffer() const { return mVertexBuffer.get(); }
   Buffer* getIndexBuffer() const { return mIndexBuffer.get(); }

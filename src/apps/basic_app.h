@@ -1,16 +1,16 @@
 #pragma once
 
 #include "apps/application.h"
-
-// std
 #include <memory>
+#include <vector>
 
 namespace ne {
 
 class Window;
-class Renderer;
-class Pipeline;
+class RenderManager;
+class Scene;
 class Mesh;
+class Material;
 
 class BasicApp : public Application {
 public:
@@ -23,9 +23,13 @@ public:
   virtual void run() override;
 
 private:
-
   std::unique_ptr<Window> mWindow;
-  std::unique_ptr<Renderer> mRenderer;
-  std::unique_ptr<Pipeline> mPipeline;
+  std::unique_ptr<RenderManager> mRenderManager;
+  std::unique_ptr<Scene> mScene;
+
+  // Showcase assets
+  std::shared_ptr<Mesh> mTriangleMesh;
+  std::shared_ptr<Mesh> mQuadMesh;
+  std::shared_ptr<Material> mMaterial;
 };
 } // namespace ne

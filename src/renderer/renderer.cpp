@@ -2,8 +2,8 @@
 #include "core/core.h"
 #include "platform/window.h"
 #include "renderer/buffer.h"
-#include "renderer/geometry_allocator.h"
 #include "renderer/utils.h"
+
 
 // std
 #include <algorithm>
@@ -39,14 +39,9 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   createLogicalDevice();
   createSwapChain();
   createFramesResources();
-
-  const VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024; // 64 MB
-  const VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;  // 32 MB
-  mGeometryAllocator = std::make_unique<GeometryAllocator>(this, VERTEX_POOL_SIZE, INDEX_POOL_SIZE);
 }
 
 Renderer::~Renderer() {
-  mGeometryAllocator.reset();
 
   for (FrameResources& frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
@@ -402,6 +397,16 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
          selectedSwapExtent.height);
 }
 
+std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size) {
+  auto uploadBuffer = std::make_unique<Buffer>(
+      this, size,
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  uploadBuffer->mapMemory();
+  return uploadBuffer;
+}
+
 void Renderer::createFramesResources() {
   NE_ASSERT(mFrames.empty());
   mFrames.resize(MAX_FRAMES_IN_FLIGHT);
@@ -429,12 +434,7 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
 
-    mFrames[i].mUploadBuffer = std::make_unique<Buffer>(
-        this, 2 * 1024 * 1024,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    mFrames[i].mUploadBuffer->mapMemory();
+    mFrames[i].mUploadBuffer = createUploadBuffer(DEFAULT_UPLOAD_BUFFER_SIZE);
   }
   
   // Create our one time Command buffer
@@ -479,6 +479,14 @@ VkCommandBuffer Renderer::beginFrame() {
   VK_CHECK(vkBeginCommandBuffer(currentFrame.mCommandBuffer, &commandBufferBeginInfo));
 
   return currentFrame.mCommandBuffer;
+}
+
+void Renderer::recreateUploadBuffer(VkDeviceSize newSize) {
+  auto& currentFrame = mFrames[mFrameIndex];
+
+  NE_LOG("Upload buffer resizing from {} to {} bytes", currentFrame.mUploadBuffer->getBufferSize(), newSize);
+
+  currentFrame.mUploadBuffer = createUploadBuffer(newSize);
 }
 
 void Renderer::endFrame() {
@@ -529,49 +537,7 @@ void Renderer::endFrame() {
   mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Renderer::beginRendering(VkCommandBuffer iCommandBuffer) {
-  cmdTransitionImageLayout(iCommandBuffer, mImageIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                           VK_ACCESS_2_NONE, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                           VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-  VkRenderingAttachmentInfo colorAttachmentInfo{};
-  colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-  colorAttachmentInfo.imageView = mSwapChainImages[mImageIndex].mImageView;
-  colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-  colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-  colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-  colorAttachmentInfo.clearValue = {0.1f, 0.1f, 0.1f, 1.0f};
-
-  VkRenderingInfo renderingInfo{};
-  renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-  renderingInfo.renderArea = {.offset = {0, 0}, .extent = mSwapChainExtent};
-  renderingInfo.layerCount = 1;
-  renderingInfo.colorAttachmentCount = 1;
-  renderingInfo.pColorAttachments = &colorAttachmentInfo;
-
-  vkCmdBeginRendering(iCommandBuffer, &renderingInfo);
-
-  VkViewport viewport = {.x = 0.0f,
-                         .y = 0.0f,
-                         .width = (float)mSwapChainExtent.width,
-                         .height = (float)mSwapChainExtent.height,
-                         .minDepth = 0.0f,
-                         .maxDepth = 1.0f};
-  VkRect2D scissor = {.offset = {0, 0}, .extent = mSwapChainExtent};
-  vkCmdSetViewport(iCommandBuffer, 0, 1, &viewport);
-  vkCmdSetScissor(iCommandBuffer, 0, 1, &scissor);
-
-  // Bind global index buffer once at the start of the rendering pass
-  vkCmdBindIndexBuffer(iCommandBuffer, mGeometryAllocator->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-}
-
-void Renderer::endRendering(VkCommandBuffer iCommandBuffer) {
-  vkCmdEndRendering(iCommandBuffer);
-
-  cmdTransitionImageLayout(iCommandBuffer, mImageIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                           VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                           VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
-}
 
 void Renderer::waitIdle() { vkDeviceWaitIdle(mDevice); }
 
@@ -663,9 +629,9 @@ Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevi
   return oSwapChainSupportDetails;
 }
 
-void Renderer::cmdTransitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iImageIndex, VkImageLayout iOldLayout,
-                                        VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
-                                        VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask) {
+void Renderer::transitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iImageIndex, VkImageLayout iOldLayout,
+                                     VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
+                                     VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask) {
   VkImageMemoryBarrier2 imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   imageMemoryBarrier.srcStageMask = iSrcStageMask;

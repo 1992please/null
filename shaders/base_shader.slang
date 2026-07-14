@@ -46,8 +46,8 @@ VSOutput vertMain(VSInput input) {
   DrawInfo draw = pc.drawInfos[input.drawIndex];
   Vertex v = draw.vertices[input.vertexId];
 
-  uint globalTransformIndex = draw.instanceBaseOffset + input.instanceId;
-  InstanceData inst = pc.instances[globalTransformIndex];
+  uint instanceIndex = draw.instanceBaseOffset + input.instanceId;
+  InstanceData inst = pc.instances[instanceIndex];
 
   output.pos = mul(pc.globalUniforms->viewProj, mul(inst.modelMatrix, float4(v.pos, 0.0, 1.0)));
   output.color = v.color * inst.color.rgb;
