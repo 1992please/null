@@ -1,5 +1,7 @@
 #include "renderer/renderer.h"
-#include "core/core.h"
+#include "core/assert.h"
+#include "core/defines.h"
+#include "core/logger.h"
 #include "platform/window.h"
 #include "renderer/buffer.h"
 #include "renderer/utils.h"

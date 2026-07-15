@@ -1,5 +1,5 @@
 #include "renderer/mesh.h"
-#include "core/core.h"
+#include "core/assert.h"
 #include "renderer/geometry_allocator.h"
 
 namespace ne {

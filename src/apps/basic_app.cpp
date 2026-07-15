@@ -1,5 +1,6 @@
 #include "apps/basic_app.h"
-#include "core/core.h"
+#include "core/logger.h"
+#include "core/math.h"
 #include "platform/window.h"
 #include "renderer/mesh.h"
 #include "renderer/render_manager.h"

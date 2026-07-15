@@ -1,5 +1,5 @@
 #include "platform/window.h"
-#include "core/core.h"
+#include "core/defines.h"
 
 #include <GLFW/glfw3.h>
 

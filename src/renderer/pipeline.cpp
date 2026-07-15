@@ -1,11 +1,13 @@
 #include "renderer/pipeline.h"
-#include "core/core.h"
+#include "core/assert.h"
+#include "core/platform.h"
 #include "renderer/mesh.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
 
 // std
 #include <fstream>
+#include <filesystem>
 
 namespace ne {
 
@@ -157,7 +159,7 @@ void Pipeline::bind(VkCommandBuffer iCommandBuffer) {
 }
 
 VkShaderModule Pipeline::createShaderModule(const std::string& iShaderName) {
-  std::string fullPath = std::string(NE_SHADER_DIR) + "/" + iShaderName + ".spv";
+  std::string fullPath = (std::filesystem::path(platform::getExecutableDirectory()) / NE_SHADER_DIR / (iShaderName + ".spv")).string();
   std::ifstream file(fullPath, std::ios::ate | std::ios::binary);
   NE_ASSERT(file.is_open(), "failed to open file: {}", fullPath);
 

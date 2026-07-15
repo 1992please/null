@@ -31,7 +31,7 @@ local function update_preset()
         type = "codelldb",
         request = "launch",
         program = get_executable_path(preset),
-        cwd = "${workspaceFolder}/" .. get_build_dir(preset),
+        cwd = "${workspaceFolder}",
         stopOnEntry = false,
       },
     }
@@ -71,14 +71,13 @@ end, { desc = 'Build Project' })
 -- Run Executable
 vim.keymap.set('n', '<F7>', function()
   local preset = presets[current_preset_index]
-  local bdir = get_build_dir(preset)
   local exe_path = get_executable_path(preset)
   if vim.fn.filereadable(exe_path) == 1 then
     -- Close old terminal if it exists
     if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
       vim.api.nvim_buf_delete(term_buf, { force = true })
     end
-    vim.cmd('split | terminal cd ' .. bdir .. ' && ./' .. executable_name)
+    vim.cmd('split | terminal' .. exe_path)
     term_buf = vim.api.nvim_get_current_buf()
   else
     print("Executable not found: " .. exe_path .. ". Run build first (F5)")

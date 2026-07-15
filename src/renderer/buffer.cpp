@@ -1,5 +1,5 @@
 #include "renderer/buffer.h"
-#include "core/core.h"
+#include "core/assert.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
 
@@ -21,16 +21,15 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
   VkMemoryRequirements memoryRequirements;
   vkGetBufferMemoryRequirements(mDevice, mBuffer, &memoryRequirements);
 
+  VkMemoryAllocateFlagsInfo allocateFlagsInfo{};
+  allocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+  allocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
+
   VkMemoryAllocateInfo memoryAllocateInfo{};
   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   memoryAllocateInfo.allocationSize = memoryRequirements.size;
   memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties);
-  if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
-		VkMemoryAllocateFlagsInfo allocateFlagsInfo{};
-		allocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
-	  allocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-    memoryAllocateInfo.pNext = &allocateFlagsInfo;
-  }
+  memoryAllocateInfo.pNext = (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? &allocateFlagsInfo : nullptr;
 
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
   VK_CHECK(vkBindBufferMemory(mDevice, mBuffer, mMemory, 0));

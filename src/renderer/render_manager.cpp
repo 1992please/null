@@ -1,5 +1,5 @@
 #include "renderer/render_manager.h"
-#include "core/core.h"
+#include "core/assert.h"
 #include "renderer/buffer.h"
 #include "renderer/geometry_allocator.h"
 #include "renderer/material.h"

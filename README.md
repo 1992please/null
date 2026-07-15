@@ -13,21 +13,11 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 
 ## 📌 TODO / Task Board
-- [x] Implement MVP matrices using Push Constants.
-- [x] Understand the vector math behind MVP.
-- [x] Build BDA system for transferring Global Uniforms.
-- [x] Build BDA system for transferring Per-object Uniforms.
-- [x] Send Vertex Data with BDA.
-- [x] Use build presets in cmake
-- [x] Investigate if we should optimize the allocation of staging buffers.
-- [x] Investigate if it's worth creating allocator for vulkan objects.
-- [x] Draw Indices using MDI (Multi-Draw Indirect).
-- [x] Building custom View/Project matrix in our math library.
-- [x] Maybe we should move GeometryAllocation to RendererManager
 - [ ] Research which buffers should be update everyframe and which we shouldn't.
 - [ ] Bindless arrays/descriptors for textures.
 - [ ] Integrate `cgltf` parsing into rendering pools.
 - [ ] Interactive orbital camera and input handling.
+- [ ] Building custom View/Project matrix in our math library.
 - [ ] Refactor unified Renderer to clean up structures for GPU culling.
 - [ ] Implement GPU Frustum & Occlusion Culling via Compute Shaders.
 - [ ] Integrate Vulkan Memory Allocator (VMA) or custom paging sub-allocator.

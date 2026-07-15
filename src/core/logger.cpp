@@ -1,20 +1,21 @@
-#include "logger.h"
-#include "spdlog/common.h"
-#include <memory>
+#include "core/logger.h"
+#include "core/platform.h"
+
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
+
+#include <filesystem>
 
 namespace ne {
-
-static std::shared_ptr<Logger> sEngineLogger;
 
 Logger::Logger() {
   // Setup a colorful console sink
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
   // Setup a file sink for persistent logs
-  auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/engine.log", 1024 * 1024, 5, true);
+  std::filesystem::path log_path = std::filesystem::path(platform::getExecutableDirectory()) / "logs/engine.log";
+  auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(log_path.string(), 1024 * 1024, 5, true);
 
   // Combine sinks: log to both console and file
   spdlog::sinks_init_list sink_list = {console_sink, rotating_sink};
