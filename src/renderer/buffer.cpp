@@ -1,5 +1,6 @@
 #include "renderer/buffer.h"
 #include "core/assert.h"
+#include "core/logger.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
 
@@ -28,7 +29,7 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
   VkMemoryAllocateInfo memoryAllocateInfo{};
   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   memoryAllocateInfo.allocationSize = memoryRequirements.size;
-  memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties);
+  memoryAllocateInfo.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, properties, usage);
   memoryAllocateInfo.pNext = (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? &allocateFlagsInfo : nullptr;
 
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
@@ -71,12 +72,27 @@ VkDeviceAddress Buffer::getDeviceAddress() const {
   return vkGetBufferDeviceAddress(mDevice, &addressInfo);
 }
 
-uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkBufferUsageFlags usage) {
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
 
+  // If host-visible and coherent memory is requested, try to find a heap that is ALSO device-local (Resizable BAR)
+  // Pure staging buffers (usage = TRANSFER_SRC_BIT only) should NOT be allocated in Resizable BAR VRAM.
+  if ((usage != VK_BUFFER_USAGE_TRANSFER_SRC_BIT) && (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) && (properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+    VkMemoryPropertyFlags preferredProperties = properties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+      if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & preferredProperties) == preferredProperties) {
+        NE_LOG("Allocating Buffer (size: {} bytes) in Device-Local Host-Visible VRAM (Resizable BAR).", mBufferSize);
+        return i;
+      }
+    }
+  }
+
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+      if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+        NE_LOG("Allocating Buffer (size: {} bytes) in standard Host-Visible System RAM (Fallback/Staging).", mBufferSize);
+      }
       return i;
     }
   }

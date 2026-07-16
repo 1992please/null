@@ -7,6 +7,7 @@
 #include "renderer/pipeline.h"
 #include "renderer/renderer.h"
 #include "renderer/scene.h"
+#include "renderer/utils.h"
 #include <algorithm>
 
 namespace ne {
@@ -23,18 +24,19 @@ struct PushConstants {
   VkDeviceAddress instances;
 };
 
+struct GlobalUniforms {
+  glm::mat4 viewProj;
+};
+
 RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
-  const VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024; // 64 MB
-  const VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;  // 32 MB
-  mGeometryAllocator = std::make_unique<GeometryAllocator>(mRenderer.get(), VERTEX_POOL_SIZE, INDEX_POOL_SIZE);
+  mGeometryAllocator = std::make_unique<GeometryAllocator>(mRenderer.get(), config::VERTEX_POOL_SIZE, config::INDEX_POOL_SIZE);
 }
 
-RenderManager::~RenderManager() { 
+RenderManager::~RenderManager() {
   mGeometryAllocator.reset();
   mRenderer.reset();
 }
-
 
 void RenderManager::waitIdle() { mRenderer->waitIdle(); }
 
@@ -94,8 +96,7 @@ void RenderManager::drawScene(Scene* iScene) {
   vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
   // Bind global index buffer
-  vkCmdBindIndexBuffer(commandBuffer, mGeometryAllocator->getIndexBuffer()->getBuffer(), 0,
-                       VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(commandBuffer, mGeometryAllocator->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
   // 2. Submit Draw Batches
   for (const auto& obj : iScene->getObjects()) {
@@ -129,19 +130,11 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const glm::mat4& iVie
   });
 
   // 2. Calculate the exact upload buffer size needed for this frame
-  struct GlobalUniforms {
-    glm::mat4 viewProj;
-  };
   VkDeviceSize totalRequiredSize = sizeof(GlobalUniforms) + 16;
-
   Pipeline* lastPipeline = nullptr;
   Mesh* lastMesh = nullptr;
   for (const auto& call : mDrawCalls) {
-    if (call.pipeline != lastPipeline) {
-      lastPipeline = call.pipeline;
-      lastMesh = nullptr;
-    }
-    if (call.mesh != lastMesh) {
+    if (call.pipeline != lastPipeline || call.mesh != lastMesh) {
       lastMesh = call.mesh;
       totalRequiredSize += sizeof(DrawInfo) + 16;
       totalRequiredSize += sizeof(VkDrawIndexedIndirectCommand) + 16;
@@ -164,10 +157,12 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const glm::mat4& iVie
 
   // 5. Loop through sorted mDrawCalls and batch/submit
   size_t i = 0;
+  Pipeline* currentPipeline = nullptr;
   while (i < mDrawCalls.size()) {
-    Pipeline* currentPipeline = mDrawCalls[i].pipeline;
-
-    currentPipeline->bind(iCommandBuffer);
+    if (currentPipeline != mDrawCalls[i].pipeline) {
+      currentPipeline = mDrawCalls[i].pipeline;
+      currentPipeline->bind(iCommandBuffer);
+    }
 
     std::vector<DrawInfo> drawInfos;
     std::vector<InstanceData> instanceData;
@@ -214,8 +209,8 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const glm::mat4& iVie
     pc.globalUniforms = globalUniformsAddr;
     pc.instances = instancesAddr;
 
-    vkCmdPushConstants(iCommandBuffer, currentPipeline->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
-                       sizeof(PushConstants), &pc);
+    vkCmdPushConstants(iCommandBuffer, currentPipeline->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants),
+                       &pc);
 
     vkCmdDrawIndexedIndirect(iCommandBuffer, uploadBuffer->getBuffer(), indirectOffset, numUniqueMeshes,
                              sizeof(VkDrawIndexedIndirectCommand));

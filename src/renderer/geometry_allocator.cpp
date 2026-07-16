@@ -18,6 +18,8 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
   mIndexBuffer =
       std::make_unique<Buffer>(mRenderer, mIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  createStagingBuffer(config::DEFAULT_STAGING_BUFFER_SIZE);
 }
 
 GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize,
@@ -33,10 +35,9 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
 
   // Ensure staging buffer is large enough for the largest single copy
   VkDeviceSize requiredSize = std::max(vertexSize, indexSize);
-  if (!mStagingBuffer || mStagingBuffer->getBufferSize() < requiredSize) {
-    mStagingBuffer = std::make_unique<Buffer>(mRenderer, requiredSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    mStagingBuffer->mapMemory();
+  if (mStagingBuffer->getBufferSize() < requiredSize) {
+    VkDeviceSize newSize = std::max(requiredSize, mStagingBuffer->getBufferSize() * 2);
+    createStagingBuffer(newSize);
   }
 
   // 1. Upload vertices
@@ -55,6 +56,12 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
   mCurrentIndexOffset += indexSize;
 
   return alloc;
+}
+
+void GeometryAllocator::createStagingBuffer(VkDeviceSize size) {
+  mStagingBuffer = std::make_unique<Buffer>(mRenderer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  mStagingBuffer->mapMemory();
 }
 
 } // namespace ne

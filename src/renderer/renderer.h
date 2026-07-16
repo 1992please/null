@@ -69,7 +69,6 @@ private:
   void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
-  const VkDeviceSize DEFAULT_UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;
   const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
   const std::vector<const char*> mRequiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 

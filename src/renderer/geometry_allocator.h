@@ -33,6 +33,7 @@ private:
   std::unique_ptr<Buffer> mVertexBuffer;
   std::unique_ptr<Buffer> mIndexBuffer;
   std::unique_ptr<Buffer> mStagingBuffer;
+  void createStagingBuffer(VkDeviceSize size);
 
   VkDeviceSize mCurrentVertexOffset = 0;
   VkDeviceSize mCurrentIndexOffset = 0;

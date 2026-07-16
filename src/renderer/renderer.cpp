@@ -436,7 +436,7 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
 
-    mFrames[i].mUploadBuffer = createUploadBuffer(DEFAULT_UPLOAD_BUFFER_SIZE);
+    mFrames[i].mUploadBuffer = createUploadBuffer(config::DEFAULT_UPLOAD_BUFFER_SIZE);
   }
   
   // Create our one time Command buffer

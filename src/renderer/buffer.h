@@ -30,7 +30,7 @@ public:
   VkDeviceSize getBufferSize() const { return mBufferSize; }
 
 private:
-  uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+  uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkBufferUsageFlags usage);
 
   VkDevice mDevice = VK_NULL_HANDLE;
   VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
