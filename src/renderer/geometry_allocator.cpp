@@ -7,16 +7,16 @@
 namespace ne {
 
 GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize)
-    : mRenderer(iRenderer), mVertexPoolSize(iVertexPoolSize), mIndexPoolSize(iIndexPoolSize) {
+    : mRenderer(iRenderer) {
   NE_ASSERT(mRenderer);
 
-  mVertexBuffer = std::make_unique<Buffer>(mRenderer, mVertexPoolSize,
+  mVertexBuffer = std::make_unique<Buffer>(mRenderer, iVertexPoolSize,
                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   mIndexBuffer =
-      std::make_unique<Buffer>(mRenderer, mIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      std::make_unique<Buffer>(mRenderer, iIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   createStagingBuffer(config::DEFAULT_STAGING_BUFFER_SIZE);
@@ -30,8 +30,8 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
   mCurrentVertexOffset = alignUp(mCurrentVertexOffset, static_cast<VkDeviceSize>(16));
   mCurrentIndexOffset = alignUp(mCurrentIndexOffset, static_cast<VkDeviceSize>(16));
 
-  NE_ASSERT(mCurrentVertexOffset + vertexSize <= mVertexPoolSize, "Vertex pool out of memory!");
-  NE_ASSERT(mCurrentIndexOffset + indexSize <= mIndexPoolSize, "Index pool out of memory!");
+  NE_ASSERT(mCurrentVertexOffset + vertexSize <= mVertexBuffer->getBufferSize(), "Vertex pool out of memory!");
+  NE_ASSERT(mCurrentIndexOffset + indexSize <= mIndexBuffer->getBufferSize(), "Index pool out of memory!");
 
   // Ensure staging buffer is large enough for the largest single copy
   VkDeviceSize requiredSize = std::max(vertexSize, indexSize);

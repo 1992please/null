@@ -13,19 +13,27 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 
 ## 📌 TODO / Task Board
-- [ ] Research which buffers should be update everyframe and which we shouldn't.
+
+### Phase 1: 3D Asset Pipeline & Geometry
+- [ ] Upgrade renderer to support 3D coordinate vertices.
+- [ ] Integrate `cgltf` parsing into rendering pools to load `.gltf` / `.glb` files.
+
+### Phase 2: Interactive Camera & GUI
+- [ ] Expose GLFW input events (keyboard, mouse) in the `Window` class.
+- [ ] Implement interactive orbital (Arcball) camera.
+- [ ] Integrate Dear ImGui overlay for statistics and settings.
+
+### Phase 3: Bindless Textures & Materials
 - [ ] Bindless arrays/descriptors for textures.
-- [ ] Integrate `cgltf` parsing into rendering pools.
-- [ ] Interactive orbital camera and input handling.
-- [ ] Building custom View/Project matrix in our math library.
-- [ ] Refactor unified Renderer to clean up structures for GPU culling.
-- [ ] Implement GPU Frustum & Occlusion Culling via Compute Shaders.
+- [ ] Research which buffers should be updated every frame and which shouldn't.
 - [ ] Integrate Vulkan Memory Allocator (VMA) or custom paging sub-allocator.
+
+### Phase 4: GPU-Driven Pipeline & Optimization
+- [ ] Implement GPU Frustum & Occlusion Culling via Compute Shaders (generating indirect draw commands on the GPU).
 - [ ] Design Render Graph (Frame Graph) architecture for transient resources/barriers.
-- [x] We need to make sure all the starting buffers sizes are in one location to change (centralized in `utils.h`).
+- [x] Centralize starting buffer sizes in `utils.h`.
 
 ## 🔍 Investigation Board
-- **Multi Draw Indirect**: host-visible/coherent buffers for the indirect argument buffers for ease of CPU updates, or device-local buffers written via a compute shader or transfer staging buffer.
 - **Texture Compression**: KTX texture library integration.
 - **Pipeline Caching**: Investigate caching Vulkan pipelines.
 - **Multi-threaded Command Recording** we Split  RenderManager  to distribute  mDrawBatches among parallel workers and record to secondary command buffers.
@@ -89,66 +97,6 @@ cmake --preset=[debug|development|shipping]
 cmake --build --preset [debug|development|shipping]
 ```
 
-## 📋 Multi Draw Indirect - Phase 2 (GPU Culling Plan)
-
-To transition Null Engine to a fully GPU-driven pipeline, Phase 2 implements GPU frustum and occlusion culling, generating indirect draw arguments entirely in VRAM.
-
-### 1. GPU Data Representation
-- **Instance Buffer**: Allocate a device-local `VkBuffer` with `VK_BUFFER_USAGE_STORAGE_BUFFER_BIT`.
-- **Indirect Argument Buffer**: Allocate a device-local `VkBuffer` with `VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT`.
-
-### 2. Compute Shader (`shaders/cull.comp.slang`)
-```slang
-struct InstanceData {
-  float4x4 modelMatrix;
-  float4 color;
-  float3 boundingCenter;
-  float boundingRadius;
-};
-
-struct DrawCommand {
-  uint indexCount;
-  uint instanceCount;
-  uint firstIndex;
-  int vertexOffset;
-  uint firstInstance;
-};
-
-StructuredBuffer<InstanceData> inputInstances : register(t0);
-RWStructuredBuffer<DrawCommand> outputCommands : register(u0);
-
-[shader("compute")]
-[numthreads(64, 1, 1)]
-void main(uint3 threadId : SV_DispatchThreadID) {
-  uint instanceId = threadId.x;
-  if (instanceId >= numInstances) return;
-
-  InstanceData inst = inputInstances[instanceId];
-  bool visible = cullFrustum(inst.boundingCenter, inst.boundingRadius);
-
-  if (visible) {
-    uint drawIndex = getMeshDrawIndex(instanceId);
-    InterlockedAdd(outputCommands[drawIndex].instanceCount, 1);
-  }
-}
-```
-
-### 3. Synchronization & Execution
-Before `vkCmdDrawIndexedIndirect`, record a pipeline barrier to transition the indirect buffer:
-```cpp
-VkBufferMemoryBarrier2 barrier{
-    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-    .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-    .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
-    .dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
-    .dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT,
-    .buffer = mGPUIndirectBuffer->getBuffer(),
-    .offset = 0,
-    .size = VK_WHOLE_SIZE
-};
-```
-
----
 
 ## 📄 License
 

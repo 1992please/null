@@ -37,8 +37,6 @@ private:
 
   VkDeviceSize mCurrentVertexOffset = 0;
   VkDeviceSize mCurrentIndexOffset = 0;
-  VkDeviceSize mVertexPoolSize = 0;
-  VkDeviceSize mIndexPoolSize = 0;
 };
 
 } // namespace ne
