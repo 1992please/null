@@ -15,7 +15,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 ## 📌 TODO / Task Board
 
 ### Phase 1: 3D Asset Pipeline & Geometry
-- [ ] Upgrade renderer to support 3D coordinate vertices.
+- [x] Upgrade renderer to support 3D coordinate vertices.
 - [ ] Integrate `cgltf` parsing into rendering pools to load `.gltf` / `.glb` files.
 
 ### Phase 2: Interactive Camera & GUI
@@ -26,12 +26,17 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 ### Phase 3: Bindless Textures & Materials
 - [ ] Bindless arrays/descriptors for textures.
 - [ ] Research which buffers should be updated every frame and which shouldn't.
-- [ ] Integrate Vulkan Memory Allocator (VMA) or custom paging sub-allocator.
 
 ### Phase 4: GPU-Driven Pipeline & Optimization
 - [ ] Implement GPU Frustum & Occlusion Culling via Compute Shaders (generating indirect draw commands on the GPU).
+- [ ] To measure the exact execution duration of the compute culling shader and the MDI draw call on the GPU, we will use a **Vulkan Query Pool** (`VK_QUERY_TYPE_TIMESTAMP`).
+- [ ] Add two features Toggle Culling and Freeze Frustum.
 - [ ] Design Render Graph (Frame Graph) architecture for transient resources/barriers.
-- [x] Centralize starting buffer sizes in `utils.h`.
+
+### Misc
+- [ ] Maybe we should rename Renderer into RHI (Render Hardware Interface) and RenderManager int Renderer
+- [ ] Integrate Vulkan Memory Allocator (VMA) or custom paging sub-allocator.
+
 
 ## 🔍 Investigation Board
 - **Texture Compression**: KTX texture library integration.
@@ -78,6 +83,10 @@ Since `RenderManager` does not maintain frame-specific class member state, this 
 
 ## 🛠️ Building the Project
 
+By default, builds configure in **unpackaged** mode (loading assets directly from the repository's `content/` folder for zero-copy developer iterations).
+
+To create a standalone **packaged** build where the asset directory is copied next to the executable (e.g. for distribution), configure with the `-DNE_PACKAGED_BUILD=ON` option.
+
 ### Windows
 ```powershell
 # Default debug preset build
@@ -86,6 +95,9 @@ Since `RenderManager` does not maintain frame-specific class member state, this 
 # Specify alternate preset (debug, development, shipping) or clean
 .\build.ps1 -Preset development
 .\build.ps1 -Preset shipping -Clean
+
+# Package assets with build configuration on Windows
+.\build.ps1 -Preset shipping -Packaged
 ```
 
 ### Linux
@@ -95,6 +107,10 @@ cmake --preset=[debug|development|shipping]
 
 # Build preset
 cmake --build --preset [debug|development|shipping]
+
+# Package assets with build configuration (example: Shipping + Packaged)
+cmake --preset=shipping -DNE_PACKAGED_BUILD=ON
+cmake --build --preset shipping
 ```
 
 

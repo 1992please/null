@@ -37,6 +37,7 @@ private:
 
   VkBuffer mBuffer = VK_NULL_HANDLE;
   VkDeviceMemory mMemory = VK_NULL_HANDLE;
+  VkBufferUsageFlags mUsage = 0;
   void* mMapped = nullptr;
   VkDeviceSize mBufferSize = 0;
   VkDeviceSize mUploadOffset = 0; // Added for linear allocation

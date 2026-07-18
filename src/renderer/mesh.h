@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <volk/volk.h>
 
+#include "core/mesh_data.h"
 #include <vector>
 
 namespace ne {
@@ -13,11 +14,12 @@ class GeometryAllocator;
 class Mesh {
 public:
   struct Vertex {
-    glm::vec2 mPos;
+    glm::vec3 mPos;
     glm::vec3 mColor;
   };
 
-  Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVertices, const std::vector<uint32_t> iIndices);
+  Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVertices, const std::vector<uint32_t>& iIndices);
+  Mesh(GeometryAllocator* iGeometryAllocator, const MeshData& iMeshData);
   virtual ~Mesh() = default;
 
   Mesh(const Mesh&) = delete;

@@ -1,6 +1,7 @@
 #include "renderer/pipeline.h"
 #include "core/assert.h"
 #include "core/platform.h"
+#include "core/filesystem.h"
 #include "renderer/mesh.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
@@ -143,9 +144,11 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   VK_CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mGraphicsPipeline));
 
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
+  NE_LOG("Created Graphics Pipeline for shader: '{}' (Pipeline: {}, Layout: {})", iConfig.mShaderName, (void*)mGraphicsPipeline, (void*)mPipelineLayout);
 }
 
 Pipeline::~Pipeline() {
+  NE_LOG("Destroyed Graphics Pipeline (Pipeline: {}, Layout: {})", (void*)mGraphicsPipeline, (void*)mPipelineLayout);
   if (mGraphicsPipeline != VK_NULL_HANDLE) {
     vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
   }
@@ -159,7 +162,7 @@ void Pipeline::bind(VkCommandBuffer iCommandBuffer) {
 }
 
 VkShaderModule Pipeline::createShaderModule(const std::string& iShaderName) {
-  std::string fullPath = (std::filesystem::path(platform::getExecutableDirectory()) / NE_SHADER_DIR / (iShaderName + ".spv")).string();
+  std::string fullPath = ne::fs::resolveShaderPath(iShaderName);
   std::ifstream file(fullPath, std::ios::ate | std::ios::binary);
   NE_ASSERT(file.is_open(), "failed to open file: {}", fullPath);
 
@@ -176,6 +179,7 @@ VkShaderModule Pipeline::createShaderModule(const std::string& iShaderName) {
   VkShaderModule shaderModule;
   VK_CHECK(vkCreateShaderModule(mDevice, &shaderModuleCreateInfo, nullptr, &shaderModule));
 
+  NE_LOG("Loaded and created shader module: '{}' (Size: {})", iShaderName, formatBytes(fileBuffer.size()));
   return shaderModule;
 }
 

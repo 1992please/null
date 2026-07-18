@@ -1,5 +1,6 @@
 #include "platform/window.h"
 #include "core/defines.h"
+#include "core/logger.h"
 
 #include <GLFW/glfw3.h>
 
@@ -16,6 +17,7 @@ Window::Window(int iWidth, int iHeight, const std::string& iName) {
   // #endif
 
   mWindow = glfwCreateWindow(iWidth, iHeight, iName.c_str(), nullptr, nullptr);
+  NE_LOG("Initialized GLFW and created window '{}' ({}x{})", iName, iWidth, iHeight);
 
   glfwSetWindowUserPointer(mWindow, this);
   glfwSetFramebufferSizeCallback(mWindow, framebufferResizeCallback);
@@ -24,6 +26,7 @@ Window::Window(int iWidth, int iHeight, const std::string& iName) {
 Window::~Window() {
   glfwDestroyWindow(mWindow);
   glfwTerminate();
+  NE_LOG("Destroyed window and terminated GLFW");
 }
 
 void Window::processEvents() { glfwPollEvents(); }

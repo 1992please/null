@@ -44,6 +44,7 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
 }
 
 Renderer::~Renderer() {
+  NE_LOG("Destroying Vulkan Renderer and deallocating resources...");
 
   for (FrameResources& frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
@@ -69,6 +70,7 @@ Renderer::~Renderer() {
   }
   vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
   vkDestroyInstance(mInstance, nullptr);
+  NE_LOG("Vulkan Renderer destroyed successfully.");
 }
 
 void Renderer::createInstance() {
@@ -162,7 +164,6 @@ void Renderer::pickPhysicalDevice() {
   vkEnumeratePhysicalDevices(mInstance, &physicalDevicesCount, nullptr);
   NE_ASSERT(physicalDevicesCount != 0, "failed to find GPUs with Vulkan support!");
 
-  NE_LOG("Physical devices count: {}", physicalDevicesCount);
   std::vector<VkPhysicalDevice> physicalDevices(physicalDevicesCount);
   vkEnumeratePhysicalDevices(mInstance, &physicalDevicesCount, physicalDevices.data());
 
@@ -262,7 +263,7 @@ void Renderer::pickPhysicalDevice() {
   }
 
   NE_ASSERT(mPhysicalDevice != nullptr, "Couldn't find suitable physical device.");
-  NE_LOG("Selected device: {}", mPhysicalDeviceProperties.deviceName);
+  NE_LOG("Selected physical device: {}", mPhysicalDeviceProperties.deviceName);
 }
 
 void Renderer::createLogicalDevice() {
@@ -304,6 +305,7 @@ void Renderer::createLogicalDevice() {
   volkLoadDevice(mDevice);
 
   vkGetDeviceQueue(mDevice, mPhysicalDeviceQueueIndex, 0, &mQueue);
+  NE_LOG("Vulkan logical device created successfully.");
 }
 
 void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
@@ -394,7 +396,7 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
     VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mSwapChainImages[i].mRenderFinishedSemaphore));
   }
 
-  NE_LOG("SwapChain:\n\tPresent mode: {}\n\tImage count: {}\n\tImage size: {} x {}",
+  NE_LOG("Created new swapChain, Present mode: {}, Image count: {}, Image size: {} x {}",
          selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR ? "V-Sync" : "Mailbox", swapChainImages.size(), selectedSwapExtent.width,
          selectedSwapExtent.height);
 }
@@ -462,7 +464,7 @@ VkCommandBuffer Renderer::beginFrame() {
   VkResult result =
       vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore, VK_NULL_HANDLE, &mImageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-    recreateSwapChain();
+    recreateSwapChain(true);
     return VK_NULL_HANDLE;
   }
   if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -529,9 +531,11 @@ void Renderer::endFrame() {
   presentInfo.pSwapchains = &mSwapChain;
   presentInfo.pImageIndices = &mImageIndex;
   VkResult result = vkQueuePresentKHR(mQueue, &presentInfo);
-  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || mFrameBufferResized) {
+  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    recreateSwapChain(true);
+  } else if (result == VK_SUBOPTIMAL_KHR || mFrameBufferResized) {
     mFrameBufferResized = false;
-    recreateSwapChain();
+    recreateSwapChain(false);
   } else if (result != VK_SUCCESS) {
     NE_ASSERT(false, "failed to present swap chain image!");
   }
@@ -555,7 +559,7 @@ void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
   endOneTimeCommand(commandBuffer);
 }
 
-void Renderer::recreateSwapChain() {
+void Renderer::recreateSwapChain(bool iForceRecreate) {
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
   while (width == 0 || height == 0) {
@@ -563,7 +567,14 @@ void Renderer::recreateSwapChain() {
     mWindow->getFrameBufferSize(&width, &height);
   }
 
+  if (!iForceRecreate &&
+      width == static_cast<int32_t>(mSwapChainExtent.width) &&
+      height == static_cast<int32_t>(mSwapChainExtent.height)) {
+    return;
+  }
+
   vkDeviceWaitIdle(mDevice);
+  NE_LOG("Recreating SwapChain... New resolution: {}x{}", width, height);
 
   // Destroy old image views and semaphores
   for (SwapchainImageResources& image : mSwapChainImages) {

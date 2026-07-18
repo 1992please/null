@@ -1,6 +1,7 @@
 param(
     [string]$Preset = "debug",
-    [switch]$Clean
+    [switch]$Clean,
+    [switch]$Packaged
 )
 
 # 1. Locate Visual Studio installation
@@ -31,7 +32,11 @@ if ($Clean -and (Test-Path "build/$Preset")) {
 
 # 4. Configure & Build using CMake presets
 Write-Host "Configuring with preset: $Preset..." -ForegroundColor Green
-cmake --preset $Preset
+$cmakeArgs = @("--preset", $Preset)
+if ($Packaged) {
+    $cmakeArgs += "-DNE_PACKAGED_BUILD=ON"
+}
+cmake $cmakeArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Building preset: $Preset..." -ForegroundColor Green

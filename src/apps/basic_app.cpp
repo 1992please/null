@@ -6,6 +6,7 @@
 #include "renderer/render_manager.h"
 #include "renderer/scene.h"
 #include "renderer/material.h"
+#include "importers/gltf_importer.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -18,24 +19,44 @@ BasicApp::BasicApp() {
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
   mScene = std::make_unique<Scene>();
 
-  // Mesh 1: Triangle
-  const std::vector<Mesh::Vertex> triVertices = {
-      {{0.0f, -0.4f}, {1.0f, 0.0f, 0.0f}},
-      {{0.4f, 0.4f}, {0.0f, 1.0f, 0.0f}},
-      {{-0.4f, 0.4f}, {0.0f, 0.0f, 1.0f}}
-  };
-  const std::vector<uint32_t> triIndices = {0, 1, 2};
-  mTriangleMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), triVertices, triIndices);
+  // 1. CPU import phase (relative to content folder)
+  ModelData modelData = GltfImporter::importModel("models/Box.gltf");
 
-  // Mesh 2: Quad
-  const std::vector<Mesh::Vertex> quadVertices = {
-      {{-0.3f, -0.3f}, {1.0f, 1.0f, 0.0f}},
-      {{0.3f, -0.3f}, {0.0f, 1.0f, 1.0f}},
-      {{0.3f, 0.3f}, {1.0f, 0.0f, 1.0f}},
-      {{-0.3f, 0.3f}, {1.0f, 1.0f, 1.0f}}
-  };
-  const std::vector<uint32_t> quadIndices = {0, 1, 2, 2, 3, 0};
-  mQuadMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), quadVertices, quadIndices);
+  // Map normals to colors in the app layer for visualization
+  for (auto& submesh : modelData.mSubmeshes) {
+    if (!submesh.mNormals.empty()) {
+      submesh.mColors.resize(submesh.mPositions.size());
+      for (size_t v = 0; v < submesh.mPositions.size(); ++v) {
+        submesh.mColors[v] = glm::normalize(submesh.mNormals[v]) * 0.5f + 0.5f;
+      }
+    }
+  }
+
+  // 2. GPU upload phase
+  for (const auto& submesh : modelData.mSubmeshes) {
+    auto gpuMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), submesh);
+    mLoadedMeshes.push_back(gpuMesh);
+  }
+
+
+
+  // Fallback if model could not be imported
+  if (mLoadedMeshes.empty()) {
+    NE_LOG("BasicApp: Failed to import model, creating procedural fallback...");
+    MeshData fallbackMesh;
+    fallbackMesh.mPositions = {
+        {0.0f, -0.4f, 0.0f},
+        {0.4f, 0.4f, 0.0f},
+        {-0.4f, 0.4f, 0.0f}
+    };
+    fallbackMesh.mColors = {
+        {1.0f, 0.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 0.0f, 1.0f}
+    };
+    fallbackMesh.mIndices = {0, 1, 2};
+    mLoadedMeshes.push_back(std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), fallbackMesh));
+  }
 
   // Material setup - uses shader "triangle_3" with modern Vertex Pulling + MDI
   mMaterial = mRenderManager->createMaterial("base_shader");
@@ -89,7 +110,7 @@ void BasicApp::run() {
         }
 
         RenderObject obj{};
-        obj.mesh = (gridIndex % 2 == 0) ? mTriangleMesh : mQuadMesh;
+        obj.mesh = mLoadedMeshes[gridIndex % mLoadedMeshes.size()];
         obj.material = mMaterial;
         obj.transform = model;
         obj.colorTint = colorTint;

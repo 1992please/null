@@ -19,6 +19,7 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
       std::make_unique<Buffer>(mRenderer, iIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+  NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", formatBytes(iVertexPoolSize), formatBytes(iIndexPoolSize));
   createStagingBuffer(config::DEFAULT_STAGING_BUFFER_SIZE);
 }
 
@@ -37,6 +38,7 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
   VkDeviceSize requiredSize = std::max(vertexSize, indexSize);
   if (mStagingBuffer->getBufferSize() < requiredSize) {
     VkDeviceSize newSize = std::max(requiredSize, mStagingBuffer->getBufferSize() * 2);
+    NE_LOG("GeometryAllocator: Resizing staging buffer from {} to {}", formatBytes(mStagingBuffer->getBufferSize()), formatBytes(newSize));
     createStagingBuffer(newSize);
   }
 
@@ -54,6 +56,13 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
 
   mCurrentVertexOffset += vertexSize;
   mCurrentIndexOffset += indexSize;
+
+  NE_LOG("Allocated geometry: vertex size: {}, index size: {} | Pool occupancy: vertex={}/{} ({:.2f}%), index={}/{} ({:.2f}%)",
+         formatBytes(vertexSize), formatBytes(indexSize),
+         formatBytes(mCurrentVertexOffset), formatBytes(mVertexBuffer->getBufferSize()),
+         (static_cast<double>(mCurrentVertexOffset) / mVertexBuffer->getBufferSize()) * 100.0,
+         formatBytes(mCurrentIndexOffset), formatBytes(mIndexBuffer->getBufferSize()),
+         (static_cast<double>(mCurrentIndexOffset) / mIndexBuffer->getBufferSize()) * 100.0);
 
   return alloc;
 }

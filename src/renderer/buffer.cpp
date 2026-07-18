@@ -6,11 +6,57 @@
 
 // std
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace ne {
 
+namespace {
+
+#if !NE_BUILD_SHIPPING
+std::string bufferUsageToString(VkBufferUsageFlags usage) {
+  std::vector<std::string> flags;
+  if (usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) flags.push_back("TRANSFER_SRC");
+  if (usage & VK_BUFFER_USAGE_TRANSFER_DST_BIT) flags.push_back("TRANSFER_DST");
+  if (usage & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT) flags.push_back("UNIFORM_TEXEL");
+  if (usage & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT) flags.push_back("STORAGE_TEXEL");
+  if (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT) flags.push_back("UNIFORM");
+  if (usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) flags.push_back("STORAGE");
+  if (usage & VK_BUFFER_USAGE_INDEX_BUFFER_BIT) flags.push_back("INDEX");
+  if (usage & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT) flags.push_back("VERTEX");
+  if (usage & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT) flags.push_back("INDIRECT");
+  if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) flags.push_back("SHADER_DEVICE_ADDRESS");
+  if (flags.empty()) return "NONE";
+  std::string result;
+  for (size_t i = 0; i < flags.size(); ++i) {
+    if (i > 0) result += " | ";
+    result += flags[i];
+  }
+  return result;
+}
+
+std::string memoryPropertiesToString(VkMemoryPropertyFlags properties) {
+  std::vector<std::string> flags;
+  if (properties & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) flags.push_back("DEVICE_LOCAL");
+  if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) flags.push_back("HOST_VISIBLE");
+  if (properties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) flags.push_back("HOST_COHERENT");
+  if (properties & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) flags.push_back("HOST_CACHED");
+  if (properties & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) flags.push_back("LAZILY_ALLOCATED");
+  if (properties & VK_MEMORY_PROPERTY_PROTECTED_BIT) flags.push_back("PROTECTED");
+  if (flags.empty()) return "NONE";
+  std::string result;
+  for (size_t i = 0; i < flags.size(); ++i) {
+    if (i > 0) result += " | ";
+    result += flags[i];
+  }
+  return result;
+}
+#endif // !NE_BUILD_SHIPPING
+
+} // namespace
+
 Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties)
-    : mDevice(iRenderer->getDevice()), mPhysicalDevice(iRenderer->getPhysicalDevice()), mBufferSize(size) {
+    : mDevice(iRenderer->getDevice()), mPhysicalDevice(iRenderer->getPhysicalDevice()), mUsage(usage), mBufferSize(size) {
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = size;
@@ -34,6 +80,19 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
 
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
   VK_CHECK(vkBindBufferMemory(mDevice, mBuffer, mMemory, 0));
+
+#if !NE_BUILD_SHIPPING
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
+  VkMemoryPropertyFlags allocatedProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
+
+  NE_LOG("Allocated Buffer: Size: {} (Allocated: {}) | Usage: [{}] | Memory Type: [Index: {}, Properties: {}]",
+         formatBytes(mBufferSize),
+         formatBytes(memoryAllocateInfo.allocationSize),
+         bufferUsageToString(usage),
+         memoryAllocateInfo.memoryTypeIndex,
+         memoryPropertiesToString(allocatedProperties));
+#endif
 }
 
 Buffer::~Buffer() {
@@ -41,6 +100,9 @@ Buffer::~Buffer() {
     unmapMemory();
   }
   if (mBuffer != VK_NULL_HANDLE) {
+#if !NE_BUILD_SHIPPING
+    NE_LOG("Destroyed Buffer: Size: {} | Usage: [{}]", formatBytes(mBufferSize), bufferUsageToString(mUsage));
+#endif
     vkDestroyBuffer(mDevice, mBuffer, nullptr);
   }
   if (mMemory != VK_NULL_HANDLE) {
@@ -82,7 +144,6 @@ uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
     VkMemoryPropertyFlags preferredProperties = properties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
       if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & preferredProperties) == preferredProperties) {
-        NE_LOG("Allocating Buffer (size: {} bytes) in Device-Local Host-Visible VRAM (Resizable BAR).", mBufferSize);
         return i;
       }
     }
@@ -90,9 +151,6 @@ uint32_t Buffer::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags prope
 
   for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
     if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-      if (properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-        NE_LOG("Allocating Buffer (size: {} bytes) in standard Host-Visible System RAM (Fallback/Staging).", mBufferSize);
-      }
       return i;
     }
   }

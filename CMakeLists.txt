@@ -4,13 +4,16 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate compile_commands.json for nvim'
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Standalone/Packaged build option. Defaults to OFF for all configurations.
+option(NE_PACKAGED_BUILD "Build the application as a packaged standalone build" OFF)
+
 set(EngineTarget "null_engine")
 set(ThirdPartyDir "${CMAKE_CURRENT_SOURCE_DIR}/third_party")
 set(SourceDir "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(ShadersDir "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
 set(BinDir "${CMAKE_BINARY_DIR}/bin")
-set(RelativeBinShaderDirctory "compiled_shaders")
-set(BinShaderDir "${BinDir}/${RelativeBinShaderDirctory}")
+set(CompiledShaderRelDir "compiled_shaders")
+set(BinShaderDir "${BinDir}/${CompiledShaderRelDir}")
 
 # ----------------------------------------------------------------------
 # Vulkan
@@ -33,8 +36,7 @@ target_compile_definitions(glm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
 
 # ----------------------------------------------------------------------
 # cgltf
-add_library(cgltf INTERFACE)
-target_include_directories(cgltf INTERFACE "${ThirdPartyDir}/cgltf")
+add_subdirectory("${ThirdPartyDir}/cgltf")
 
 # ----------------------------------------------------------------------
 # spdlog
@@ -83,7 +85,10 @@ target_compile_definitions(${EngineTarget} PRIVATE
   $<$<PLATFORM_ID:Darwin>:NE_PLATFORM_APPLE>
 
   NE_BUILD_DIR="${CMAKE_BINARY_DIR}"
-  NE_SHADER_DIR="${RelativeBinShaderDirctory}"
+
+  # Asset referencing configuration
+  NE_CONTENT_DIR="$<IF:$<BOOL:${NE_PACKAGED_BUILD}>,content,../../../content>"
+  NE_SHADER_DIR="${CompiledShaderRelDir}"
 
   VK_NO_PROTOTYPES
 )
@@ -126,6 +131,17 @@ add_custom_target(
 )
 
 add_dependencies(${EngineTarget} Shaders)
+
+# Post-build asset copying for packaged builds
+if(NE_PACKAGED_BUILD)
+  add_custom_command(
+    TARGET ${EngineTarget} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/content"
+            "${BinDir}/content"
+    COMMENT "Copying assets to build binary directory for packaged build..."
+  )
+endif()
 
 # ----------------------------------------------------------------------
 # Visual Studio

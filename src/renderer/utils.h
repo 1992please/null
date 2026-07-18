@@ -38,4 +38,20 @@ constexpr T alignUp(T value, T alignment) {
   return (value + alignment - 1) & ~(alignment - 1);
 }
 
+inline std::string formatBytes(VkDeviceSize bytes) {
+  constexpr double KB = 1024.0;
+  constexpr double MB = 1024.0 * 1024.0;
+  constexpr double GB = 1024.0 * 1024.0 * 1024.0;
+
+  if (bytes >= GB) {
+    return std::format("{:.2f} GB", bytes / GB);
+  } else if (bytes >= MB) {
+    return std::format("{:.2f} MB", bytes / MB);
+  } else if (bytes >= KB) {
+    return std::format("{:.2f} KB", bytes / KB);
+  } else {
+    return std::format("{} B", bytes);
+  }
+}
+
 } // namespace ne

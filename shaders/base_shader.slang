@@ -1,7 +1,7 @@
 #language slang latest
 
 struct Vertex {
-  float2 pos;
+  float3 pos;
   float3 color;
 };
 
@@ -49,7 +49,7 @@ VSOutput vertMain(VSInput input) {
   uint instanceIndex = draw.instanceBaseOffset + input.instanceId;
   InstanceData inst = pc.instances[instanceIndex];
 
-  output.pos = mul(pc.globalUniforms->viewProj, mul(inst.modelMatrix, float4(v.pos, 0.0, 1.0)));
+  output.pos = mul(pc.globalUniforms->viewProj, mul(inst.modelMatrix, float4(v.pos, 1.0)));
   output.color = v.color * inst.color.rgb;
   return output;
 }

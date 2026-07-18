@@ -64,7 +64,7 @@ private:
     std::vector<VkPresentModeKHR> mPresentModes;
   };
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
-  void recreateSwapChain();
+  void recreateSwapChain(bool iForceRecreate = false);
   [[nodiscard]] VkCommandBuffer beginOneTimeCommand();
   void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 

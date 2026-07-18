@@ -28,8 +28,7 @@ private:
   std::unique_ptr<Scene> mScene;
 
   // Showcase assets
-  std::shared_ptr<Mesh> mTriangleMesh;
-  std::shared_ptr<Mesh> mQuadMesh;
+  std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;
   std::shared_ptr<Material> mMaterial;
 };
 } // namespace ne
