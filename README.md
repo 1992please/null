@@ -16,10 +16,10 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 ### Phase 1: 3D Asset Pipeline & Geometry
 - [x] Upgrade renderer to support 3D coordinate vertices.
-- [ ] Integrate `cgltf` parsing into rendering pools to load `.gltf` / `.glb` files.
+- [x] Integrate `cgltf` parsing into rendering pools to load `.gltf` / `.glb` files.
 
 ### Phase 2: Interactive Camera & GUI
-- [ ] Expose GLFW input events (keyboard, mouse) in the `Window` class.
+- [x] Expose GLFW input events (keyboard, mouse) in the `Window` class.
 - [ ] Implement interactive orbital (Arcball) camera.
 - [ ] Integrate Dear ImGui overlay for statistics and settings.
 
@@ -68,6 +68,7 @@ Since `RenderManager` does not maintain frame-specific class member state, this 
 ## ⚡ Core Technical Specs (AI & Agent Context)
 * **Graphics API**: Vulkan 1.4 (via `volk` meta-loader). No traditional Render Passes/Framebuffers (Dynamic Rendering only).
 * **Shader Pipeline**: Compiled from Slang (`.slang`, `.comp`) to SPIR-V 1.4 via `slangc` at build time.
+* **Input & Events**: Decoupled GLFW abstraction using strongly-typed enums (`KeyCode`, `MouseButton`, `InputAction`, `KeyMods`), real-time state polling, and a header-only multicast delegate (`ne::Event<Args...>`).
 * **Concurrency**: Double-buffered frames-in-flight (`MAX_FRAMES_IN_FLIGHT = 2`) with dedicated per-frame command pools.
 * **Allocators**: Pre-allocated staging, vertex pool (64MB), and index pool (32MB) buffers.
 * **Tech Stack**: C++20, GLFW, GLM, cgltf, spdlog, CMake.
@@ -75,8 +76,9 @@ Since `RenderManager` does not maintain frame-specific class member state, this 
 ## 📂 Project Directory Map
 - [shaders/] Slang shader source code.
 - [src/apps/] Sequential demo applications & application base.
-- [src/core/] Core defines and logger.
-- [src/platform/] GLFW window abstraction.
+- [src/core/] Core defines, logger, and multicast `Event<Args...>` system.
+- [src/importers/] glTF asset loading & model parsing (cgltf).
+- [src/platform/] GLFW window abstraction & strongly-typed input system (`input_types.h`).
 - [src/renderer/] Vulkan renderer interface & buffers implementation.
 - [CMakePresets.json] Build configurations.
 - [build.ps1] Windows build script wrapper.

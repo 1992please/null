@@ -31,22 +31,22 @@ Logger::Logger() {
 
 Logger::~Logger() { mLogger->flush(); }
 
-void Logger::logExec(LogType inLogType, std::string inLog) {
-  switch (inLogType) {
+void Logger::logExec(LogType iLogType, std::string iLog) {
+  switch (iLogType) {
   case LogType_Log: {
-    mLogger->info(std::move(inLog));
+    mLogger->info(std::move(iLog));
     break;
   }
   case LogType_Warn: {
-    mLogger->warn(std::move(inLog));
+    mLogger->warn(std::move(iLog));
     break;
   }
   case LogType_Error: {
-    mLogger->error(std::move(inLog));
+    mLogger->error(std::move(iLog));
     break;
   }
   case LogType_Fatal: {
-    mLogger->critical(std::move(inLog));
+    mLogger->critical(std::move(iLog));
     mLogger->flush();
     break;
   }

@@ -19,13 +19,13 @@ public:
   Logger();
   ~Logger();
 
-  template <typename... Args> void log(LogType inLogType, const std::format_string<Args...> fmt, Args&&... args) {
-    std::string formatted = std::vformat(fmt.get(), std::make_format_args(args...));
-    logExec(inLogType, std::move(formatted));
+  template <typename... Args> void log(LogType iLogType, const std::format_string<Args...> iFmt, Args&&... iArgs) {
+    std::string formatted = std::vformat(iFmt.get(), std::make_format_args(iArgs...));
+    logExec(iLogType, std::move(formatted));
   }
 
 private:
-  void logExec(LogType inLogType, std::string inLog);
+  void logExec(LogType iLogType, std::string iLog);
   std::shared_ptr<spdlog::logger> mLogger;
 };
 

@@ -1,7 +1,7 @@
 #include "importers/gltf_importer.h"
 #include "core/assert.h"
-#include "core/logger.h"
 #include "core/filesystem.h"
+#include "core/logger.h"
 
 #include <cgltf/cgltf.h>
 

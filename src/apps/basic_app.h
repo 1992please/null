@@ -1,6 +1,7 @@
 #pragma once
 
 #include "apps/application.h"
+#include "core/event.h"
 #include <memory>
 #include <vector>
 
@@ -26,6 +27,10 @@ private:
   std::unique_ptr<Window> mWindow;
   std::unique_ptr<RenderManager> mRenderManager;
   std::unique_ptr<Scene> mScene;
+
+  CallbackId mKeyCallbackId{0};
+  CallbackId mMouseButtonCallbackId{0};
+  CallbackId mScrollCallbackId{0};
 
   // Showcase assets
   std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;

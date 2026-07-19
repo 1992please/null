@@ -32,7 +32,11 @@ namespace ne {
 Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName)
     : mWindow(iWindow), mEngineName(iEngineName), mAppName(iAppName) {
   NE_ASSERT(mWindow);
-  mWindow->setFrameBufferResizeCallback([this] { mFrameBufferResized = true; });
+  mFrameBufferResizeCallbackId = mWindow->addFrameBufferResizeCallback([this](int32_t width, int32_t height) {
+    NE_UNUSED(width);
+    NE_UNUSED(height);
+    mFrameBufferResized = true;
+  });
 
   createInstance();
   setupDebugMessenger();
@@ -45,6 +49,8 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
 
 Renderer::~Renderer() {
   NE_LOG("Destroying Vulkan Renderer and deallocating resources...");
+
+  if (mWindow && mFrameBufferResizeCallbackId != 0) mWindow->removeFrameBufferResizeCallback(mFrameBufferResizeCallbackId);
 
   for (FrameResources& frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <volk/volk.h>
+#include "core/event.h"
 
 // std lib headers
 #include <memory>
@@ -115,11 +116,11 @@ private:
   };
   std::vector<FrameResources> mFrames;
 
-
-
   uint32_t mFrameIndex = 0;
   uint32_t mImageIndex = 0;
+  
   bool mFrameBufferResized = false;
+  CallbackId mFrameBufferResizeCallbackId = 0;
 };
 
 } // namespace ne

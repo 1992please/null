@@ -1,4 +1,5 @@
 #include "apps/basic_app.h"
+#include "core/defines.h"
 #include "core/logger.h"
 #include "core/math.h"
 #include "platform/window.h"
@@ -7,8 +8,8 @@
 #include "renderer/scene.h"
 #include "renderer/material.h"
 #include "importers/gltf_importer.h"
+#include "ecs.h"
 
-#include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
@@ -16,6 +17,31 @@ namespace ne {
 
 BasicApp::BasicApp() {
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
+
+  // Register Input Event Callbacks & store IDs for RAII unsubscription
+  mKeyCallbackId = mWindow->addKeyCallback([](KeyCode key, int32_t scancode, InputAction action, KeyMods mods) {
+    NE_UNUSED(scancode);
+    NE_UNUSED(mods);
+    NE_UNUSED(key);
+    if (action == InputAction::Press) {
+      NE_LOG("Key Pressed: {}", static_cast<int16_t>(key));
+    }
+  });
+
+  mMouseButtonCallbackId = mWindow->addMouseButtonCallback([](MouseButton button, InputAction action, KeyMods mods) {
+    NE_UNUSED(mods);
+    NE_UNUSED(button);
+    if (action == InputAction::Press) {
+      NE_LOG("Mouse Button Pressed: {}", static_cast<uint8_t>(button));
+    }
+  });
+
+  mScrollCallbackId = mWindow->addScrollCallback([](double xoffset, double yoffset) {
+    NE_UNUSED(xoffset);
+    NE_UNUSED(yoffset);
+    NE_LOG("Mouse Scroll Offset: ({}, {})", xoffset, yoffset);
+  });
+
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
   mScene = std::make_unique<Scene>();
 
@@ -37,8 +63,6 @@ BasicApp::BasicApp() {
     auto gpuMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), submesh);
     mLoadedMeshes.push_back(gpuMesh);
   }
-
-
 
   // Fallback if model could not be imported
   if (mLoadedMeshes.empty()) {
@@ -62,7 +86,13 @@ BasicApp::BasicApp() {
   mMaterial = mRenderManager->createMaterial("base_shader");
 }
 
-BasicApp::~BasicApp() {}
+BasicApp::~BasicApp() {
+  if (mWindow) {
+    if (mKeyCallbackId != 0) mWindow->removeKeyCallback(mKeyCallbackId);
+    if (mMouseButtonCallbackId != 0) mWindow->removeMouseButtonCallback(mMouseButtonCallbackId);
+    if (mScrollCallbackId != 0) mWindow->removeScrollCallback(mScrollCallbackId);
+  }
+}
 
 void BasicApp::run() {
   NE_LOG("BasicApp (MDI Showcase) Start!");
