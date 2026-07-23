@@ -61,6 +61,7 @@ file(GLOB_RECURSE ENGINE_SHADERS
 
 if(MSVC)
     set(ENGINE_UTILS "${ThirdPartyDir}/glm/util/glm.natvis")
+    string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # Disable Exceptions
 else()
     set(ENGINE_UTILS "")
 endif()
@@ -90,12 +91,16 @@ target_compile_definitions(${EngineTarget} PRIVATE
   NE_CONTENT_DIR="$<IF:$<BOOL:${NE_PACKAGED_BUILD}>,content,../../../content>"
   NE_SHADER_DIR="${CompiledShaderRelDir}"
 
+  # Disable Exceptions
+  $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0> 
+  SPDLOG_NO_EXCEPTIONS
+
   VK_NO_PROTOTYPES
 )
 
 target_compile_options(${EngineTarget} PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /utf-8 /Zc:preprocessor /MP>
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall;-Wextra;-Wpedantic>
+    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall;-Wextra;-Wpedantic;-fno-exceptions>
 )
 
 set_target_properties(${EngineTarget} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BinDir})

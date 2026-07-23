@@ -8,7 +8,6 @@
 #include "renderer/scene.h"
 #include "renderer/material.h"
 #include "importers/gltf_importer.h"
-#include "ecs.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>

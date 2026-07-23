@@ -13,7 +13,7 @@ namespace ne {
 
 namespace {
 
-#if !NE_BUILD_SHIPPING
+#ifndef NE_BUILD_SHIPPING
 std::string bufferUsageToString(VkBufferUsageFlags usage) {
   std::vector<std::string> flags;
   if (usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT) flags.push_back("TRANSFER_SRC");
@@ -81,7 +81,7 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
   VK_CHECK(vkBindBufferMemory(mDevice, mBuffer, mMemory, 0));
 
-#if !NE_BUILD_SHIPPING
+#ifndef NE_BUILD_SHIPPING
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
   VkMemoryPropertyFlags allocatedProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
@@ -100,7 +100,7 @@ Buffer::~Buffer() {
     unmapMemory();
   }
   if (mBuffer != VK_NULL_HANDLE) {
-#if !NE_BUILD_SHIPPING
+#ifndef NE_BUILD_SHIPPING
     NE_LOG("Destroyed Buffer: Size: {} | Usage: [{}]", formatBytes(mBufferSize), bufferUsageToString(mUsage));
 #endif
     vkDestroyBuffer(mDevice, mBuffer, nullptr);

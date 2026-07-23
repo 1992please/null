@@ -31,7 +31,7 @@ private:
 
 } // namespace ne
 
-#if !NE_BUILD_SHIPPING
+#ifndef NE_BUILD_SHIPPING
 #define NE_LOG(...) ne::Logger::get().log(ne::Logger::LogType_Log, __VA_ARGS__)
 #define NE_WARN(...) ne::Logger::get().log(ne::Logger::LogType_Warn, __VA_ARGS__)
 #define NE_ERROR(...) ne::Logger::get().log(ne::Logger::LogType_Error, __VA_ARGS__)

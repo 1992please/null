@@ -115,6 +115,7 @@ cmake --preset=shipping -DNE_PACKAGED_BUILD=ON
 cmake --build --preset shipping
 ```
 
+> **Unit Testing**: Run the executable with `--run-tests` (or `-t`) to execute all auto-discovered unit tests.
 
 ## 📄 License
 

@@ -7,6 +7,7 @@ IndentWidth: 2
 TabWidth: 2
 UseTab: Never
 
+BreakTemplateDeclarations: Leave 
 # AlignConsecutiveAssignments:
 #   Enabled: true
 #   AcrossEmptyLines: false
