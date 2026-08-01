@@ -1,7 +1,7 @@
-#include "core/ecs.h"
-#include "tests/test_runner.h"
-
 #ifndef NE_BUILD_SHIPPING
+
+#include "tests/test_runner.h"
+#include "core/ecs.h"
 
 namespace ne::test {
 

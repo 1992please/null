@@ -1,16 +1,16 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "math/math.h"
 #include <vector>
 #include <string>
 
 namespace ne {
 
 struct MeshData {
-  std::vector<glm::vec3> mPositions;
-  std::vector<glm::vec3> mNormals;
-  std::vector<glm::vec2> mTexCoords;
-  std::vector<glm::vec3> mColors; // Vertex colors
+  std::vector<Vec3> mPositions;
+  std::vector<Vec3> mNormals;
+  std::vector<Vec2> mTexCoords;
+  std::vector<Vec3> mColors; // Vertex colors
   std::vector<uint32_t> mIndices;
 };
 

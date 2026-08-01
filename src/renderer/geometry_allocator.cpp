@@ -2,7 +2,6 @@
 #include "core/assert.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
-#include <algorithm>
 
 namespace ne {
 

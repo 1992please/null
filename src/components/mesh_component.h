@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/math.h"
+#include "math/math.h"
 #include <memory>
 
 namespace ne {

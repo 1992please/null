@@ -1,7 +1,7 @@
 #pragma once
 
 #include <volk/volk.h>
-#include <glm/glm.hpp>
+#include "math/math.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,18 +38,18 @@ public:
   // Pipeline/Material Creation
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName);
 private:
-  void submit(VkCommandBuffer iCommandBuffer, const glm::mat4& iViewProj);
+  void submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj);
 
   struct InstanceData {
-    glm::mat4 modelMatrix;
-    glm::vec4 color;
+    Mat4 modelMatrix;
+    Vec4 color;
   };
 
   struct DrawCall {
     Pipeline* pipeline;
     Mesh* mesh;
-    glm::mat4 transform;
-    glm::vec4 color;
+    Mat4 transform;
+    Vec4 color;
   };
 
   std::unique_ptr<Renderer> mRenderer;

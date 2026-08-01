@@ -1,34 +1,41 @@
 #pragma once
 
-#include "core/math.h"
+#include "math/math.h"
 
 namespace ne {
 
-enum class ProjectionType {
-  Perspective,
-  Orthographic
-};
-
+/**
+ * @struct CameraComponent
+ * @brief Manages camera lens, frustum parameters, and projection matrix generation.
+ *
+ * Designed for left-handed Unreal Engine coordinate conventions (+X Forward, +Y Right, +Z Up).
+ * Supports Standard-Z, Reverse-Z, and Infinite Far Clip perspective and orthographic projections.
+ */
 struct CameraComponent {
+  enum class ProjectionType { Perspective, Orthographic };
+
   ProjectionType mProjectionType{ProjectionType::Perspective};
 
-  // Perspective settings
-  float mFovDeg{45.0f};
+  // Lens Parameters
+  float mFovDeg{45.0f};             // Vertical Field of View in degrees
+  float mAspectRatio{16.0f / 9.0f};  // Viewport Width / Height
+  float mNearClip{0.1f};
+  float mFarClip{1000.0f};
+  float mOrthoSize{5.0f};           // Vertical size for orthographic camera
 
-  // Orthographic settings
-  float mOrthoSize{5.0f};
+  // Depth & Active Camera Flags
+  bool mUseReverseZ{true};          // Reverse-Z float depth (1.0 near, 0.0 far)
+  bool mInfiniteFarClip{false};     // Infinite far plane projection
+  bool mIsPrimary{true};            // Main rendering camera
 
-  // Common settings
-  float mNearPlane{0.1f};
-  float mFarPlane{100.0f};
-  bool mIsPrimary{true};
-
+  // Cached Projection Matrices
   Mat4 mProjectionMatrix{1.0f};
-  Mat4 mViewMatrix{1.0f};
+  Mat4 mInverseProjectionMatrix{1.0f};
 
-  Mat4 getViewProjectionMatrix() const {
-    return mProjectionMatrix * mViewMatrix;
-  }
+  // Mutators & Recalculation
+  void updateProjection();
+  void setPerspective(float iFovDeg, float iAspect, float iNear, float iFar = 0.0f);
+  void setOrthographic(float iSize, float iAspect, float iNear, float iFar);
 };
 
 } // namespace ne

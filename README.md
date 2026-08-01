@@ -20,8 +20,15 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 ### Phase 2: Interactive Camera & GUI
 - [x] Expose GLFW input events (keyboard, mouse) in the `Window` class.
-- [ ] Implement interactive orbital (Arcball) camera.
-- [ ] Integrate Dear ImGui overlay for statistics and settings.
+- [x] Refactor `CameraComponent` with Perspective & Orthographic projection support.
+- [x] Evaluate Transform representation: Mat4 matrix caching vs TRS (Position, Quaternion, Scale) struct layout.
+- [ ] Configure Vulkan Depth Attachment with 32-bit floating-point depth format (`VK_FORMAT_D32_SFLOAT`).
+- [ ] Integrate ECS `CameraComponent` and `TransformComponent` into `RenderManager` scene rendering.
+- [ ] Enable Reverse-Z depth testing (`VK_COMPARE_OP_GREATER`, `0.0` depth clear) in Vulkan pipeline and toggle in `CameraComponent`.
+- [ ] Implement `OrbitCameraSystem` for interactive Arcball rotation, panning, and smooth zooming.
+- [ ] Integrate Dear ImGui overlay for real-time engine diagnostics, frame statistics, and camera controls.
+- [ ] Add Temporal Anti-Aliasing (TAA) subpixel projection jitter & motion vector (Previous View-Projection) tracking.
+- [ ] Add Physical Camera controls (Focal Length in mm, Sensor Dimensions, and FOV mode switching).
 
 ### Phase 3: Bindless Textures & Materials
 - [ ] Bindless arrays/descriptors for textures.
@@ -29,6 +36,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 
 ### Phase 4: GPU-Driven Pipeline & Optimization
 - [ ] Implement GPU Frustum & Occlusion Culling via Compute Shaders (generating indirect draw commands on the GPU).
+- [ ] Frustum Culling Primitives (FrustumPlane & Frustum structs for CPU/GPU culling).
 - [ ] To measure the exact execution duration of the compute culling shader and the MDI draw call on the GPU, we will use a **Vulkan Query Pool** (`VK_QUERY_TYPE_TIMESTAMP`).
 - [ ] Add two features Toggle Culling and Freeze Frustum.
 - [ ] Design Render Graph (Frame Graph) architecture for transient resources/barriers.
@@ -72,6 +80,14 @@ Since `RenderManager` does not maintain frame-specific class member state, this 
 * **Concurrency**: Double-buffered frames-in-flight (`MAX_FRAMES_IN_FLIGHT = 2`) with dedicated per-frame command pools.
 * **Allocators**: Pre-allocated staging, vertex pool (64MB), and index pool (32MB) buffers.
 * **Tech Stack**: C++20, GLFW, GLM, cgltf, spdlog, CMake.
+
+### 📐 Coordinate System & World Space Conventions
+* **World Space Axes**:
+  * **+X**: Forward (into the scene)
+  * **+Y**: Right
+  * **+Z**: Up
+* **Handedness**: Left-handed coordinate system (`GLM_FORCE_LEFT_HANDED`). $\text{Right} = \text{Up} \times \text{Forward}$ ($+Y = (+Z) \times (+X)$).
+* **Vulkan Projection**: $[0, 1]$ clip depth range (`GLM_FORCE_DEPTH_ZERO_TO_ONE`) with perspective Y-flip (`proj[1][1] *= -1.0f`) mapping $+Z$ Up to the top of the viewport.
 
 ## 📂 Project Directory Map
 - [shaders/] Slang shader source code.

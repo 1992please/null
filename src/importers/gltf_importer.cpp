@@ -88,7 +88,7 @@ ModelData GltfImporter::importModel(const std::string& iPath) {
           cgltf_bool color_success = cgltf_accessor_read_float(color_accessor, v, &meshData.mColors[v].x, 3);
           NE_ASSERT(color_success, "Failed to read vertex color");
         } else {
-          meshData.mColors[v] = glm::vec3(1.0f);
+          meshData.mColors[v] = Vec3(1.0f);
         }
       }
 

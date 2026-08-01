@@ -9,7 +9,6 @@
 
 // std
 #include <algorithm>
-#include <cstring>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT iMessageType,

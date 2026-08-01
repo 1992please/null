@@ -1,5 +1,6 @@
 #pragma once
-#include <glm/glm.hpp>
+
+#include "math/math.h"
 #include <memory>
 #include <vector>
 
@@ -11,8 +12,8 @@ class Material;
 struct RenderObject {
   std::shared_ptr<Mesh> mesh;
   std::shared_ptr<Material> material;
-  glm::mat4 transform;
-  glm::vec4 colorTint{1.0f};
+  Mat4 transform;
+  Vec4 colorTint{1.0f};
 };
 
 class Scene {
@@ -24,12 +25,12 @@ public:
   void clear() { mObjects.clear(); }
   const std::vector<RenderObject>& getObjects() const { return mObjects; }
 
-  void setViewProjection(const glm::mat4& viewProj) { mViewProj = viewProj; }
-  const glm::mat4& getViewProjection() const { return mViewProj; }
+  void setViewProjection(const Mat4& viewProj) { mViewProj = viewProj; }
+  const Mat4& getViewProjection() const { return mViewProj; }
 
 private:
   std::vector<RenderObject> mObjects;
-  glm::mat4 mViewProj{1.0f};
+  Mat4 mViewProj{1.0f};
 };
 
 } // namespace ne

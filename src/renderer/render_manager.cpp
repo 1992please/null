@@ -8,6 +8,8 @@
 #include "renderer/renderer.h"
 #include "renderer/scene.h"
 #include "renderer/utils.h"
+
+// std
 #include <algorithm>
 
 namespace ne {
@@ -25,7 +27,7 @@ struct PushConstants {
 };
 
 struct GlobalUniforms {
-  glm::mat4 viewProj;
+  Mat4 viewProj;
 };
 
 RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
@@ -115,7 +117,7 @@ void RenderManager::drawScene(Scene* iScene) {
   mRenderer->endFrame();
 }
 
-void RenderManager::submit(VkCommandBuffer iCommandBuffer, const glm::mat4& iViewProj) {
+void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj) {
   if (mDrawCalls.empty())
     return;
 

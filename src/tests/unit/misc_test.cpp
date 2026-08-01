@@ -1,6 +1,6 @@
-#include "tests/test_runner.h"
-
 #ifndef NE_BUILD_SHIPPING
+
+#include "tests/test_runner.h"
 
 namespace ne::test {
 NE_TEST_CASE("core", "Exceptions Disabled Check") {

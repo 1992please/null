@@ -10,9 +10,9 @@ using CallbackId = uint64_t;
 template <typename... Args>
 class Event {
 public:
-  using CallbackType = std::function<void(Args...)>;
+  using Callback = std::function<void(Args...)>;
 
-  CallbackId add(CallbackType iCallback) {
+  CallbackId add(Callback iCallback) {
     CallbackId id = mNextId++;
     mCallbacks[id] = std::move(iCallback);
     return id;
@@ -39,7 +39,7 @@ public:
 
 private:
   CallbackId mNextId = 1;
-  std::unordered_map<CallbackId, CallbackType> mCallbacks;
+  std::unordered_map<CallbackId, Callback> mCallbacks;
 };
 
 } // namespace ne

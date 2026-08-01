@@ -15,13 +15,13 @@ namespace ne {
 
 class Window {
 public:
-  using FrameBufferResizeCallback = Event<int32_t, int32_t>::CallbackType;
-  using KeyCallback = Event<KeyCode, int32_t, InputAction, KeyMods>::CallbackType;
-  using CharCallback = Event<uint32_t>::CallbackType;
-  using MouseButtonCallback = Event<MouseButton, InputAction, KeyMods>::CallbackType;
-  using CursorPosCallback = Event<double, double>::CallbackType;
-  using ScrollCallback = Event<double, double>::CallbackType;
-  using CursorEnterCallback = Event<bool>::CallbackType;
+  using FrameBufferResizeEvent = Event<int32_t, int32_t>;
+  using KeyEvent = Event<KeyCode, int32_t, InputAction, KeyMods>;
+  using CharEvent = Event<uint32_t>;
+  using MouseButtonEvent = Event<MouseButton, InputAction, KeyMods>;
+  using CursorPosEvent = Event<double, double>;
+  using ScrollEvent = Event<double, double>;
+  using CursorEnterEvent = Event<bool>;
 
   Window(int32_t iWidth, int32_t iHeight, const std::string& iName);
   ~Window();
@@ -47,13 +47,13 @@ public:
   void setCursorMode(CursorMode mode);
 
   // Encapsulated Callback Subscriptions
-  CallbackId addFrameBufferResizeCallback(FrameBufferResizeCallback iCallback) { return mFrameBufferResizeEvent.add(std::move(iCallback)); }
-  CallbackId addKeyCallback(KeyCallback iCallback) { return mKeyEvent.add(std::move(iCallback)); }
-  CallbackId addCharCallback(CharCallback iCallback) { return mCharEvent.add(std::move(iCallback)); }
-  CallbackId addMouseButtonCallback(MouseButtonCallback iCallback) { return mMouseButtonEvent.add(std::move(iCallback)); }
-  CallbackId addCursorPosCallback(CursorPosCallback iCallback) { return mCursorPosEvent.add(std::move(iCallback)); }
-  CallbackId addScrollCallback(ScrollCallback iCallback) { return mScrollEvent.add(std::move(iCallback)); }
-  CallbackId addCursorEnterCallback(CursorEnterCallback iCallback) { return mCursorEnterEvent.add(std::move(iCallback)); }
+  CallbackId addFrameBufferResizeCallback(FrameBufferResizeEvent::Callback iCallback) { return mFrameBufferResizeEvent.add(std::move(iCallback)); }
+  CallbackId addKeyCallback(KeyEvent::Callback iCallback) { return mKeyEvent.add(std::move(iCallback)); }
+  CallbackId addCharCallback(CharEvent::Callback iCallback) { return mCharEvent.add(std::move(iCallback)); }
+  CallbackId addMouseButtonCallback(MouseButtonEvent::Callback iCallback) { return mMouseButtonEvent.add(std::move(iCallback)); }
+  CallbackId addCursorPosCallback(CursorPosEvent::Callback iCallback) { return mCursorPosEvent.add(std::move(iCallback)); }
+  CallbackId addScrollCallback(ScrollEvent::Callback iCallback) { return mScrollEvent.add(std::move(iCallback)); }
+  CallbackId addCursorEnterCallback(CursorEnterEvent::Callback iCallback) { return mCursorEnterEvent.add(std::move(iCallback)); }
 
   void removeFrameBufferResizeCallback(CallbackId iId) { mFrameBufferResizeEvent.remove(iId); }
   void removeKeyCallback(CallbackId iId) { mKeyEvent.remove(iId); }
@@ -75,13 +75,13 @@ private:
   // screen coordinates width and height
   GLFWwindow* mWindow;
 
-  Event<int32_t, int32_t> mFrameBufferResizeEvent;
-  Event<KeyCode, int32_t, InputAction, KeyMods> mKeyEvent;
-  Event<uint32_t> mCharEvent;
-  Event<MouseButton, InputAction, KeyMods> mMouseButtonEvent;
-  Event<double, double> mCursorPosEvent;
-  Event<double, double> mScrollEvent;
-  Event<bool> mCursorEnterEvent;
+  FrameBufferResizeEvent mFrameBufferResizeEvent;
+  KeyEvent mKeyEvent;
+  CharEvent mCharEvent;
+  MouseButtonEvent mMouseButtonEvent;
+  CursorPosEvent mCursorPosEvent;
+  ScrollEvent mScrollEvent;
+  CursorEnterEvent mCursorEnterEvent;
 };
 } // namespace ne
 

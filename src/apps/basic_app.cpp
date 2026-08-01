@@ -1,7 +1,7 @@
 #include "apps/basic_app.h"
 #include "core/defines.h"
 #include "core/logger.h"
-#include "core/math.h"
+#include "math/math.h"
 #include "platform/window.h"
 #include "renderer/mesh.h"
 #include "renderer/render_manager.h"
@@ -9,10 +9,21 @@
 #include "renderer/material.h"
 #include "importers/gltf_importer.h"
 
-#include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
 namespace ne {
+
+void colorizeModel(ModelData& ioModel) {
+  // Map normals to colors in the app layer for visualization
+  for (auto& submesh : ioModel.mSubmeshes) {
+    if (!submesh.mNormals.empty()) {
+      submesh.mColors.resize(submesh.mPositions.size());
+      for (size_t v = 0; v < submesh.mPositions.size(); ++v) {
+        submesh.mColors[v] = submesh.mNormals[v].getSafeNormal() * 0.5f + 0.5f;
+      }
+    }
+  }
+}
 
 BasicApp::BasicApp() {
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
@@ -45,40 +56,21 @@ BasicApp::BasicApp() {
   mScene = std::make_unique<Scene>();
 
   // 1. CPU import phase (relative to content folder)
-  ModelData modelData = GltfImporter::importModel("models/Box.gltf");
+  ModelData cubeModel = GltfImporter::importModel("models/Box.gltf");
+  ModelData helmetModel = GltfImporter::importModel("models/DamagedHelmet.glb");
 
-  // Map normals to colors in the app layer for visualization
-  for (auto& submesh : modelData.mSubmeshes) {
-    if (!submesh.mNormals.empty()) {
-      submesh.mColors.resize(submesh.mPositions.size());
-      for (size_t v = 0; v < submesh.mPositions.size(); ++v) {
-        submesh.mColors[v] = glm::normalize(submesh.mNormals[v]) * 0.5f + 0.5f;
-      }
-    }
-  }
+  colorizeModel(cubeModel);
+  colorizeModel(helmetModel);
 
   // 2. GPU upload phase
-  for (const auto& submesh : modelData.mSubmeshes) {
+  for (const auto& submesh : cubeModel.mSubmeshes) {
     auto gpuMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), submesh);
     mLoadedMeshes.push_back(gpuMesh);
   }
 
-  // Fallback if model could not be imported
-  if (mLoadedMeshes.empty()) {
-    NE_LOG("BasicApp: Failed to import model, creating procedural fallback...");
-    MeshData fallbackMesh;
-    fallbackMesh.mPositions = {
-        {0.0f, -0.4f, 0.0f},
-        {0.4f, 0.4f, 0.0f},
-        {-0.4f, 0.4f, 0.0f}
-    };
-    fallbackMesh.mColors = {
-        {1.0f, 0.0f, 0.0f},
-        {0.0f, 1.0f, 0.0f},
-        {0.0f, 0.0f, 1.0f}
-    };
-    fallbackMesh.mIndices = {0, 1, 2};
-    mLoadedMeshes.push_back(std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), fallbackMesh));
+  for (const auto& submesh : helmetModel.mSubmeshes) {
+    auto gpuMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), submesh);
+    mLoadedMeshes.push_back(gpuMesh);
   }
 
   // Material setup - uses shader "triangle_3" with modern Vertex Pulling + MDI
@@ -94,10 +86,7 @@ BasicApp::~BasicApp() {
 }
 
 void BasicApp::run() {
-  NE_LOG("BasicApp (MDI Showcase) Start!");
-
-  const int gridRows = 4;
-  const int gridCols = 4;
+  NE_LOG("BasicApp (Unreal Coordinates Test Scene) Start!");
 
   while (!mWindow->shouldClose()) {
     mWindow->processEvents();
@@ -105,54 +94,65 @@ void BasicApp::run() {
     float time = static_cast<float>(glfwGetTime());
 
     // 1. Prepare Camera View & Projection
+    // Unreal Engine Left-Handed Coordinate System: X Forward, Y Right, Z Up
     int32_t width, height;
     mWindow->getFrameBufferSize(&width, &height);
     float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : 1.0f;
-    glm::mat4 proj = math::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
-    glm::mat4 view = math::lookAt(glm::vec3(0.0f, 0.0f, -4.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    Vec3 eye(-4.0f, 0.0f, 0.0f);     // Camera located behind origin on -X
+    Vec3 center(0.0f, 0.0f, 0.0f);  // Looking towards origin (+X direction)
+    Vec3 up(0.0f, 0.0f, 1.0f);      // +Z is Up
+
+    Mat4 proj = Mat4::perspective(math::radians(45.0f), aspect, 0.1f, 100.0f);
+    Mat4 view = Mat4::lookAt(eye, center, up);
 
     mScene->setViewProjection(proj * view);
     mScene->clear();
 
-    // 2. Populate Scene with dynamic render objects
-    for (int r = 0; r < gridRows; ++r) {
-      for (int c = 0; c < gridCols; ++c) {
-        int gridIndex = r * gridCols + c;
+    // 2. Populate Scene with Test Objects
+    // Cube on the RIGHT (+Y axis)
+    if (!mLoadedMeshes.empty()) {
+      Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
 
-        // Calculate offset position for each grid cell
-        float xOffset = (c - (gridCols - 1) * 0.5f) * 1.2f;
-        float yOffset = (r - (gridRows - 1) * 0.5f) * 1.2f;
+      RenderObject cubeObj{};
+      cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
+      cubeObj.material = mMaterial;
+      cubeObj.transform = cubeTransform;
+      cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
 
-        // Alternate rotation direction
-        float rotationAngle = time * glm::radians(30.0f) * (gridIndex % 2 == 0 ? 1.0f : -1.0f);
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(xOffset, yOffset, 0.0f));
-        model = glm::rotate(model, rotationAngle, glm::vec3(0.0f, 0.0f, 1.0f));
+      mScene->addRenderObject(cubeObj);
+    }
+    
+    if (!mLoadedMeshes.empty()) {
+      Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 0.0f, 0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
 
-        // Set dynamic material options (color tint) based on grid index
-        glm::vec4 colorTint = glm::vec4(1.0f);
-        if (gridIndex % 3 == 0) {
-          colorTint = glm::vec4(1.0f, 0.5f, 0.5f, 1.0f); // Red tint
-        } else if (gridIndex % 3 == 1) {
-          colorTint = glm::vec4(0.5f, 1.0f, 0.5f, 1.0f); // Green tint
-        } else {
-          colorTint = glm::vec4(0.5f, 0.5f, 1.0f, 1.0f); // Blue tint
-        }
+      RenderObject cubeObj{};
+      cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
+      cubeObj.material = mMaterial;
+      cubeObj.transform = cubeTransform;
+      cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
 
-        RenderObject obj{};
-        obj.mesh = mLoadedMeshes[gridIndex % mLoadedMeshes.size()];
-        obj.material = mMaterial;
-        obj.transform = model;
-        obj.colorTint = colorTint;
-
-        mScene->addRenderObject(obj);
-      }
+      mScene->addRenderObject(cubeObj);
     }
 
-    // 3. Draw scene (internally handles frame lifecycle)
+    // Helmet on the LEFT (-Y axis)
+    if (mLoadedMeshes.size() > 1) {
+      Mat4 helmetTransform = Mat4::translate(Vec3(0.0f, -1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
+
+      RenderObject helmetObj{};
+      helmetObj.mesh = mLoadedMeshes[1]; // Helmet submesh
+      helmetObj.material = mMaterial;
+      helmetObj.transform = helmetTransform;
+      helmetObj.colorTint = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+      mScene->addRenderObject(helmetObj);
+    }
+
+    // 3. Draw scene
     mRenderManager->drawScene(mScene.get());
   }
  
   mRenderManager->waitIdle();
-  NE_LOG("BasicApp (MDI Showcase) Done!");
+  NE_LOG("BasicApp (Unreal Coordinates Test Scene) Done!");
 }
 } // namespace ne

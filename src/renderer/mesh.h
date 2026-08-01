@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer/buffer.h"
-#include <glm/glm.hpp>
+#include "math/math.h"
 #include <volk/volk.h>
 
 #include "core/mesh_data.h"
@@ -14,8 +14,8 @@ class GeometryAllocator;
 class Mesh {
 public:
   struct Vertex {
-    glm::vec3 mPos;
-    glm::vec3 mColor;
+    Vec3 mPos;
+    Vec3 mColor;
   };
 
   Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVertices, const std::vector<uint32_t>& iIndices);

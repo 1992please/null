@@ -1,21 +1,85 @@
 #pragma once
 
-#include "core/math.h"
+#include "math/transform.h"
 
 namespace ne {
 
+/**
+ * @struct TransformComponent
+ * @brief ECS Component wrapping a local Transform TRS struct with matrix caching.
+ *
+ * Implements lazy evaluation via an internal `isDirty` flag so that repeated matrix
+ * queries (`getLocalMatrix()`) operate at O(1) cost for GPU upload loops.
+ */
 struct TransformComponent {
-  Vec3 mPosition{0.0f};
-  Vec3 mRotation{0.0f}; // Euler angles in radians (X=pitch, Y=yaw, Z=roll)
-  Vec3 mScale{1.0f};
+  Transform local;
+  mutable Mat4 cachedLocalMatrix{1.0f};
+  mutable bool isDirty{true};
 
-  Mat4 getLocalMatrix() const {
-    Mat4 transform = glm::translate(Mat4(1.0f), mPosition);
-    transform = glm::rotate(transform, mRotation.y, Vec3(0.0f, 1.0f, 0.0f));
-    transform = glm::rotate(transform, mRotation.x, Vec3(1.0f, 0.0f, 0.0f));
-    transform = glm::rotate(transform, mRotation.z, Vec3(0.0f, 0.0f, 1.0f));
-    return glm::scale(transform, mScale);
+  TransformComponent() = default;
+  explicit TransformComponent(const Transform& t) : local(t), isDirty(true) {}
+  explicit TransformComponent(const Vec3& pos) { local.position = pos; isDirty = true; }
+
+  /**
+   * @brief Returns the cached 4x4 matrix, lazily recalculating if dirty.
+   */
+  const Mat4& getLocalMatrix() const {
+    if (isDirty) {
+      cachedLocalMatrix = local.toMatrix();
+      isDirty = false;
+    }
+    return cachedLocalMatrix;
   }
+
+  /**
+   * @brief Explicitly marks the transform matrix cache as dirty.
+   */
+  void markDirty() const {
+    isDirty = true;
+  }
+
+  // --- Mutators (automatically invalidate cache) ---
+
+  void setPosition(const Vec3& pos) {
+    local.position = pos;
+    isDirty = true;
+  }
+
+  void setRotation(const Quat& rot) {
+    local.rotation = rot;
+    isDirty = true;
+  }
+
+  void setEulerAngles(const Vec3& eulerDegrees) {
+    local.setEulerAngles(eulerDegrees);
+    isDirty = true;
+  }
+
+  void setScale(const Vec3& s) {
+    local.scale = s;
+    isDirty = true;
+  }
+
+  void translate(const Vec3& delta) {
+    local.position += delta;
+    isDirty = true;
+  }
+
+  void rotate(const Quat& deltaRot) {
+    local.rotation = deltaRot * local.rotation;
+    isDirty = true;
+  }
+
+  // --- Accessors ---
+
+  const Vec3& getPosition() const { return local.position; }
+  const Quat& getRotation() const { return local.rotation; }
+  Vec3 getEulerAngles() const { return local.getEulerAngles(); }
+  const Vec3& getScale() const { return local.scale; }
+
+  Vec3 getForward() const { return local.getForward(); }
+  Vec3 getRight() const { return local.getRight(); }
+  Vec3 getUp() const { return local.getUp(); }
 };
 
 } // namespace ne

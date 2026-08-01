@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/math.h"
+#include "math/math.h"
 
 namespace ne {
 
@@ -11,8 +11,8 @@ struct OrbitCameraControllerComponent {
   float mMaxDistance{100.0f};
   float mYaw{0.0f};   // Radians
   float mPitch{0.0f}; // Radians
-  float mMinPitch{-glm::radians(89.0f)};
-  float mMaxPitch{glm::radians(89.0f)};
+  float mMinPitch{-math::radians(89.0f)};
+  float mMaxPitch{math::radians(89.0f)};
   float mRotateSensitivity{0.005f};
   float mPanSensitivity{0.002f};
   float mZoomSensitivity{0.5f};
