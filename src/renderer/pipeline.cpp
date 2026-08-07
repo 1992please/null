@@ -1,14 +1,14 @@
 #include "renderer/pipeline.h"
 #include "core/assert.h"
-#include "core/platform.h"
 #include "core/filesystem.h"
+#include "core/platform.h"
 #include "renderer/mesh.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
 
 // std
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 
 namespace ne {
 
@@ -71,6 +71,19 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
 
   // Depth And Stencil
+  VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo{};
+  depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+  depthStencilStateCreateInfo.depthTestEnable = iConfig.mDepthMode != Pipeline::DM_Disabled ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.depthWriteEnable = iConfig.mDepthMode != Pipeline::DM_Disabled ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
+  depthStencilStateCreateInfo.minDepthBounds = 0.0f;
+  depthStencilStateCreateInfo.maxDepthBounds = 1.0f;
+  depthStencilStateCreateInfo.stencilTestEnable = iConfig.mStencilMode != Pipeline::SM_Disabled ? VK_TRUE : VK_FALSE;
+  if (iConfig.mDepthMode == Pipeline::DM_Standard) {
+    depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+  } else if (iConfig.mDepthMode == Pipeline::DM_ReverseZ) {
+    depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+  }
 
   // Color blending (blends new color to the old color already in the frame buffer)
   /*
@@ -121,6 +134,9 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   renderingCreateInfo.colorAttachmentCount = 1;
   renderingCreateInfo.pColorAttachmentFormats = &iRenderer->getSwapChainSurfaceFormat().format;
 
+  renderingCreateInfo.depthAttachmentFormat = iRenderer->getDepthFormat();
+  renderingCreateInfo.stencilAttachmentFormat = iRenderer->getDepthFormat();
+
   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
   graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
   graphicsPipelineCreateInfo.pNext = &renderingCreateInfo;
@@ -132,7 +148,7 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   graphicsPipelineCreateInfo.pViewportState = &viewportStateCreateInfo;
   graphicsPipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
   graphicsPipelineCreateInfo.pMultisampleState = &multisampleStateCreateInfo;
-  graphicsPipelineCreateInfo.pDepthStencilState = nullptr;
+  graphicsPipelineCreateInfo.pDepthStencilState = &depthStencilStateCreateInfo;
   graphicsPipelineCreateInfo.pColorBlendState = &colorBlendStateCreateInfo;
   graphicsPipelineCreateInfo.pDynamicState = &dynamicStateCreateInfo;
   graphicsPipelineCreateInfo.layout = mPipelineLayout;
@@ -144,7 +160,8 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   VK_CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mGraphicsPipeline));
 
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
-  NE_LOG("Created Graphics Pipeline for shader: '{}' (Pipeline: {}, Layout: {})", iConfig.mShaderName, (void*)mGraphicsPipeline, (void*)mPipelineLayout);
+  NE_LOG("Created Graphics Pipeline for shader: '{}' (Pipeline: {}, Layout: {})", iConfig.mShaderName, (void*)mGraphicsPipeline,
+         (void*)mPipelineLayout);
 }
 
 Pipeline::~Pipeline() {
@@ -179,7 +196,7 @@ VkShaderModule Pipeline::createShaderModule(const std::string& iShaderName) {
   VkShaderModule shaderModule;
   VK_CHECK(vkCreateShaderModule(mDevice, &shaderModuleCreateInfo, nullptr, &shaderModule));
 
-  NE_LOG("Loaded and created shader module: '{}' (Size: {})", iShaderName, formatBytes(fileBuffer.size()));
+  NE_LOG("Loaded and created shader module: '{}' (Size: {})", iShaderName, vk_utils::formatBytes(fileBuffer.size()));
   return shaderModule;
 }
 

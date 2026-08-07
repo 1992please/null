@@ -1,7 +1,9 @@
 #pragma once
 
-#include <volk/volk.h>
 #include "math/math.h"
+#include <volk/volk.h>
+
+// std
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,6 +39,7 @@ public:
 
   // Pipeline/Material Creation
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName);
+
 private:
   void submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj);
 

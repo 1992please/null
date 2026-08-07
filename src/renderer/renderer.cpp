@@ -6,9 +6,9 @@
 #include "renderer/buffer.h"
 #include "renderer/utils.h"
 
-
 // std
 #include <algorithm>
+#include <cstring>
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT iMessageType,
@@ -43,13 +43,15 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   pickPhysicalDevice();
   createLogicalDevice();
   createSwapChain();
+  createDepthResources();
   createFramesResources();
 }
 
 Renderer::~Renderer() {
   NE_LOG("Destroying Vulkan Renderer and deallocating resources...");
 
-  if (mWindow && mFrameBufferResizeCallbackId != 0) mWindow->removeFrameBufferResizeCallback(mFrameBufferResizeCallbackId);
+  if (mWindow && mFrameBufferResizeCallbackId != 0)
+    mWindow->removeFrameBufferResizeCallback(mFrameBufferResizeCallbackId);
 
   for (FrameResources& frame : mFrames) {
     vkDestroyCommandPool(mDevice, frame.mCommandPool, nullptr);
@@ -58,10 +60,24 @@ Renderer::~Renderer() {
     frame.mUploadBuffer.reset();
   }
 
+  if (mDepthImageView != VK_NULL_HANDLE) {
+    vkDestroyImageView(mDevice, mDepthImageView, nullptr);
+    mDepthImageView = VK_NULL_HANDLE;
+  }
+  if (mDepthImage != VK_NULL_HANDLE) {
+    vkDestroyImage(mDevice, mDepthImage, nullptr);
+    mDepthImage = VK_NULL_HANDLE;
+  }
+  if (mDepthImageMemory != VK_NULL_HANDLE) {
+    vkFreeMemory(mDevice, mDepthImageMemory, nullptr);
+    mDepthImageMemory = VK_NULL_HANDLE;
+  }
+
   for (SwapchainImageResources& image : mSwapChainImages) {
     vkDestroyImageView(mDevice, image.mImageView, nullptr);
     vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
   }
+  mSwapChainImages.clear();
 
   vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
 
@@ -204,7 +220,8 @@ void Renderer::pickPhysicalDevice() {
     uint32_t deviceExtensionPropertyCount;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionPropertyCount, nullptr);
     std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
+    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionPropertyCount,
+                                         deviceExtensionProperties.data());
     bool supportsAllRequiredExtensions = true;
     for (const auto& requiredDeviceExtension : mRequiredDeviceExtensions) {
       bool extensionSupported = false;
@@ -382,19 +399,18 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
   mSwapChainSurfaceFormat = selectedSurfaceFormat;
   mSwapChainExtent = selectedSwapExtent;
 
-  NE_ASSERT(mSwapChainImages.empty());
+  // Clear old SwapChainResources if it exists
+  for (SwapchainImageResources& image : mSwapChainImages) {
+    vkDestroyImageView(mDevice, image.mImageView, nullptr);
+    vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
+  }
+  mSwapChainImages.clear();
+
+  // Create the SwapChain Resources
   mSwapChainImages.resize(swapChainImages.size());
   for (size_t i = 0; i < swapChainImages.size(); i++) {
     mSwapChainImages[i].mImage = swapChainImages[i];
-    // Create Image view for the swapchain image
-    VkImageViewCreateInfo imageViewCreateInfo{};
-    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    imageViewCreateInfo.format = mSwapChainSurfaceFormat.format;
-    imageViewCreateInfo.subresourceRange = {
-        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
-    imageViewCreateInfo.image = swapChainImages[i];
-    VK_CHECK(vkCreateImageView(mDevice, &imageViewCreateInfo, nullptr, &mSwapChainImages[i].mImageView));
+    mSwapChainImages[i].mImageView = createImageView(swapChainImages[i], mSwapChainSurfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     // Create Semaphore for starting display to the image
     VkSemaphoreCreateInfo semaphoreCreateInfo{};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -407,11 +423,10 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
 }
 
 std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size) {
-  auto uploadBuffer = std::make_unique<Buffer>(
-      this, size,
-      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+  auto uploadBuffer = std::make_unique<Buffer>(this, size,
+                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
   uploadBuffer->mapMemory();
   return uploadBuffer;
 }
@@ -443,9 +458,9 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
 
-    mFrames[i].mUploadBuffer = createUploadBuffer(config::DEFAULT_UPLOAD_BUFFER_SIZE);
+    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::DEFAULT_UPLOAD_BUFFER_SIZE);
   }
-  
+
   // Create our one time Command buffer
   VkCommandPoolCreateInfo oneTimePoolInfo{};
   oneTimePoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -466,8 +481,8 @@ VkCommandBuffer Renderer::beginFrame() {
 
   VK_CHECK(vkWaitForFences(mDevice, 1, &currentFrame.mDrawFence, VK_TRUE, UINT64_MAX));
 
-  VkResult result =
-      vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore, VK_NULL_HANDLE, &mImageIndex);
+  VkResult result = vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore, VK_NULL_HANDLE,
+                                          &mSwapChainImageIndex);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     recreateSwapChain(true);
     return VK_NULL_HANDLE;
@@ -513,7 +528,7 @@ void Renderer::endFrame() {
 
   VkSemaphoreSubmitInfo signalSemaphoreInfo{};
   signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  signalSemaphoreInfo.semaphore = mSwapChainImages[mImageIndex].mRenderFinishedSemaphore;
+  signalSemaphoreInfo.semaphore = mSwapChainImages[mSwapChainImageIndex].mRenderFinishedSemaphore;
   signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   VkSubmitInfo2 submitInfo2{};
@@ -531,10 +546,10 @@ void Renderer::endFrame() {
   VkPresentInfoKHR presentInfo{};
   presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
   presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = &mSwapChainImages[mImageIndex].mRenderFinishedSemaphore;
+  presentInfo.pWaitSemaphores = &mSwapChainImages[mSwapChainImageIndex].mRenderFinishedSemaphore;
   presentInfo.swapchainCount = 1;
   presentInfo.pSwapchains = &mSwapChain;
-  presentInfo.pImageIndices = &mImageIndex;
+  presentInfo.pImageIndices = &mSwapChainImageIndex;
   VkResult result = vkQueuePresentKHR(mQueue, &presentInfo);
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     recreateSwapChain(true);
@@ -548,11 +563,10 @@ void Renderer::endFrame() {
   mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-
-
 void Renderer::waitIdle() { vkDeviceWaitIdle(mDevice); }
 
-void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset) {
+void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset,
+                          VkDeviceSize dstOffset) {
   VkCommandBuffer commandBuffer = beginOneTimeCommand();
 
   VkBufferCopy bufferCopy{};
@@ -572,8 +586,7 @@ void Renderer::recreateSwapChain(bool iForceRecreate) {
     mWindow->getFrameBufferSize(&width, &height);
   }
 
-  if (!iForceRecreate &&
-      width == static_cast<int32_t>(mSwapChainExtent.width) &&
+  if (!iForceRecreate && width == static_cast<int32_t>(mSwapChainExtent.width) &&
       height == static_cast<int32_t>(mSwapChainExtent.height)) {
     return;
   }
@@ -581,18 +594,12 @@ void Renderer::recreateSwapChain(bool iForceRecreate) {
   vkDeviceWaitIdle(mDevice);
   NE_LOG("Recreating SwapChain... New resolution: {}x{}", width, height);
 
-  // Destroy old image views and semaphores
-  for (SwapchainImageResources& image : mSwapChainImages) {
-    vkDestroyImageView(mDevice, image.mImageView, nullptr);
-    vkDestroySemaphore(mDevice, image.mRenderFinishedSemaphore, nullptr);
-  }
-  mSwapChainImages.clear();
-
   VkSwapchainKHR oldSwapChain = mSwapChain;
   mSwapChain = VK_NULL_HANDLE;
 
   // Create the new swapchain, passing the old swapchain for resource recycling
   createSwapChain(oldSwapChain);
+  createDepthResources();
 
   // Safely destroy the old swapchain now that the new one is created
   if (oldSwapChain != VK_NULL_HANDLE) {
@@ -647,9 +654,10 @@ Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevi
   return oSwapChainSupportDetails;
 }
 
-void Renderer::transitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iImageIndex, VkImageLayout iOldLayout,
-                                     VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask, VkAccessFlags2 iDstAccessMask,
-                                     VkPipelineStageFlags2 iSrcStageMask, VkPipelineStageFlags2 iDstStageMask) {
+void Renderer::transitionImageLayout(VkCommandBuffer iCommandBuffer, VkImage iImage, VkImageAspectFlags iAspectMask,
+                                     VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
+                                     VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
+                                     VkPipelineStageFlags2 iDstStageMask) {
   VkImageMemoryBarrier2 imageMemoryBarrier{};
   imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
   imageMemoryBarrier.srcStageMask = iSrcStageMask;
@@ -660,9 +668,9 @@ void Renderer::transitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iI
   imageMemoryBarrier.newLayout = iNewLayout;
   imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.image = mSwapChainImages[iImageIndex].mImage;
+  imageMemoryBarrier.image = iImage;
   imageMemoryBarrier.subresourceRange = {
-      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
+      .aspectMask = iAspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
 
   VkDependencyInfo dependencyInfo{};
   dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
@@ -671,6 +679,115 @@ void Renderer::transitionImageLayout(VkCommandBuffer iCommandBuffer, uint32_t iI
   dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
 
   vkCmdPipelineBarrier2(iCommandBuffer, &dependencyInfo);
+}
+
+uint32_t Renderer::findMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties) const {
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
+
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+    if ((iTypeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & iProperties) == iProperties) {
+      return i;
+    }
+  }
+
+  NE_ASSERT(false, "Failed to find suitable memory type!");
+  return ~0U;
+}
+
+void Renderer::createImage(const VkImageCreateInfo& iImageInfo, VkMemoryPropertyFlags iProperties, VkImage& iImage,
+                           VkDeviceMemory& iImageMemory) {
+  VK_CHECK(vkCreateImage(mDevice, &iImageInfo, nullptr, &iImage));
+
+  VkMemoryRequirements memRequirements;
+  vkGetImageMemoryRequirements(mDevice, iImage, &memRequirements);
+
+  VkMemoryAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, iProperties);
+  NE_ASSERT(allocInfo.memoryTypeIndex != ~0U, "Failed to find suitable memory type!");
+
+  VK_CHECK(vkAllocateMemory(mDevice, &allocInfo, nullptr, &iImageMemory));
+  VK_CHECK(vkBindImageMemory(mDevice, iImage, iImageMemory, 0));
+}
+
+VkImageView Renderer::createImageView(VkImage iImage, VkFormat iFormat, VkImageAspectFlags iAspectFlags) {
+  VkImageViewCreateInfo viewInfo{};
+  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  viewInfo.image = iImage;
+  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  viewInfo.format = iFormat;
+  viewInfo.subresourceRange.aspectMask = iAspectFlags;
+  viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.levelCount = 1;
+  viewInfo.subresourceRange.baseArrayLayer = 0;
+  viewInfo.subresourceRange.layerCount = 1;
+
+  VkImageView imageView;
+  VK_CHECK(vkCreateImageView(mDevice, &viewInfo, nullptr, &imageView));
+  return imageView;
+}
+
+// NOTE: Modern industry standards prioritize 32-bit floating-point depth with stencil (D32_SFLOAT_S8_UINT)
+// for maximum Z-precision, Reverse-Z compatibility, and stencil passes (outlining, selection, shadows).
+VkFormat Renderer::findDepthFormat() {
+  return findSupportedFormat({VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT},
+                             VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+}
+
+VkFormat Renderer::findSupportedFormat(const std::vector<VkFormat>& iCandidates, VkImageTiling iTiling,
+                                       VkFormatFeatureFlags iFeatures) {
+  for (const auto format : iCandidates) {
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(mPhysicalDevice, format, &props);
+    if ((iTiling == VK_IMAGE_TILING_OPTIMAL) && ((props.optimalTilingFeatures & iFeatures) == iFeatures)) {
+      return format;
+    }
+  }
+  NE_ASSERT(false, "Failed to find supported format!");
+  return VK_FORMAT_UNDEFINED;
+}
+
+void Renderer::createDepthResources() {
+  if (mDepthImageView != VK_NULL_HANDLE) {
+    vkDestroyImageView(mDevice, mDepthImageView, nullptr);
+    mDepthImageView = VK_NULL_HANDLE;
+  }
+  if (mDepthImage != VK_NULL_HANDLE) {
+    vkDestroyImage(mDevice, mDepthImage, nullptr);
+    mDepthImage = VK_NULL_HANDLE;
+  }
+  if (mDepthImageMemory != VK_NULL_HANDLE) {
+    vkFreeMemory(mDevice, mDepthImageMemory, nullptr);
+    mDepthImageMemory = VK_NULL_HANDLE;
+  }
+
+  mDepthFormat = findDepthFormat();
+
+  VkImageCreateInfo imageInfo{};
+  imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  imageInfo.imageType = VK_IMAGE_TYPE_2D;
+  imageInfo.extent.width = mSwapChainExtent.width;
+  imageInfo.extent.height = mSwapChainExtent.height;
+  imageInfo.extent.depth = 1;
+  imageInfo.mipLevels = 1;
+  imageInfo.arrayLayers = 1;
+  imageInfo.format = mDepthFormat;
+  imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  createImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mDepthImage, mDepthImageMemory);
+
+  VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+  mDepthImageView = createImageView(mDepthImage, mDepthFormat, aspectMask);
+
+  NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(mDepthFormat), mSwapChainExtent.width,
+         mSwapChainExtent.height);
 }
 
 } // namespace ne

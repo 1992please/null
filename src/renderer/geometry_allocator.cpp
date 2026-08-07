@@ -18,17 +18,18 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
       std::make_unique<Buffer>(mRenderer, iIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-  NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", formatBytes(iVertexPoolSize), formatBytes(iIndexPoolSize));
-  createStagingBuffer(config::DEFAULT_STAGING_BUFFER_SIZE);
+  NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", vk_utils::formatBytes(iVertexPoolSize),
+         vk_utils::formatBytes(iIndexPoolSize));
+  createStagingBuffer(vk_utils::DEFAULT_STAGING_BUFFER_SIZE);
 }
 
 GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize,
-                                                                  const std::vector<uint32_t>& indices) {
+                                                       const std::vector<uint32_t>& indices) {
   VkDeviceSize indexSize = indices.size() * sizeof(uint32_t);
 
   // Align offsets to 16 bytes for safety
-  mCurrentVertexOffset = alignUp(mCurrentVertexOffset, static_cast<VkDeviceSize>(16));
-  mCurrentIndexOffset = alignUp(mCurrentIndexOffset, static_cast<VkDeviceSize>(16));
+  mCurrentVertexOffset = vk_utils::alignUp(mCurrentVertexOffset, static_cast<VkDeviceSize>(16));
+  mCurrentIndexOffset = vk_utils::alignUp(mCurrentIndexOffset, static_cast<VkDeviceSize>(16));
 
   NE_ASSERT(mCurrentVertexOffset + vertexSize <= mVertexBuffer->getBufferSize(), "Vertex pool out of memory!");
   NE_ASSERT(mCurrentIndexOffset + indexSize <= mIndexBuffer->getBufferSize(), "Index pool out of memory!");
@@ -37,7 +38,8 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
   VkDeviceSize requiredSize = std::max(vertexSize, indexSize);
   if (mStagingBuffer->getBufferSize() < requiredSize) {
     VkDeviceSize newSize = std::max(requiredSize, mStagingBuffer->getBufferSize() * 2);
-    NE_LOG("GeometryAllocator: Resizing staging buffer from {} to {}", formatBytes(mStagingBuffer->getBufferSize()), formatBytes(newSize));
+    NE_LOG("GeometryAllocator: Resizing staging buffer from {} to {}", vk_utils::formatBytes(mStagingBuffer->getBufferSize()),
+           vk_utils::formatBytes(newSize));
     createStagingBuffer(newSize);
   }
 
@@ -57,10 +59,10 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
   mCurrentIndexOffset += indexSize;
 
   NE_LOG("Allocated geometry: vertex size: {}, index size: {} | Pool occupancy: vertex={}/{} ({:.2f}%), index={}/{} ({:.2f}%)",
-         formatBytes(vertexSize), formatBytes(indexSize),
-         formatBytes(mCurrentVertexOffset), formatBytes(mVertexBuffer->getBufferSize()),
-         (static_cast<double>(mCurrentVertexOffset) / mVertexBuffer->getBufferSize()) * 100.0,
-         formatBytes(mCurrentIndexOffset), formatBytes(mIndexBuffer->getBufferSize()),
+         vk_utils::formatBytes(vertexSize), vk_utils::formatBytes(indexSize), vk_utils::formatBytes(mCurrentVertexOffset),
+         vk_utils::formatBytes(mVertexBuffer->getBufferSize()),
+         (static_cast<double>(mCurrentVertexOffset) / mVertexBuffer->getBufferSize()) * 100.0, vk_utils::formatBytes(mCurrentIndexOffset),
+         vk_utils::formatBytes(mIndexBuffer->getBufferSize()),
          (static_cast<double>(mCurrentIndexOffset) / mIndexBuffer->getBufferSize()) * 100.0);
 
   return alloc;

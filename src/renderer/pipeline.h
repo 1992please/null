@@ -10,13 +10,18 @@ class Renderer;
 
 class Pipeline {
 public:
+  enum DepthMode { DM_Disabled, DM_Standard, DM_ReverseZ };
+  enum StencilMode { SM_Disabled, SM_Enabled };
+
   struct Config {
     std::string mShaderName;
     std::vector<VkVertexInputBindingDescription> mVertexBindingDescriptions;
     std::vector<VkVertexInputAttributeDescription> mVertexAttributeDescriptions;
     std::vector<VkPushConstantRange> mPushConstantRanges;
+    DepthMode mDepthMode = DM_Standard;
+    StencilMode mStencilMode = SM_Disabled;
   };
-  Pipeline(Renderer* iRenderer,const Config& iConfig);
+  Pipeline(Renderer* iRenderer, const Config& iConfig);
   ~Pipeline();
 
   Pipeline(const Pipeline&) = delete;

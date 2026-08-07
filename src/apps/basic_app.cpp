@@ -85,73 +85,84 @@ BasicApp::~BasicApp() {
   }
 }
 
+void BasicApp::stepFrame() {
+  mWindow->processEvents();
+
+  float time = static_cast<float>(glfwGetTime());
+
+  // 1. Prepare Camera View & Projection
+  // Unreal Engine Left-Handed Coordinate System: X Forward, Y Right, Z Up
+  int32_t width, height;
+  mWindow->getFrameBufferSize(&width, &height);
+  float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : 1.0f;
+
+  Vec3 eye(-4.0f, 0.0f, 0.0f);    // Camera located behind origin on -X
+  Vec3 center(0.0f, 0.0f, 0.0f); // Looking towards origin (+X direction)
+  Vec3 up(0.0f, 0.0f, 1.0f);     // +Z is Up
+
+  Mat4 proj = Mat4::perspective(math::radians(45.0f), aspect, 0.1f, 100.0f);
+  Mat4 view = Mat4::lookAt(eye, center, up);
+
+  mScene->setViewProjection(proj * view);
+  mScene->clear();
+
+  // 2. Populate Scene with Test Objects
+  // Cube on the RIGHT (+Y axis)
+  if (!mLoadedMeshes.empty()) {
+    Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
+
+    RenderObject cubeObj{};
+    cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
+    cubeObj.material = mMaterial;
+    cubeObj.transform = cubeTransform;
+    cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
+
+    mScene->addRenderObject(cubeObj);
+  }
+
+  if (!mLoadedMeshes.empty()) {
+    Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 0.0f, 0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
+
+    RenderObject cubeObj{};
+    cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
+    cubeObj.material = mMaterial;
+    cubeObj.transform = cubeTransform;
+    cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
+
+    mScene->addRenderObject(cubeObj);
+  }
+
+  // Helmet on the LEFT (-Y axis)
+  if (mLoadedMeshes.size() > 1) {
+    Mat4 helmetTransform = Mat4::translate(Vec3(0.0f, -1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
+
+    RenderObject helmetObj{};
+    helmetObj.mesh = mLoadedMeshes[1]; // Helmet submesh
+    helmetObj.material = mMaterial;
+    helmetObj.transform = helmetTransform;
+    helmetObj.colorTint = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+    mScene->addRenderObject(helmetObj);
+  }
+
+  // 3. Draw scene
+  mRenderManager->drawScene(mScene.get());
+}
+
+void BasicApp::runForFrames(size_t iFrameCount) {
+  for (size_t i = 0; i < iFrameCount && !mWindow->shouldClose(); ++i) {
+    stepFrame();
+  }
+  mRenderManager->waitIdle();
+}
+
 void BasicApp::run() {
   NE_LOG("BasicApp (Unreal Coordinates Test Scene) Start!");
 
   while (!mWindow->shouldClose()) {
-    mWindow->processEvents();
-
-    float time = static_cast<float>(glfwGetTime());
-
-    // 1. Prepare Camera View & Projection
-    // Unreal Engine Left-Handed Coordinate System: X Forward, Y Right, Z Up
-    int32_t width, height;
-    mWindow->getFrameBufferSize(&width, &height);
-    float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : 1.0f;
-
-    Vec3 eye(-4.0f, 0.0f, 0.0f);     // Camera located behind origin on -X
-    Vec3 center(0.0f, 0.0f, 0.0f);  // Looking towards origin (+X direction)
-    Vec3 up(0.0f, 0.0f, 1.0f);      // +Z is Up
-
-    Mat4 proj = Mat4::perspective(math::radians(45.0f), aspect, 0.1f, 100.0f);
-    Mat4 view = Mat4::lookAt(eye, center, up);
-
-    mScene->setViewProjection(proj * view);
-    mScene->clear();
-
-    // 2. Populate Scene with Test Objects
-    // Cube on the RIGHT (+Y axis)
-    if (!mLoadedMeshes.empty()) {
-      Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
-
-      RenderObject cubeObj{};
-      cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
-      cubeObj.material = mMaterial;
-      cubeObj.transform = cubeTransform;
-      cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
-
-      mScene->addRenderObject(cubeObj);
-    }
-    
-    if (!mLoadedMeshes.empty()) {
-      Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 0.0f, 0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
-
-      RenderObject cubeObj{};
-      cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
-      cubeObj.material = mMaterial;
-      cubeObj.transform = cubeTransform;
-      cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
-
-      mScene->addRenderObject(cubeObj);
-    }
-
-    // Helmet on the LEFT (-Y axis)
-    if (mLoadedMeshes.size() > 1) {
-      Mat4 helmetTransform = Mat4::translate(Vec3(0.0f, -1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
-
-      RenderObject helmetObj{};
-      helmetObj.mesh = mLoadedMeshes[1]; // Helmet submesh
-      helmetObj.material = mMaterial;
-      helmetObj.transform = helmetTransform;
-      helmetObj.colorTint = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-
-      mScene->addRenderObject(helmetObj);
-    }
-
-    // 3. Draw scene
-    mRenderManager->drawScene(mScene.get());
+    stepFrame();
   }
- 
+
   mRenderManager->waitIdle();
   NE_LOG("BasicApp (Unreal Coordinates Test Scene) Done!");
 }

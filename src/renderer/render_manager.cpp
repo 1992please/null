@@ -32,7 +32,8 @@ struct GlobalUniforms {
 
 RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
-  mGeometryAllocator = std::make_unique<GeometryAllocator>(mRenderer.get(), config::VERTEX_POOL_SIZE, config::INDEX_POOL_SIZE);
+  mGeometryAllocator =
+      std::make_unique<GeometryAllocator>(mRenderer.get(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
 }
 
 RenderManager::~RenderManager() {
@@ -66,21 +67,37 @@ void RenderManager::drawScene(Scene* iScene) {
 
   mDrawCalls.clear();
 
-  uint32_t imgIndex = mRenderer->getActiveSwapChainImageIndex();
   VkExtent2D extent = mRenderer->getSwapChainExtent();
+  VkImage colorImage = mRenderer->getActiveSwapChainImage();
+  VkImage depthImage = mRenderer->getDepthImage();
 
   // 1. Begin Swapchain Render Pass
-  mRenderer->transitionImageLayout(commandBuffer, imgIndex, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                   VK_ACCESS_2_NONE, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+  mRenderer->transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
+                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+  mRenderer->transitionImageLayout(commandBuffer, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+                                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
+                                   VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+                                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT);
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
   colorAttachmentInfo.imageView = mRenderer->getActiveSwapChainImageView();
-  colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+  colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
   colorAttachmentInfo.clearValue = {0.1f, 0.1f, 0.1f, 1.0f};
+
+  VkRenderingAttachmentInfo depthAttachmentInfo{};
+  depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+  depthAttachmentInfo.imageView = mRenderer->getDepthImageView();
+  depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  depthAttachmentInfo.clearValue.depthStencil = {1.0f, 0};
 
   VkRenderingInfo renderingInfo{};
   renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -88,6 +105,8 @@ void RenderManager::drawScene(Scene* iScene) {
   renderingInfo.layerCount = 1;
   renderingInfo.colorAttachmentCount = 1;
   renderingInfo.pColorAttachments = &colorAttachmentInfo;
+  renderingInfo.pDepthAttachment = &depthAttachmentInfo;
+  renderingInfo.pStencilAttachment = &depthAttachmentInfo;
 
   vkCmdBeginRendering(commandBuffer, &renderingInfo);
 
@@ -102,16 +121,16 @@ void RenderManager::drawScene(Scene* iScene) {
 
   // 2. Submit Draw Batches
   for (const auto& obj : iScene->getObjects()) {
-    mDrawCalls.push_back(
-        DrawCall{.pipeline = obj.material->getPipeline(), .mesh = obj.mesh.get(), .transform = obj.transform, .color = obj.colorTint});
+    mDrawCalls.push_back(DrawCall{
+        .pipeline = obj.material->getPipeline(), .mesh = obj.mesh.get(), .transform = obj.transform, .color = obj.colorTint});
   }
   submit(commandBuffer, iScene->getViewProjection());
 
   // 3. End Swapchain Render Pass
   vkCmdEndRendering(commandBuffer);
 
-  mRenderer->transitionImageLayout(commandBuffer, imgIndex, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
+  mRenderer->transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                                   VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
                                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
 
   mRenderer->endFrame();

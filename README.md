@@ -22,7 +22,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] Expose GLFW input events (keyboard, mouse) in the `Window` class.
 - [x] Refactor `CameraComponent` with Perspective & Orthographic projection support.
 - [x] Evaluate Transform representation: Mat4 matrix caching vs TRS (Position, Quaternion, Scale) struct layout.
-- [ ] Configure Vulkan Depth Attachment with 32-bit floating-point depth format (`VK_FORMAT_D32_SFLOAT`).
+- [x] Configure Vulkan Depth Attachment with 32-bit floating-point depth format (`VK_FORMAT_D32_SFLOAT`).
 - [ ] Integrate ECS `CameraComponent` and `TransformComponent` into `RenderManager` scene rendering.
 - [ ] Enable Reverse-Z depth testing (`VK_COMPARE_OP_GREATER`, `0.0` depth clear) in Vulkan pipeline and toggle in `CameraComponent`.
 - [ ] Implement `OrbitCameraSystem` for interactive Arcball rotation, panning, and smooth zooming.
@@ -72,6 +72,32 @@ Since `RenderManager` does not maintain frame-specific class member state, this 
 2. **Bindless Materials & Per-Instance Data**: Per-instance metadata (such as model matrices, material IDs, custom tints, textures) are stored in structured buffers. The shaders access them using dynamic indexing based on the instance ID.
 3. **Dynamic Host-Mapped Buffers**: Engines use dynamic mapped host-visible buffers (Upload Buffers/Ring Buffers) to stream instance data and indirect commands generated on the CPU directly to the GPU without staging overhead.
 4. **Draw Command Generation / Sorting**: The CPU/Engine framework exposes a simple `drawMesh(Mesh, Transform, MaterialProperties)` API. The renderer gathers these draw requests, groups/sorts them by shader/pipeline, and dynamically writes instance data and indirect draw commands into dynamic buffers, submitting them in batches.
+
+## 🚀 Vulkan Modernization & Standard Upgrades Roadmap
+
+This roadmap tracks our planned technical upgrades against modern industry standards (Vulkan 1.4 baseline & SIGGRAPH guidelines). The table below outlines the 11 key topics, recommended targets, and rationale for future iterations:
+
+| # | Topic / Area | Target API / Standard | Recommendation | Key Benefits |
+|---|--------------|-----------------------|----------------|--------------|
+| **1** | **Buffer Creation & Memory** | `createBufferUnique`, `getBufferMemoryRequirements2`, `bindBufferMemory2` | **YES** | Enables `pNext` chaining for dedicated allocations, BDA, and memory budget queries. |
+| **2** | **Image Creation & Memory** | `createImageUnique`, `getImageMemoryRequirements2`, `bindImageMemory2` | **YES** | Standardizes image allocation and struct-based `VkBindImageMemoryInfo` binding. |
+| **3 & 5** | **Staging & Transfers** | `copyBufferToImage2` (`VkCopyBufferToImageInfo2`) | **YES** | Modern Vulkan 1.3/1.4 core transfer commands with extensible struct parameters. |
+| **4** | **Command Pool Lifecycle** | `createCommandPoolUnique` (RAII) | **YES** | Prevents resource leaks during swapchain recreations and engine shutdown. |
+| **6** | **Pipeline vs Shader Objects** | Shader Objects (`VK_EXT_shader_object`) | **HYBRID / CONDITIONAL** | Bypasses monolithic PSO compilation overhead; default to Shader Objects with Dynamic Rendering fallback. |
+| **7** | **Dynamic Geometry State** | `setVertexInputEXT`, `bindVertexBuffers2`, `bindIndexBuffer2` | **YES** | Decouples mesh vertex formats from PSOs; stepping stone to Buffer Device Address (BDA). |
+| **8** | **Push Descriptors** | `pushDataExt` / `vkCmdPushDescriptorSetKHR` & Push Constants | **YES** | Removes descriptor pool allocation overhead for transient per-draw data. |
+| **9** | **Descriptor Heaps & Bindless** | Descriptor Indexing / `VK_EXT_descriptor_buffer` | **YES** | Unsized texture arrays (`Texture2D gTextures[]`) indexed dynamically in Slang shaders. |
+| **10** | **Sync & Layouts** | Timeline Semaphores, `vkCmdPipelineBarrier2`, `VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL` | **YES (CRITICAL)** | Monotonic `uint64_t` queue sync, explicit stage barriers, and simplified attachment layout transitions. |
+| **11** | **Debug Utils** | `vkSetDebugUtilsObjectNameEXT` (`VK_EXT_debug_utils`) | **YES (CRITICAL)** | Tags Vulkan objects with human-readable debug names for RenderDoc and validation logs. |
+
+### Phased Execution Strategy
+
+1. **Phase 1 (Critical Sync)**: Upgrade to Timeline Semaphores, `Synchronization2` (`vkCmdPipelineBarrier2`), and Unified Image Layouts.
+2. **Phase 2 (Instrumentation)**: Add `vkSetDebugUtilsObjectNameEXT` resource tagging for RenderDoc / validation logging.
+3. **Phase 3 (RAII & Memory)**: Convert buffers/images/command pools to `getMemoryRequirements2`, `bindMemory2`, and RAII wrappers.
+4. **Phase 4 (Transfer Commands)**: Migrate all buffer/image copies to `vkCmdCopyBufferToImage2` / `vkCmdCopyBuffer2`.
+5. **Phase 5 (Dynamic Geometry & Shader Objects)**: Integrate `VK_EXT_vertex_input_dynamic_state` and evaluate `VK_EXT_shader_object`.
+6. **Phase 6 (Bindless & Push Descriptors)**: Implement `VK_EXT_push_descriptors` and bindless texture heaps (`descriptorIndexing`).
 
 ## ⚡ Core Technical Specs (AI & Agent Context)
 * **Graphics API**: Vulkan 1.4 (via `volk` meta-loader). No traditional Render Passes/Framebuffers (Dynamic Rendering only).

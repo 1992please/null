@@ -1,6 +1,6 @@
 #include "apps/basic_app.h"
 #include "core/logger.h"
-#include "core\defines.h"
+#include "core/defines.h"
 
 #include <string_view>
 

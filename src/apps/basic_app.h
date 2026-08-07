@@ -22,6 +22,8 @@ public:
   BasicApp& operator=(const BasicApp&) = delete;
 
   virtual void run() override;
+  void stepFrame();
+  void runForFrames(size_t iFrameCount = 1);
 
 private:
   std::unique_ptr<Window> mWindow;
