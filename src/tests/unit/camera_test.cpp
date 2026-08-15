@@ -78,6 +78,23 @@ NE_TEST_CASE("camera", "CameraComponent Orthographic Projection & Inversion") {
   }
 }
 
+NE_TEST_CASE("camera", "CameraComponent View and View-Projection Matrix Calculation") {
+  CameraComponent camera;
+  camera.setPerspective(45.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+
+  TransformComponent transform;
+  transform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
+  transform.setRotation(Quat::Identity); // Looking along +X, +Z up
+
+  Mat4 view = camera.getViewMatrix(transform);
+  Mat4 expectedView = Mat4::lookAt(Vec3(-4.0f, 0.0f, 0.0f), Vec3(-3.0f, 0.0f, 0.0f), Vec3(0.0f, 0.0f, 1.0f));
+  NE_TEST_ASSERT(view == expectedView, "CameraComponent::getViewMatrix must match Mat4::lookAt.");
+
+  Mat4 viewProj = camera.getViewProjectionMatrix(transform);
+  Mat4 expectedViewProj = camera.mProjectionMatrix * expectedView;
+  NE_TEST_ASSERT(viewProj == expectedViewProj, "CameraComponent::getViewProjectionMatrix must equal Projection * View.");
+}
+
 } // namespace ne::test
 
 #endif

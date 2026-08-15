@@ -2,6 +2,9 @@
 
 #include "tests/test_runner.h"
 #include "core/ecs.h"
+#include "components/camera_component.h"
+#include "components/transform_component.h"
+#include "components/mesh_component.h"
 
 namespace ne::test {
 
@@ -91,6 +94,42 @@ NE_TEST_CASE("ecs", "Component Registration & Capacity Reservation") {
 
   auto& pool = registry.getPool<PositionComponent>();
   NE_TEST_ASSERT(pool.capacity() >= 64, "Dense component vector must reserve requested capacity.");
+}
+
+NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
+  Registry registry;
+
+  Entity cam = registry.createEntity();
+  registry.addComponent<TransformComponent>(cam, Vec3(-5.0f, 0.0f, 1.0f));
+  auto& camComp = registry.addComponent<CameraComponent>(cam);
+  camComp.mIsPrimary = true;
+
+  Entity meshObj = registry.createEntity();
+  registry.addComponent<TransformComponent>(meshObj, Vec3(0.0f, 2.0f, 0.0f));
+  registry.addComponent<MeshComponent>(meshObj);
+
+  Mat4 resolvedViewProj{1.0f};
+  int camCount = 0;
+  registry.view<TransformComponent, CameraComponent>().each([&](Entity e, const TransformComponent& t, const CameraComponent& c) {
+    NE_UNUSED(e);
+    if (c.mIsPrimary) {
+      resolvedViewProj = c.getViewProjectionMatrix(t);
+      camCount++;
+    }
+  });
+
+  NE_TEST_ASSERT(camCount == 1, "Exactly one primary camera entity resolved.");
+  NE_TEST_ASSERT(resolvedViewProj != Mat4::Identity, "Resolved ViewProjection matrix must not be Identity.");
+
+  int meshCount = 0;
+  registry.view<TransformComponent, MeshComponent>().each([&](Entity e, const TransformComponent& t, const MeshComponent& m) {
+    NE_UNUSED(e);
+    NE_UNUSED(m);
+    NE_TEST_ASSERT(t.getPosition() == Vec3(0.0f, 2.0f, 0.0f), "Mesh entity transform position matches.");
+    meshCount++;
+  });
+
+  NE_TEST_ASSERT(meshCount == 1, "Exactly one mesh entity matched in view.");
 }
 
 } // namespace ne::test

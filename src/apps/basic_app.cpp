@@ -5,8 +5,10 @@
 #include "platform/window.h"
 #include "renderer/mesh.h"
 #include "renderer/render_manager.h"
-#include "renderer/scene.h"
 #include "renderer/material.h"
+#include "components/camera_component.h"
+#include "components/transform_component.h"
+#include "components/mesh_component.h"
 #include "importers/gltf_importer.h"
 
 #include <GLFW/glfw3.h>
@@ -53,7 +55,7 @@ BasicApp::BasicApp() {
   });
 
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
-  mScene = std::make_unique<Scene>();
+  mRegistry = std::make_unique<Registry>();
 
   // 1. CPU import phase (relative to content folder)
   ModelData cubeModel = GltfImporter::importModel("models/Box.gltf");
@@ -73,8 +75,43 @@ BasicApp::BasicApp() {
     mLoadedMeshes.push_back(gpuMesh);
   }
 
-  // Material setup - uses shader "triangle_3" with modern Vertex Pulling + MDI
+  // Material setup - uses shader "base_shader" with modern Vertex Pulling + MDI
   mMaterial = mRenderManager->createMaterial("base_shader");
+
+  // 3. Create Scene Entities
+  int32_t width, height;
+  mWindow->getFrameBufferSize(&width, &height);
+  float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : (16.0f / 9.0f);
+
+  // Camera Entity
+  mCameraEntity = mRegistry->createEntity();
+  auto& camTransform = mRegistry->addComponent<TransformComponent>(mCameraEntity);
+  camTransform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
+
+  auto& camComp = mRegistry->addComponent<CameraComponent>(mCameraEntity);
+  camComp.mUseReverseZ = false; // Match current standard depth pipeline
+  camComp.setPerspective(45.0f, aspect, 0.1f, 100.0f);
+
+  // Cube Entity 1 (Right: +Y axis)
+  if (!mLoadedMeshes.empty()) {
+    mCubeEntity1 = mRegistry->createEntity();
+    mRegistry->addComponent<TransformComponent>(mCubeEntity1, Vec3(0.0f, 1.5f, -0.5f));
+    mRegistry->addComponent<MeshComponent>(mCubeEntity1, mLoadedMeshes[0], mMaterial, Vec4(0.4f, 0.8f, 1.0f, 1.0f));
+  }
+
+  // Cube Entity 2 (Center: +Z axis)
+  if (!mLoadedMeshes.empty()) {
+    mCubeEntity2 = mRegistry->createEntity();
+    mRegistry->addComponent<TransformComponent>(mCubeEntity2, Vec3(0.0f, 0.0f, 0.5f));
+    mRegistry->addComponent<MeshComponent>(mCubeEntity2, mLoadedMeshes[0], mMaterial, Vec4(0.4f, 0.8f, 1.0f, 1.0f));
+  }
+
+  // Helmet Entity (Left: -Y axis)
+  if (mLoadedMeshes.size() > 1) {
+    mHelmetEntity = mRegistry->createEntity();
+    mRegistry->addComponent<TransformComponent>(mHelmetEntity, Vec3(0.0f, -1.5f, -0.5f));
+    mRegistry->addComponent<MeshComponent>(mHelmetEntity, mLoadedMeshes[1], mMaterial, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
+  }
 }
 
 BasicApp::~BasicApp() {
@@ -88,65 +125,35 @@ BasicApp::~BasicApp() {
 void BasicApp::stepFrame() {
   mWindow->processEvents();
 
-  float time = static_cast<float>(glfwGetTime());
-
-  // 1. Prepare Camera View & Projection
-  // Unreal Engine Left-Handed Coordinate System: X Forward, Y Right, Z Up
+  // 1. Update Camera Aspect Ratio
   int32_t width, height;
   mWindow->getFrameBufferSize(&width, &height);
-  float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : 1.0f;
-
-  Vec3 eye(-4.0f, 0.0f, 0.0f);    // Camera located behind origin on -X
-  Vec3 center(0.0f, 0.0f, 0.0f); // Looking towards origin (+X direction)
-  Vec3 up(0.0f, 0.0f, 1.0f);     // +Z is Up
-
-  Mat4 proj = Mat4::perspective(math::radians(45.0f), aspect, 0.1f, 100.0f);
-  Mat4 view = Mat4::lookAt(eye, center, up);
-
-  mScene->setViewProjection(proj * view);
-  mScene->clear();
-
-  // 2. Populate Scene with Test Objects
-  // Cube on the RIGHT (+Y axis)
-  if (!mLoadedMeshes.empty()) {
-    Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
-
-    RenderObject cubeObj{};
-    cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
-    cubeObj.material = mMaterial;
-    cubeObj.transform = cubeTransform;
-    cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
-
-    mScene->addRenderObject(cubeObj);
+  if (width > 0 && height > 0 && mRegistry->isValid(mCameraEntity)) {
+    float aspect = static_cast<float>(width) / static_cast<float>(height);
+    auto& cam = mRegistry->getComponent<CameraComponent>(mCameraEntity);
+    if (std::abs(cam.mAspectRatio - aspect) > 1e-4f) {
+      cam.setPerspective(cam.mFovDeg, aspect, cam.mNearClip, cam.mFarClip);
+    }
   }
 
-  if (!mLoadedMeshes.empty()) {
-    Mat4 cubeTransform = Mat4::translate(Vec3(0.0f, 0.0f, 0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
+  // 2. Animate Entity Transforms
+  float time = static_cast<float>(glfwGetTime());
+  Quat rotZ = Quat::angleAxis(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
 
-    RenderObject cubeObj{};
-    cubeObj.mesh = mLoadedMeshes[0]; // Cube submesh
-    cubeObj.material = mMaterial;
-    cubeObj.transform = cubeTransform;
-    cubeObj.colorTint = Vec4(0.4f, 0.8f, 1.0f, 1.0f); // Cyan/Blue tint
-
-    mScene->addRenderObject(cubeObj);
+  if (mRegistry->isValid(mCubeEntity1)) {
+    mRegistry->getComponent<TransformComponent>(mCubeEntity1).setRotation(rotZ);
   }
 
-  // Helmet on the LEFT (-Y axis)
-  if (mLoadedMeshes.size() > 1) {
-    Mat4 helmetTransform = Mat4::translate(Vec3(0.0f, -1.5f, -0.5f)).rotated(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
-
-    RenderObject helmetObj{};
-    helmetObj.mesh = mLoadedMeshes[1]; // Helmet submesh
-    helmetObj.material = mMaterial;
-    helmetObj.transform = helmetTransform;
-    helmetObj.colorTint = Vec4(1.0f, 1.0f, 1.0f, 1.0f);
-
-    mScene->addRenderObject(helmetObj);
+  if (mRegistry->isValid(mCubeEntity2)) {
+    mRegistry->getComponent<TransformComponent>(mCubeEntity2).setRotation(rotZ);
   }
 
-  // 3. Draw scene
-  mRenderManager->drawScene(mScene.get());
+  if (mRegistry->isValid(mHelmetEntity)) {
+    mRegistry->getComponent<TransformComponent>(mHelmetEntity).setRotation(rotZ);
+  }
+
+  // 3. Draw scene from Registry
+  mRenderManager->drawScene(mRegistry.get());
 }
 
 void BasicApp::runForFrames(size_t iFrameCount) {

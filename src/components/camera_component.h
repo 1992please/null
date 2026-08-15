@@ -1,6 +1,7 @@
 #pragma once
 
 #include "math/math.h"
+#include "components/transform_component.h"
 
 namespace ne {
 
@@ -32,10 +33,24 @@ struct CameraComponent {
   Mat4 mProjectionMatrix{1.0f};
   Mat4 mInverseProjectionMatrix{1.0f};
 
+  CameraComponent() {
+    updateProjection();
+  }
+
   // Mutators & Recalculation
   void updateProjection();
   void setPerspective(float iFovDeg, float iAspect, float iNear, float iFar = 0.0f);
   void setOrthographic(float iSize, float iAspect, float iNear, float iFar);
+
+  // View & View-Projection Matrix Calculation
+  Mat4 getViewMatrix(const TransformComponent& iTransform) const {
+    const Vec3& eye = iTransform.getPosition();
+    return Mat4::lookAt(eye, eye + iTransform.getForward(), iTransform.getUp());
+  }
+
+  Mat4 getViewProjectionMatrix(const TransformComponent& iTransform) const {
+    return mProjectionMatrix * getViewMatrix(iTransform);
+  }
 };
 
 } // namespace ne

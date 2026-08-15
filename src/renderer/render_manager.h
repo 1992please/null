@@ -16,7 +16,7 @@ class GeometryAllocator;
 class Mesh;
 class Pipeline;
 class Material;
-class Scene;
+class Registry;
 
 class RenderManager {
 public:
@@ -35,7 +35,7 @@ public:
   void waitIdle();
 
   // Drawing Interface (Dynamic command recording)
-  void drawScene(Scene* scene);
+  void drawScene(Registry* iRegistry);
 
   // Pipeline/Material Creation
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName);

@@ -23,7 +23,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Asset Pipeline**: glTF/GLB parser via `cgltf` with automatic GPU geometry allocation.
 - [x] **Input Abstraction**: Strongly-typed GLFW events (`KeyCode`, `MouseButton`, `InputAction`) and multicast delegate system (`ne::Event`).
 - [x] **Camera & Transform Math**: Projection matrix generator (Perspective, Orthographic, Reverse-Z, Infinite Far) and TRS `TransformComponent` with dirty caching.
-- [ ] **Scene & ECS Integration**: Connect `CameraComponent` and `TransformComponent` to `Scene` and `RenderManager`.
+- [x] **Scene & ECS Integration**: Connect `CameraComponent` and `TransformComponent` to `Registry` and `RenderManager`.
 - [ ] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
 - [ ] **OrbitCameraSystem**: Interactive Arcball rotation, smooth panning, and scroll zooming.
 - [ ] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.

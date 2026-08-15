@@ -1,12 +1,15 @@
 #include "renderer/render_manager.h"
 #include "core/assert.h"
+#include "core/ecs.h"
+#include "components/camera_component.h"
+#include "components/transform_component.h"
+#include "components/mesh_component.h"
 #include "renderer/buffer.h"
 #include "renderer/geometry_allocator.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/renderer.h"
-#include "renderer/scene.h"
 #include "renderer/utils.h"
 
 // std
@@ -59,7 +62,11 @@ std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShad
   return std::make_shared<Material>(pipeline);
 }
 
-void RenderManager::drawScene(Scene* iScene) {
+void RenderManager::drawScene(Registry* iRegistry) {
+  if (!iRegistry) {
+    return;
+  }
+
   VkCommandBuffer commandBuffer = mRenderer->beginFrame();
   if (commandBuffer == VK_NULL_HANDLE) {
     return;
@@ -119,14 +126,32 @@ void RenderManager::drawScene(Scene* iScene) {
   // Bind global index buffer
   vkCmdBindIndexBuffer(commandBuffer, mGeometryAllocator->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-  // 2. Submit Draw Batches
-  for (const auto& obj : iScene->getObjects()) {
-    mDrawCalls.push_back(DrawCall{
-        .pipeline = obj.material->getPipeline(), .mesh = obj.mesh.get(), .transform = obj.transform, .color = obj.colorTint});
-  }
-  submit(commandBuffer, iScene->getViewProjection());
+  // 2. Resolve Primary Camera ViewProjection Matrix
+  Mat4 viewProj{1.0f};
+  iRegistry->view<TransformComponent, CameraComponent>().each(
+      [&](Entity entity, const TransformComponent& transform, const CameraComponent& camera) {
+        NE_UNUSED(entity);
+        if (camera.mIsPrimary) {
+          viewProj = camera.getViewProjectionMatrix(transform);
+        }
+      });
 
-  // 3. End Swapchain Render Pass
+  // 3. Collect Draw Batches from ECS Meshes
+  iRegistry->view<TransformComponent, MeshComponent>().each(
+      [&](Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
+        NE_UNUSED(entity);
+        if (mesh.mMesh && mesh.mMaterial && mesh.mMaterial->getPipeline()) {
+          mDrawCalls.push_back(DrawCall{
+              .pipeline = mesh.mMaterial->getPipeline(),
+              .mesh = mesh.mMesh.get(),
+              .transform = transform.getLocalMatrix(),
+              .color = mesh.mColorTint});
+        }
+      });
+
+  submit(commandBuffer, viewProj);
+
+  // 4. End Swapchain Render Pass
   vkCmdEndRendering(commandBuffer);
 
   mRenderer->transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,

@@ -2,6 +2,7 @@
 
 #include "apps/application.h"
 #include "core/event.h"
+#include "core/ecs.h"
 #include <memory>
 #include <vector>
 
@@ -9,7 +10,6 @@ namespace ne {
 
 class Window;
 class RenderManager;
-class Scene;
 class Mesh;
 class Material;
 
@@ -28,7 +28,12 @@ public:
 private:
   std::unique_ptr<Window> mWindow;
   std::unique_ptr<RenderManager> mRenderManager;
-  std::unique_ptr<Scene> mScene;
+  std::unique_ptr<Registry> mRegistry;
+
+  Entity mCameraEntity{NullEntity};
+  Entity mCubeEntity1{NullEntity};
+  Entity mCubeEntity2{NullEntity};
+  Entity mHelmetEntity{NullEntity};
 
   CallbackId mKeyCallbackId{0};
   CallbackId mMouseButtonCallbackId{0};
