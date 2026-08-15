@@ -60,7 +60,7 @@ public:
   VkImageView createImageView(VkImage iImage, VkFormat iFormat, VkImageAspectFlags iAspectFlags);
 
 private:
-  std::unique_ptr<Buffer> createUploadBuffer(VkDeviceSize size);
+  std::unique_ptr<Buffer> createUploadBuffer(VkDeviceSize size, std::string iDebugName = "");
 
   void createInstance();
   void setupDebugMessenger();

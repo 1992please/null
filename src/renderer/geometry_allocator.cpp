@@ -12,11 +12,11 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
   mVertexBuffer = std::make_unique<Buffer>(mRenderer, iVertexPoolSize,
                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "GeometryAllocator_VertexBuffer");
 
   mIndexBuffer =
       std::make_unique<Buffer>(mRenderer, iIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "GeometryAllocator_IndexBuffer");
 
   NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", vk_utils::formatBytes(iVertexPoolSize),
          vk_utils::formatBytes(iIndexPoolSize));
@@ -70,7 +70,8 @@ GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, V
 
 void GeometryAllocator::createStagingBuffer(VkDeviceSize size) {
   mStagingBuffer = std::make_unique<Buffer>(mRenderer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                            "GeometryAllocator_StagingBuffer");
   mStagingBuffer->mapMemory();
 }
 

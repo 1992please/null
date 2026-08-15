@@ -327,6 +327,7 @@ void Renderer::createLogicalDevice() {
   volkLoadDevice(mDevice);
 
   vkGetDeviceQueue(mDevice, mPhysicalDeviceQueueIndex, 0, &mQueue);
+  vk_utils::setDebugObjectName(mDevice, mQueue, "Main_GraphicsQueue");
   NE_LOG("Vulkan logical device created successfully.");
 }
 
@@ -390,6 +391,7 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
   swapchainCreateInfo.oldSwapchain = iOldSwapchain;
 
   VK_CHECK(vkCreateSwapchainKHR(mDevice, &swapchainCreateInfo, nullptr, &mSwapChain));
+  vk_utils::setDebugObjectName(mDevice, mSwapChain, "Main_Swapchain");
 
   uint32_t swapchainImagesCount;
   vkGetSwapchainImagesKHR(mDevice, mSwapChain, &swapchainImagesCount, nullptr);
@@ -410,11 +412,17 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
   mSwapChainImages.resize(swapChainImages.size());
   for (size_t i = 0; i < swapChainImages.size(); i++) {
     mSwapChainImages[i].mImage = swapChainImages[i];
-    mSwapChainImages[i].mImageView = createImageView(swapChainImages[i], mSwapChainSurfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
+    mSwapChainImages[i].mImageView =
+        createImageView(swapChainImages[i], mSwapChainSurfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
     // Create Semaphore for starting display to the image
     VkSemaphoreCreateInfo semaphoreCreateInfo{};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     VK_CHECK(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mSwapChainImages[i].mRenderFinishedSemaphore));
+
+    vk_utils::setDebugObjectName(mDevice, mSwapChainImages[i].mImage, std::format("Swapchain_Image_{}", i).c_str());
+    vk_utils::setDebugObjectName(mDevice, mSwapChainImages[i].mImageView, std::format("Swapchain_ImageView_{}", i).c_str());
+    vk_utils::setDebugObjectName(mDevice, mSwapChainImages[i].mRenderFinishedSemaphore,
+                                 std::format("RenderFinished_Semaphore_{}", i).c_str());
   }
 
   NE_LOG("Created new swapChain, Present mode: {}, Image count: {}, Image size: {} x {}",
@@ -422,11 +430,12 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
          selectedSwapExtent.height);
 }
 
-std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size) {
-  auto uploadBuffer = std::make_unique<Buffer>(this, size,
-                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::string iDebugName) {
+  auto uploadBuffer =
+      std::make_unique<Buffer>(this, size,
+                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, std::move(iDebugName));
   uploadBuffer->mapMemory();
   return uploadBuffer;
 }
@@ -458,7 +467,13 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
 
-    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::DEFAULT_UPLOAD_BUFFER_SIZE);
+    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::DEFAULT_UPLOAD_BUFFER_SIZE, std::format("UploadBuffer_Frame_{}", i));
+
+    vk_utils::setDebugObjectName(mDevice, mFrames[i].mCommandPool, std::format("Frame_CommandPool_{}", i).c_str());
+    vk_utils::setDebugObjectName(mDevice, mFrames[i].mCommandBuffer, std::format("Frame_CommandBuffer_{}", i).c_str());
+    vk_utils::setDebugObjectName(mDevice, mFrames[i].mPresentCompleteSemaphore,
+                                 std::format("PresentComplete_Semaphore_{}", i).c_str());
+    vk_utils::setDebugObjectName(mDevice, mFrames[i].mDrawFence, std::format("Draw_Fence_{}", i).c_str());
   }
 
   // Create our one time Command buffer
@@ -474,6 +489,9 @@ void Renderer::createFramesResources() {
   oneTimeAllocInfo.commandPool = mOneTimeCommandPool;
   oneTimeAllocInfo.commandBufferCount = 1;
   VK_CHECK(vkAllocateCommandBuffers(mDevice, &oneTimeAllocInfo, &mOneTimeCommandBuffer));
+
+  vk_utils::setDebugObjectName(mDevice, mOneTimeCommandPool, "OneTime_CommandPool");
+  vk_utils::setDebugObjectName(mDevice, mOneTimeCommandBuffer, "OneTime_CommandBuffer");
 }
 
 VkCommandBuffer Renderer::beginFrame() {
@@ -510,7 +528,7 @@ void Renderer::recreateUploadBuffer(VkDeviceSize newSize) {
 
   NE_LOG("Upload buffer resizing from {} to {} bytes", currentFrame.mUploadBuffer->getBufferSize(), newSize);
 
-  currentFrame.mUploadBuffer = createUploadBuffer(newSize);
+  currentFrame.mUploadBuffer = createUploadBuffer(newSize, std::format("UploadBuffer_Frame_{}", mFrameIndex));
 }
 
 void Renderer::endFrame() {
@@ -569,11 +587,20 @@ void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
                           VkDeviceSize dstOffset) {
   VkCommandBuffer commandBuffer = beginOneTimeCommand();
 
-  VkBufferCopy bufferCopy{};
-  bufferCopy.srcOffset = srcOffset;
-  bufferCopy.dstOffset = dstOffset;
-  bufferCopy.size = size;
-  vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &bufferCopy);
+  VkBufferCopy2 bufferCopy2{};
+  bufferCopy2.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
+  bufferCopy2.srcOffset = srcOffset;
+  bufferCopy2.dstOffset = dstOffset;
+  bufferCopy2.size = size;
+
+  VkCopyBufferInfo2 copyBufferInfo2{};
+  copyBufferInfo2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
+  copyBufferInfo2.srcBuffer = srcBuffer;
+  copyBufferInfo2.dstBuffer = dstBuffer;
+  copyBufferInfo2.regionCount = 1;
+  copyBufferInfo2.pRegions = &bufferCopy2;
+
+  vkCmdCopyBuffer2(commandBuffer, &copyBufferInfo2);
 
   endOneTimeCommand(commandBuffer);
 }
@@ -699,17 +726,28 @@ void Renderer::createImage(const VkImageCreateInfo& iImageInfo, VkMemoryProperty
                            VkDeviceMemory& iImageMemory) {
   VK_CHECK(vkCreateImage(mDevice, &iImageInfo, nullptr, &iImage));
 
-  VkMemoryRequirements memRequirements;
-  vkGetImageMemoryRequirements(mDevice, iImage, &memRequirements);
+  VkImageMemoryRequirementsInfo2 memReqsInfo2{};
+  memReqsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
+  memReqsInfo2.image = iImage;
+
+  VkMemoryRequirements2 memReqs2{};
+  memReqs2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+  vkGetImageMemoryRequirements2(mDevice, &memReqsInfo2, &memReqs2);
 
   VkMemoryAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, iProperties);
+  allocInfo.allocationSize = memReqs2.memoryRequirements.size;
+  allocInfo.memoryTypeIndex = findMemoryType(memReqs2.memoryRequirements.memoryTypeBits, iProperties);
   NE_ASSERT(allocInfo.memoryTypeIndex != ~0U, "Failed to find suitable memory type!");
 
   VK_CHECK(vkAllocateMemory(mDevice, &allocInfo, nullptr, &iImageMemory));
-  VK_CHECK(vkBindImageMemory(mDevice, iImage, iImageMemory, 0));
+
+  VkBindImageMemoryInfo bindImageInfo{};
+  bindImageInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
+  bindImageInfo.image = iImage;
+  bindImageInfo.memory = iImageMemory;
+  bindImageInfo.memoryOffset = 0;
+  VK_CHECK(vkBindImageMemory2(mDevice, 1, &bindImageInfo));
 }
 
 VkImageView Renderer::createImageView(VkImage iImage, VkFormat iFormat, VkImageAspectFlags iAspectFlags) {
@@ -785,6 +823,10 @@ void Renderer::createDepthResources() {
   VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
   mDepthImageView = createImageView(mDepthImage, mDepthFormat, aspectMask);
+
+  vk_utils::setDebugObjectName(mDevice, mDepthImage, "Depth_Image");
+  vk_utils::setDebugObjectName(mDevice, mDepthImageMemory, "Depth_ImageMemory");
+  vk_utils::setDebugObjectName(mDevice, mDepthImageView, "Depth_ImageView");
 
   NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(mDepthFormat), mSwapChainExtent.width,
          mSwapChainExtent.height);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <volk/volk.h>
 
 namespace ne {
@@ -9,7 +10,7 @@ class Renderer;
 class Buffer {
 public:
   Buffer(Renderer* iRenderer, VkDeviceSize size, VkBufferUsageFlags usage,
-         VkMemoryPropertyFlags properties);
+         VkMemoryPropertyFlags properties, std::string iDebugName = "");
   ~Buffer();
 
   // Prevent copying to avoid double-freeing Vulkan handles
@@ -28,6 +29,7 @@ public:
 
   VkBuffer getBuffer() const { return mBuffer; }
   VkDeviceSize getBufferSize() const { return mBufferSize; }
+  const std::string& getDebugName() const { return mDebugName; }
 
 private:
   uint32_t findBufferMemoryType(Renderer* iRenderer, uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties,
@@ -41,6 +43,7 @@ private:
   void* mMapped = nullptr;
   VkDeviceSize mBufferSize = 0;
   VkDeviceSize mUploadOffset = 0; // Added for linear allocation
+  std::string mDebugName;
 };
 
 } // namespace ne

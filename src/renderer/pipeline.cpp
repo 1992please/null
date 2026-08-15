@@ -121,6 +121,7 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iConfig.mPushConstantRanges.size());
   layoutCreateInfo.pPushConstantRanges = iConfig.mPushConstantRanges.empty() ? nullptr : iConfig.mPushConstantRanges.data();
   VK_CHECK(vkCreatePipelineLayout(mDevice, &layoutCreateInfo, nullptr, &mPipelineLayout));
+  vk_utils::setDebugObjectName(mDevice, mPipelineLayout, std::format("{}_PipelineLayout", iConfig.mShaderName).c_str());
 
   // Dynamic Renderring
   std::vector<VkDynamicState> dynamicState = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
@@ -158,6 +159,7 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   graphicsPipelineCreateInfo.basePipelineIndex = 0;
 
   VK_CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mGraphicsPipeline));
+  vk_utils::setDebugObjectName(mDevice, mGraphicsPipeline, std::format("{}_GraphicsPipeline", iConfig.mShaderName).c_str());
 
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
   NE_LOG("Created Graphics Pipeline for shader: '{}' (Pipeline: {}, Layout: {})", iConfig.mShaderName, (void*)mGraphicsPipeline,

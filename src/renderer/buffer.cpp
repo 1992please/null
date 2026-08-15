@@ -75,8 +75,9 @@ std::string memoryPropertiesToString(VkMemoryPropertyFlags properties) {
 
 } // namespace
 
-Buffer::Buffer(Renderer* iRenderer, VkDeviceSize iSize, VkBufferUsageFlags iUsage, VkMemoryPropertyFlags iProperties)
-    : mDevice(iRenderer->getDevice()), mUsage(iUsage), mBufferSize(iSize) {
+Buffer::Buffer(Renderer* iRenderer, VkDeviceSize iSize, VkBufferUsageFlags iUsage, VkMemoryPropertyFlags iProperties,
+               std::string iDebugName)
+    : mDevice(iRenderer->getDevice()), mUsage(iUsage), mBufferSize(iSize), mDebugName(std::move(iDebugName)) {
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = iSize;
@@ -85,8 +86,13 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize iSize, VkBufferUsageFlags iUsag
 
   VK_CHECK(vkCreateBuffer(mDevice, &bufferInfo, nullptr, &mBuffer));
 
-  VkMemoryRequirements memoryRequirements;
-  vkGetBufferMemoryRequirements(mDevice, mBuffer, &memoryRequirements);
+  VkBufferMemoryRequirementsInfo2 memReqsInfo2{};
+  memReqsInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
+  memReqsInfo2.buffer = mBuffer;
+
+  VkMemoryRequirements2 memReqs2{};
+  memReqs2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
+  vkGetBufferMemoryRequirements2(mDevice, &memReqsInfo2, &memReqs2);
 
   VkMemoryAllocateFlagsInfo allocateFlagsInfo{};
   allocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -94,21 +100,34 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize iSize, VkBufferUsageFlags iUsag
 
   VkMemoryAllocateInfo memoryAllocateInfo{};
   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  memoryAllocateInfo.allocationSize = memoryRequirements.size;
-  memoryAllocateInfo.memoryTypeIndex = findBufferMemoryType(iRenderer, memoryRequirements.memoryTypeBits, iProperties, iUsage);
+  memoryAllocateInfo.allocationSize = memReqs2.memoryRequirements.size;
+  memoryAllocateInfo.memoryTypeIndex =
+      findBufferMemoryType(iRenderer, memReqs2.memoryRequirements.memoryTypeBits, iProperties, iUsage);
   memoryAllocateInfo.pNext = (iUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? &allocateFlagsInfo : nullptr;
 
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
-  VK_CHECK(vkBindBufferMemory(mDevice, mBuffer, mMemory, 0));
+
+  VkBindBufferMemoryInfo bindInfo{};
+  bindInfo.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO;
+  bindInfo.buffer = mBuffer;
+  bindInfo.memory = mMemory;
+  bindInfo.memoryOffset = 0;
+  VK_CHECK(vkBindBufferMemory2(mDevice, 1, &bindInfo));
+
+  if (!mDebugName.empty()) {
+    vk_utils::setDebugObjectName(mDevice, mBuffer, mDebugName);
+    vk_utils::setDebugObjectName(mDevice, mMemory, mDebugName + "_Memory");
+  }
 
 #ifndef NE_BUILD_SHIPPING
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(iRenderer->getPhysicalDevice(), &memProperties);
   VkMemoryPropertyFlags allocatedProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
 
-  NE_LOG("Allocated Buffer: Size: {} (Allocated: {}) | Usage: [{}] | Memory Type: [Index: {}, Properties: {}]",
-         vk_utils::formatBytes(mBufferSize), vk_utils::formatBytes(memoryAllocateInfo.allocationSize),
-         bufferUsageToString(iUsage), memoryAllocateInfo.memoryTypeIndex, memoryPropertiesToString(allocatedProperties));
+  NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Memory Type: [Index: {}, Properties: {}]",
+         mDebugName.empty() ? "" : std::format(" '{}'", mDebugName), vk_utils::formatBytes(mBufferSize),
+         vk_utils::formatBytes(memoryAllocateInfo.allocationSize), bufferUsageToString(iUsage),
+         memoryAllocateInfo.memoryTypeIndex, memoryPropertiesToString(allocatedProperties));
 #endif
 }
 
@@ -118,7 +137,8 @@ Buffer::~Buffer() {
   }
   if (mBuffer != VK_NULL_HANDLE) {
 #ifndef NE_BUILD_SHIPPING
-    NE_LOG("Destroyed Buffer: Size: {} | Usage: [{}]", vk_utils::formatBytes(mBufferSize), bufferUsageToString(mUsage));
+    NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mDebugName.empty() ? "" : std::format(" '{}'", mDebugName),
+           vk_utils::formatBytes(mBufferSize), bufferUsageToString(mUsage));
 #endif
     vkDestroyBuffer(mDevice, mBuffer, nullptr);
   }
@@ -172,8 +192,7 @@ uint32_t Buffer::findBufferMemoryType(Renderer* iRenderer, uint32_t iTypeFilter,
   // Pure staging buffers (usage = TRANSFER_SRC_BIT only) should NOT be allocated in Resizable BAR VRAM.
   if ((iUsage != VK_BUFFER_USAGE_TRANSFER_SRC_BIT) && (iProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
       (iProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-    uint32_t barMemoryTypeIndex =
-        iRenderer->findMemoryType(iTypeFilter, iProperties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uint32_t barMemoryTypeIndex = iRenderer->findMemoryType(iTypeFilter, iProperties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (barMemoryTypeIndex != ~0U) {
       memoryTypeIndex = barMemoryTypeIndex;
     }
