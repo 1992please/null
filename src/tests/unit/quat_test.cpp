@@ -7,14 +7,14 @@ namespace ne::test {
 
 NE_TEST_CASE("quat", "Quat Initialization & Identity") {
   Quat defaultQ;
-  NE_TEST_ASSERT(defaultQ.equals(Quat::Identity), "Default Quat constructor must equal Quat::Identity (w=1, x=0, y=0, z=0).");
-  NE_TEST_ASSERT(math::equals(defaultQ.w, 1.0f) && math::equals(defaultQ.x, 0.0f) && math::equals(defaultQ.y, 0.0f) && math::equals(defaultQ.z, 0.0f), "Default Quat components check.");
+  NE_TEST_ASSERT(defaultQ.equals(Quat::Identity), "Default Quat constructor must equal Quat::Identity (x=0, y=0, z=0, w=1).");
+  NE_TEST_ASSERT(math::equals(defaultQ.x, 0.0f) && math::equals(defaultQ.y, 0.0f) && math::equals(defaultQ.z, 0.0f) && math::equals(defaultQ.w, 1.0f), "Default Quat components check.");
 
-  Quat customQ(0.7071f, 0.0f, 0.7071f, 0.0f);
-  NE_TEST_ASSERT(math::equals(customQ.w, 0.7071f) && math::equals(customQ.y, 0.7071f), "Custom Quat constructor components.");
+  Quat customQ(0.0f, 0.7071f, 0.0f, 0.7071f);
+  NE_TEST_ASSERT(math::equals(customQ.y, 0.7071f) && math::equals(customQ.w, 0.7071f), "Custom Quat constructor components.");
 
   // Component-wise inequality with antipodal quaternion
-  Quat negQ(-defaultQ.w, -defaultQ.x, -defaultQ.y, -defaultQ.z);
+  Quat negQ(-defaultQ.x, -defaultQ.y, -defaultQ.z, -defaultQ.w);
   NE_TEST_ASSERT(!defaultQ.equals(negQ), "Quat::equals performs strict component-wise comparison.");
 }
 
@@ -67,13 +67,21 @@ NE_TEST_CASE("quat", "Quat SLERP Interpolation") {
 }
 
 NE_TEST_CASE("quat", "Quat Normalization") {
-  Quat unnorm(2.0f, 0.0f, 0.0f, 0.0f);
+  Quat unnorm(0.0f, 0.0f, 0.0f, 2.0f);
   NE_TEST_ASSERT(unnorm.normalize(), "normalize() must succeed on non-zero quaternion.");
-  NE_TEST_ASSERT(unnorm.equals(Quat::Identity), "Normalized (2,0,0,0) must equal Identity (1,0,0,0).");
+  NE_TEST_ASSERT(unnorm.equals(Quat::Identity), "Normalized (0,0,0,2) must equal Identity (0,0,0,1).");
 
   Quat zeroQ(0.0f, 0.0f, 0.0f, 0.0f);
   NE_TEST_ASSERT(!zeroQ.normalize(), "normalize() must return false for zero quaternion.");
   NE_TEST_ASSERT(zeroQ.equals(Quat::Identity), "Zero quaternion normalize fallback must reset to Identity.");
+}
+
+NE_TEST_CASE("quat", "Quat Memory Layout & POD Properties") {
+  static_assert(sizeof(Quat) == 16, "Quat must be 16 bytes in size.");
+  static_assert(std::is_standard_layout_v<Quat>, "Quat must be standard layout.");
+
+  NE_TEST_ASSERT(sizeof(Quat) == 16, "Quat sizeof check.");
+  NE_TEST_ASSERT(std::is_standard_layout_v<Quat>, "Quat standard layout check.");
 }
 
 } // namespace ne::test

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "apps/application.h"
-#include "core/event.h"
 #include "core/ecs.h"
+#include "core/event.h"
 #include <memory>
 #include <vector>
 
@@ -21,6 +21,8 @@ public:
   BasicApp(const BasicApp&) = delete;
   BasicApp& operator=(const BasicApp&) = delete;
 
+  virtual void update(float iDeltaTime) override;
+  virtual void render() override;
   virtual void run() override;
   void stepFrame();
   void runForFrames(size_t iFrameCount = 1);
@@ -42,5 +44,6 @@ private:
   // Showcase assets
   std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;
   std::shared_ptr<Material> mMaterial;
+  float mCurrentRotationAngle{0.0f};
 };
 } // namespace ne

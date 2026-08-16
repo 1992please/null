@@ -12,6 +12,8 @@ public:
   Application(const Application&) = delete;
   Application& operator=(const Application&) = delete;
 
+  virtual void update(float iDeltaTime);
+  virtual void render() {}
   virtual void run() = 0;
 
   int32_t mWidth = 1200;

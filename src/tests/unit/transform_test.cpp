@@ -114,6 +114,28 @@ NE_TEST_CASE("transform", "TransformComponent Matrix Caching & Dirty Flag Integr
   NE_TEST_ASSERT(tc.isDirty, "rotate() must mark dirty.");
 }
 
+NE_TEST_CASE("transform", "TransformComponent Constructor Overloads") {
+  // 1. Constructor from (pos, rot, scale)
+  Quat rot = Quat::angleAxis(math::radians(90.0f), Vec3::Up);
+  TransformComponent tc1(Vec3(1.0f, 2.0f, 3.0f), rot, Vec3(4.0f, 5.0f, 6.0f));
+  NE_TEST_ASSERT(tc1.isDirty, "Newly constructed component must be marked dirty.");
+  NE_TEST_ASSERT(tc1.getPosition().equals(Vec3(1.0f, 2.0f, 3.0f)), "Position matches constructor argument.");
+  NE_TEST_ASSERT(tc1.getRotation().equals(rot), "Rotation matches constructor argument.");
+  NE_TEST_ASSERT(tc1.getScale().equals(Vec3(4.0f, 5.0f, 6.0f)), "Scale matches constructor argument.");
+
+  // 2. Constructor from (rot, pos, scale)
+  TransformComponent tc2(rot, Vec3(7.0f, 8.0f, 9.0f));
+  NE_TEST_ASSERT(tc2.getPosition().equals(Vec3(7.0f, 8.0f, 9.0f)), "Position matches (rot, pos) argument.");
+  NE_TEST_ASSERT(tc2.getRotation().equals(rot), "Rotation matches (rot, pos) argument.");
+  NE_TEST_ASSERT(tc2.getScale().equals(Vec3::One), "Default scale is (1,1,1).");
+
+  // 3. Constructor from Transform struct
+  Transform t(Vec3(10.0f, 0.0f, 0.0f), Quat::Identity, Vec3(2.0f));
+  TransformComponent tc3(t);
+  NE_TEST_ASSERT(tc3.getPosition().equals(Vec3(10.0f, 0.0f, 0.0f)), "Position matches Transform struct.");
+  NE_TEST_ASSERT(tc3.getScale().equals(Vec3(2.0f)), "Scale matches Transform struct.");
+}
+
 NE_TEST_CASE("transform", "TransformComponent Matrix Equivalence") {
   TransformComponent tc;
   tc.setPosition(Vec3(1.5f, -2.0f, 10.0f));
@@ -161,6 +183,14 @@ NE_TEST_CASE("transform", "Transform Rigid Inverse (inverseNoScale)") {
   Vec4 transformed = forwardMat * Vec4(pt.x, pt.y, pt.z, 1.0f);
   Vec4 restored = invMat * transformed;
   NE_TEST_ASSERT(Vec3(restored.x, restored.y, restored.z).equals(pt, 1e-4f), "Transforming point through forward then inverse restores original.");
+}
+
+NE_TEST_CASE("transform", "Transform Memory Layout & POD Properties") {
+  static_assert(sizeof(Transform) == 40, "Transform must be 40 bytes (12 + 16 + 12, zero padding).");
+  static_assert(std::is_standard_layout_v<Transform>, "Transform must be standard layout.");
+
+  NE_TEST_ASSERT(sizeof(Transform) == 40, "Transform sizeof check (40 bytes compact).");
+  NE_TEST_ASSERT(std::is_standard_layout_v<Transform>, "Transform standard layout check.");
 }
 
 } // namespace ne::test

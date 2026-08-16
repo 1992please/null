@@ -77,6 +77,17 @@ NE_TEST_CASE("mat4", "Mat4 Instance Transformation Chaining") {
   NE_TEST_ASSERT((chained * invChained).equals(Mat4::Identity, 1e-4f), "chained.inversed() produces valid inverse.");
 }
 
+NE_TEST_CASE("mat4", "Mat4 Memory Layout & POD Properties") {
+  static_assert(sizeof(Mat4) == 64, "Mat4 must be 64 bytes in size.");
+  static_assert(std::is_standard_layout_v<Mat4>, "Mat4 must be standard layout.");
+
+  NE_TEST_ASSERT(sizeof(Mat4) == 64, "Mat4 sizeof check.");
+  NE_TEST_ASSERT(std::is_standard_layout_v<Mat4>, "Mat4 standard layout check.");
+
+  Mat4 m;
+  NE_TEST_ASSERT(m.data() == &m[0][0], "Mat4 data() must point to column 0 row 0.");
+}
+
 } // namespace ne::test
 
 #endif

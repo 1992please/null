@@ -225,6 +225,26 @@ NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
   NE_TEST_ASSERT(meshCount == 1, "Exactly one mesh entity matched in view.");
 }
 
+NE_TEST_CASE("ecs", "In-Place Component Constructor Overload Dispatch") {
+  Registry registry;
+
+  // 1. TransformComponent with (pos, rot, scale)
+  Entity e1 = registry.createEntity();
+  Quat rot = Quat::angleAxis(math::radians(45.0f), Vec3::Up);
+  auto& transform = registry.addComponent<TransformComponent>(e1, Vec3(1.0f, 2.0f, 3.0f), rot, Vec3(2.0f, 2.0f, 2.0f));
+
+  NE_TEST_ASSERT(transform.getPosition().equals(Vec3(1.0f, 2.0f, 3.0f)), "Position forwarded correctly.");
+  NE_TEST_ASSERT(transform.getRotation().equals(rot), "Rotation forwarded correctly.");
+  NE_TEST_ASSERT(transform.getScale().equals(Vec3(2.0f, 2.0f, 2.0f)), "Scale forwarded correctly.");
+
+  // 2. CameraComponent with (fov, aspect, near, far, reverseZ)
+  Entity e2 = registry.createEntity();
+  auto& camera = registry.addComponent<CameraComponent>(e2, 60.0f, 16.0f / 9.0f, 0.5f, 500.0f, false);
+  NE_TEST_ASSERT(math::equals(camera.mFovDeg, 60.0f), "Camera FOV forwarded correctly.");
+  NE_TEST_ASSERT(!camera.mUseReverseZ, "Camera reverse-Z flag forwarded correctly.");
+  NE_TEST_ASSERT(!camera.mProjectionMatrix.equals(Mat4::Identity), "Projection matrix initialized immediately on construction.");
+}
+
 } // namespace ne::test
 
 #endif

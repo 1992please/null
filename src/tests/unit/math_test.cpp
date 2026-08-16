@@ -69,7 +69,7 @@ NE_TEST_CASE("math", "Scalar math::equals & Member equals Tolerances") {
   NE_TEST_ASSERT(v1.equals(v2, 1e-4f), "Vec3::equals member method.");
 
   Quat q1 = Quat::Identity;
-  Quat q2(0.99999f, 0.0f, 0.0f, 0.0f);
+  Quat q2(0.0f, 0.0f, 0.0f, 0.99999f);
   NE_TEST_ASSERT(q1.equals(q2, 1e-4f), "Quat::equals member method.");
 
   Transform t1;

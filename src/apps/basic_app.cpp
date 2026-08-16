@@ -1,17 +1,16 @@
 #include "apps/basic_app.h"
+#include "components/camera_component.h"
+#include "components/mesh_component.h"
+#include "components/transform_component.h"
 #include "core/defines.h"
 #include "core/logger.h"
+#include "core/time.h"
+#include "importers/gltf_importer.h"
 #include "math/math.h"
 #include "platform/window.h"
+#include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/render_manager.h"
-#include "renderer/material.h"
-#include "components/camera_component.h"
-#include "components/transform_component.h"
-#include "components/mesh_component.h"
-#include "importers/gltf_importer.h"
-
-#include <GLFW/glfw3.h>
 
 namespace ne {
 
@@ -28,6 +27,7 @@ void colorizeModel(ModelData& ioModel) {
 }
 
 BasicApp::BasicApp() {
+  Time::init();
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
 
   // Register Input Event Callbacks & store IDs for RAII unsubscription
@@ -85,12 +85,8 @@ BasicApp::BasicApp() {
 
   // Camera Entity
   mCameraEntity = mRegistry->createEntity();
-  auto& camTransform = mRegistry->addComponent<TransformComponent>(mCameraEntity);
-  camTransform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
-
-  auto& camComp = mRegistry->addComponent<CameraComponent>(mCameraEntity);
-  camComp.mUseReverseZ = false; // Match current standard depth pipeline
-  camComp.setPerspective(45.0f, aspect, 0.1f, 100.0f);
+  mRegistry->addComponent<TransformComponent>(mCameraEntity, Vec3(-4.0f, 0.0f, 0.0f));
+  mRegistry->addComponent<CameraComponent>(mCameraEntity, 45.0f, aspect, 0.1f, 100.0f, false);
 
   // Cube Entity 1 (Right: +Y axis)
   if (!mLoadedMeshes.empty()) {
@@ -116,15 +112,16 @@ BasicApp::BasicApp() {
 
 BasicApp::~BasicApp() {
   if (mWindow) {
-    if (mKeyCallbackId != 0) mWindow->removeKeyCallback(mKeyCallbackId);
-    if (mMouseButtonCallbackId != 0) mWindow->removeMouseButtonCallback(mMouseButtonCallbackId);
-    if (mScrollCallbackId != 0) mWindow->removeScrollCallback(mScrollCallbackId);
+    if (mKeyCallbackId != 0)
+      mWindow->removeKeyCallback(mKeyCallbackId);
+    if (mMouseButtonCallbackId != 0)
+      mWindow->removeMouseButtonCallback(mMouseButtonCallbackId);
+    if (mScrollCallbackId != 0)
+      mWindow->removeScrollCallback(mScrollCallbackId);
   }
 }
 
-void BasicApp::stepFrame() {
-  mWindow->processEvents();
-
+void BasicApp::update(float iDeltaTime) {
   // 1. Update Camera Aspect Ratio
   int32_t width, height;
   mWindow->getFrameBufferSize(&width, &height);
@@ -137,8 +134,8 @@ void BasicApp::stepFrame() {
   }
 
   // 2. Animate Entity Transforms
-  float time = static_cast<float>(glfwGetTime());
-  Quat rotZ = Quat::angleAxis(time * math::radians(30.0f), Vec3(0.0f, 0.0f, 1.0f));
+  mCurrentRotationAngle += math::radians(30.0f) * iDeltaTime;
+  Quat rotZ = Quat::angleAxis(mCurrentRotationAngle, Vec3(0.0f, 0.0f, 1.0f));
 
   if (mRegistry->isValid(mCubeEntity1)) {
     mRegistry->getComponent<TransformComponent>(mCubeEntity1).setRotation(rotZ);
@@ -151,9 +148,15 @@ void BasicApp::stepFrame() {
   if (mRegistry->isValid(mHelmetEntity)) {
     mRegistry->getComponent<TransformComponent>(mHelmetEntity).setRotation(rotZ);
   }
+}
 
-  // 3. Draw scene from Registry
-  mRenderManager->drawScene(mRegistry.get());
+void BasicApp::render() { mRenderManager->drawScene(mRegistry.get()); }
+
+void BasicApp::stepFrame() {
+  Time::tick();
+  mWindow->processEvents();
+  update(Time::getDeltaTime());
+  render();
 }
 
 void BasicApp::runForFrames(size_t iFrameCount) {

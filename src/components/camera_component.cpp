@@ -3,6 +3,44 @@
 
 namespace ne {
 
+CameraComponent::CameraComponent() {
+  updateProjection();
+}
+
+CameraComponent::CameraComponent(float iFovDeg, float iAspect, float iNear, float iFar, bool iUseReverseZ)
+    : mProjectionType(ProjectionType::Perspective),
+      mFovDeg(iFovDeg),
+      mAspectRatio(iAspect),
+      mNearClip(iNear),
+      mFarClip(iFar),
+      mUseReverseZ(iUseReverseZ),
+      mInfiniteFarClip(iFar <= 0.0f) {
+  updateProjection();
+}
+
+CameraComponent::CameraComponent(ProjectionType iType, float iFovOrSize, float iAspect, float iNear, float iFar, bool iUseReverseZ)
+    : mProjectionType(iType),
+      mAspectRatio(iAspect),
+      mNearClip(iNear),
+      mFarClip(iFar),
+      mUseReverseZ(iUseReverseZ),
+      mInfiniteFarClip(iType == ProjectionType::Perspective && iFar <= 0.0f) {
+  if (iType == ProjectionType::Perspective) {
+    mFovDeg = iFovOrSize;
+  } else {
+    mOrthoSize = iFovOrSize;
+  }
+  updateProjection();
+}
+
+CameraComponent CameraComponent::createPerspective(float iFovDeg, float iAspect, float iNear, float iFar, bool iUseReverseZ) {
+  return CameraComponent(iFovDeg, iAspect, iNear, iFar, iUseReverseZ);
+}
+
+CameraComponent CameraComponent::createOrthographic(float iSize, float iAspect, float iNear, float iFar, bool iUseReverseZ) {
+  return CameraComponent(ProjectionType::Orthographic, iSize, iAspect, iNear, iFar, iUseReverseZ);
+}
+
 void CameraComponent::setPerspective(float iFovDeg, float iAspect, float iNear, float iFar) {
   NE_ASSERT(iAspect > math::SMALL_NUMBER);
   NE_ASSERT(iNear > math::SMALL_NUMBER);

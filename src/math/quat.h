@@ -2,7 +2,7 @@
 
 /**
  * @file quat.h
- * @brief Quaternion rotation struct inheriting from glm::quat.
+ * @brief Quaternion rotation struct with (x, y, z, w) GPU shader & glTF component ordering.
  */
 
 #include "math/vec3.h"
@@ -12,81 +12,98 @@ namespace ne {
 
 /**
  * @struct Quat
- * @brief Quaternion rotation inheriting from glm::quat for 100% binary & math compatibility,
- * providing default identity initialization (w=1, x=0, y=0, z=0), static factories, and instance helpers.
+ * @brief Quaternion rotation struct with (x, y, z, w) memory layout,
+ * providing 100% binary equivalence with GPU shaders (rot.xyz = axis, rot.w = scalar),
+ * glTF 2.0 buffers, and GLM.
  */
-struct Quat : public glm::quat {
-  using glm::quat::quat;
+struct Quat {
+  float x{0.0f};
+  float y{0.0f};
+  float z{0.0f};
+  float w{1.0f};
 
-  constexpr Quat() : glm::quat(1.0f, 0.0f, 0.0f, 0.0f) {}
-  constexpr Quat(float iW, float iX, float iY, float iZ) : glm::quat(iW, iX, iY, iZ) {}
-  constexpr Quat(const glm::quat& iQ) : glm::quat(iQ) {}
+  constexpr Quat() = default;
+  constexpr Quat(float iX, float iY, float iZ, float iW) : x(iX), y(iY), z(iZ), w(iW) {}
 
   static const Quat Identity;
 
-  // --- Vector Transformation Operator ---
+  // --- Operators ---
 
   inline Vec3 operator*(const Vec3& iV) const {
-    glm::vec3 rotatedGlm = static_cast<const glm::quat&>(*this) * glm::vec3(iV.x, iV.y, iV.z);
+    const auto& selfGlm = *reinterpret_cast<const glm::quat*>(this);
+    glm::vec3 rotatedGlm = selfGlm * glm::vec3(iV.x, iV.y, iV.z);
     return Vec3(rotatedGlm.x, rotatedGlm.y, rotatedGlm.z);
+  }
+
+  inline Quat operator*(const Quat& iQ) const {
+    const auto& selfGlm = *reinterpret_cast<const glm::quat*>(this);
+    const auto& otherGlm = *reinterpret_cast<const glm::quat*>(&iQ);
+    glm::quat res = selfGlm * otherGlm;
+    return *reinterpret_cast<const Quat*>(&res);
   }
 
   // --- Static Factories ---
 
   static inline Quat angleAxis(float iAngleRad, const Vec3& iAxis) {
-    return glm::angleAxis(iAngleRad, glm::vec3(iAxis.x, iAxis.y, iAxis.z));
+    glm::quat res = glm::angleAxis(iAngleRad, glm::vec3(iAxis.x, iAxis.y, iAxis.z));
+    return *reinterpret_cast<const Quat*>(&res);
   }
 
   static inline Quat fromEuler(const Vec3& iEulerDegrees) {
-    return glm::quat(glm::vec3(math::radians(iEulerDegrees.x), math::radians(iEulerDegrees.y), math::radians(iEulerDegrees.z)));
+    glm::quat res = glm::quat(glm::vec3(math::radians(iEulerDegrees.x), math::radians(iEulerDegrees.y), math::radians(iEulerDegrees.z)));
+    return *reinterpret_cast<const Quat*>(&res);
   }
 
   static inline Quat slerp(const Quat& iA, const Quat& iB, float iT) {
-    return glm::slerp(static_cast<const glm::quat&>(iA), static_cast<const glm::quat&>(iB), iT);
+    const auto& qa = *reinterpret_cast<const glm::quat*>(&iA);
+    const auto& qb = *reinterpret_cast<const glm::quat*>(&iB);
+    glm::quat res = glm::slerp(qa, qb, iT);
+    return *reinterpret_cast<const Quat*>(&res);
   }
 
   // --- Instance Methods ---
 
   inline Quat conjugate() const {
-    return glm::conjugate(static_cast<const glm::quat&>(*this));
+    return Quat(-x, -y, -z, w);
   }
 
   inline Vec3 toEuler() const {
-    glm::vec3 rad = glm::eulerAngles(static_cast<const glm::quat&>(*this));
+    const auto& selfGlm = *reinterpret_cast<const glm::quat*>(this);
+    glm::vec3 rad = glm::eulerAngles(selfGlm);
     return Vec3(math::degrees(rad.x), math::degrees(rad.y), math::degrees(rad.z));
   }
 
   inline bool normalize(float iTolerance = math::SMALL_NUMBER) {
-    float lenSq = w * w + x * x + y * y + z * z;
+    float lenSq = x * x + y * y + z * z + w * w;
     if (lenSq > iTolerance) {
       float invLen = 1.0f / math::sqrt(lenSq);
-      w *= invLen;
       x *= invLen;
       y *= invLen;
       z *= invLen;
+      w *= invLen;
       return true;
     }
-    w = 1.0f;
     x = 0.0f;
     y = 0.0f;
     z = 0.0f;
+    w = 1.0f;
     return false;
   }
 
   inline bool equals(const Quat& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
-    return math::abs(w - iOther.w) <= iTolerance &&
-           math::abs(x - iOther.x) <= iTolerance &&
+    return math::abs(x - iOther.x) <= iTolerance &&
            math::abs(y - iOther.y) <= iTolerance &&
-           math::abs(z - iOther.z) <= iTolerance;
+           math::abs(z - iOther.z) <= iTolerance &&
+           math::abs(w - iOther.w) <= iTolerance;
   }
 
   inline std::string toString() const {
     char buf[128];
-    std::snprintf(buf, sizeof(buf), "Quat(w=%.3f, x=%.3f, y=%.3f, z=%.3f)", w, x, y, z);
+    std::snprintf(buf, sizeof(buf), "Quat(x=%.3f, y=%.3f, z=%.3f, w=%.3f)", x, y, z, w);
     return std::string(buf);
   }
 };
 
-inline const Quat Quat::Identity{1.0f, 0.0f, 0.0f, 0.0f};
+inline const Quat Quat::Identity{0.0f, 0.0f, 0.0f, 1.0f};
 
 } // namespace ne

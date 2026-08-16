@@ -11,7 +11,7 @@ namespace ne {
  *
  * Adheres to Null Engine's left-handed coordinate system:
  *   - +X Forward, +Y Right, +Z Up
- *   - Identity Rotation: Quat(1.0f, 0.0f, 0.0f, 0.0f) [w=1, x=0, y=0, z=0]
+ *   - Identity Rotation: Quat(0.0f, 0.0f, 0.0f, 1.0f) [x=0, y=0, z=0, w=1]
  */
 struct Transform {
   Vec3 position{Vec3::Zero};

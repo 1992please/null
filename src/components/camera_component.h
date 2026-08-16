@@ -33,9 +33,12 @@ struct CameraComponent {
   Mat4 mProjectionMatrix{1.0f};
   Mat4 mInverseProjectionMatrix{1.0f};
 
-  CameraComponent() {
-    updateProjection();
-  }
+  CameraComponent();
+  CameraComponent(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f, bool iUseReverseZ = true);
+  CameraComponent(ProjectionType iType, float iFovOrSize, float iAspect, float iNear, float iFar, bool iUseReverseZ = true);
+
+  static CameraComponent createPerspective(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f, bool iUseReverseZ = true);
+  static CameraComponent createOrthographic(float iSize, float iAspect, float iNear, float iFar, bool iUseReverseZ = true);
 
   // Mutators & Recalculation
   void updateProjection();

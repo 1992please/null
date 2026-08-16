@@ -16,9 +16,12 @@ struct TransformComponent {
   mutable Mat4 cachedLocalMatrix{1.0f};
   mutable bool isDirty{true};
 
-  TransformComponent() = default;
-  explicit TransformComponent(const Transform& t) : local(t), isDirty(true) {}
-  explicit TransformComponent(const Vec3& pos) { local.position = pos; isDirty = true; }
+  constexpr TransformComponent() = default;
+  explicit constexpr TransformComponent(const Transform& t) : local(t), isDirty(true) {}
+  explicit constexpr TransformComponent(const Vec3& pos, const Quat& rot = Quat::Identity, const Vec3& scale = Vec3::One)
+      : local(pos, rot, scale), isDirty(true) {}
+  explicit constexpr TransformComponent(const Quat& rot, const Vec3& pos, const Vec3& scale = Vec3::One)
+      : local(rot, pos, scale), isDirty(true) {}
 
   /**
    * @brief Returns the cached 4x4 matrix, lazily recalculating if dirty.
