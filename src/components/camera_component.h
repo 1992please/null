@@ -42,10 +42,23 @@ struct CameraComponent {
   void setPerspective(float iFovDeg, float iAspect, float iNear, float iFar = 0.0f);
   void setOrthographic(float iSize, float iAspect, float iNear, float iFar);
 
-  // View & View-Projection Matrix Calculation
+  /**
+   * @brief Computes the 4x4 View Matrix (World-to-Camera space).
+   *
+   * Maps Null Engine coordinates (+X Forward, +Y Right, +Z Up) to standard
+   * Graphics View Space (+X Right, +Y Up, +Z Forward) in O(1) time without cross products.
+   */
   Mat4 getViewMatrix(const TransformComponent& iTransform) const {
     const Vec3& eye = iTransform.getPosition();
-    return Mat4::lookAt(eye, eye + iTransform.getForward(), iTransform.getUp());
+    const Vec3 right = iTransform.getRight();
+    const Vec3 up = iTransform.getUp();
+    const Vec3 forward = iTransform.getForward();
+
+    Mat4 view{1.0f};
+    view[0][0] = right.x;   view[1][0] = right.y;   view[2][0] = right.z;   view[3][0] = -Vec3::dot(right, eye);
+    view[0][1] = up.x;      view[1][1] = up.y;      view[2][1] = up.z;      view[3][1] = -Vec3::dot(up, eye);
+    view[0][2] = forward.x; view[1][2] = forward.y; view[2][2] = forward.z; view[3][2] = -Vec3::dot(forward, eye);
+    return view;
   }
 
   Mat4 getViewProjectionMatrix(const TransformComponent& iTransform) const {

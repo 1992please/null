@@ -101,6 +101,10 @@ struct Vec2 {
     return x * iOther.x + y * iOther.y;
   }
 
+  constexpr bool equals(const Vec2& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+    return math::abs(x - iOther.x) <= iTolerance && math::abs(y - iOther.y) <= iTolerance;
+  }
+
   // --- Arithmetic Operators ---
 
   constexpr Vec2 operator+(const Vec2& iV) const {
@@ -203,11 +207,11 @@ inline const Vec2 Vec2::One{1.0f, 1.0f};
 inline const Vec2 Vec2::UnitX{1.0f, 0.0f};
 inline const Vec2 Vec2::UnitY{0.0f, 1.0f};
 
-constexpr inline Vec2 operator*(float iScale, const Vec2& iV) {
+constexpr Vec2 operator*(float iScale, const Vec2& iV) {
   return Vec2(iV.x * iScale, iV.y * iScale);
 }
 
-constexpr inline Vec2 operator+(float iBias, const Vec2& iV) {
+constexpr Vec2 operator+(float iBias, const Vec2& iV) {
   return Vec2(iV.x + iBias, iV.y + iBias);
 }
 
@@ -235,31 +239,31 @@ struct UVec2 {
 
 namespace math {
 
-constexpr inline Vec2 clamp(const Vec2& iV, const Vec2& iMinVal, const Vec2& iMaxVal) {
+constexpr Vec2 clamp(const Vec2& iV, const Vec2& iMinVal, const Vec2& iMaxVal) {
   return Vec2(math::clamp(iV.x, iMinVal.x, iMaxVal.x), math::clamp(iV.y, iMinVal.y, iMaxVal.y));
 }
 
-constexpr inline Vec2 min(const Vec2& iA, const Vec2& iB) {
+constexpr Vec2 min(const Vec2& iA, const Vec2& iB) {
   return Vec2(math::min(iA.x, iB.x), math::min(iA.y, iB.y));
 }
 
-constexpr inline Vec2 max(const Vec2& iA, const Vec2& iB) {
+constexpr Vec2 max(const Vec2& iA, const Vec2& iB) {
   return Vec2(math::max(iA.x, iB.x), math::max(iA.y, iB.y));
 }
 
-constexpr inline Vec2 abs(const Vec2& iV) {
+constexpr Vec2 abs(const Vec2& iV) {
   return Vec2(math::abs(iV.x), math::abs(iV.y));
 }
 
-constexpr inline Vec2 radians(const Vec2& iDeg) {
+constexpr Vec2 radians(const Vec2& iDeg) {
   return Vec2(math::radians(iDeg.x), math::radians(iDeg.y));
 }
 
-constexpr inline Vec2 degrees(const Vec2& iRad) {
+constexpr Vec2 degrees(const Vec2& iRad) {
   return Vec2(math::degrees(iRad.x), math::degrees(iRad.y));
 }
 
-constexpr inline Vec2 reflect(const Vec2& iV, const Vec2& iNormal) {
+constexpr Vec2 reflect(const Vec2& iV, const Vec2& iNormal) {
   return iV - iNormal * (2.0f * iV.dot(iNormal));
 }
 

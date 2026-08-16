@@ -18,6 +18,12 @@ struct Transform {
   Quat rotation{Quat::Identity};
   Vec3 scale{Vec3::One};
 
+  constexpr Transform() = default;
+  constexpr Transform(const Vec3& iPosition, const Quat& iRotation = Quat::Identity, const Vec3& iScale = Vec3::One)
+    : position(iPosition), rotation(iRotation), scale(iScale) {}
+  constexpr Transform(const Quat& iRotation, const Vec3& iPosition, const Vec3& iScale = Vec3::One)
+    : position(iPosition), rotation(iRotation), scale(iScale) {}
+
   /**
    * @brief Constructs the 4x4 matrix representation: T * R * S.
    */
@@ -26,6 +32,12 @@ struct Transform {
     Mat4 rotationMat = Mat4::fromQuat(rotation);
     Mat4 scaleMat = Mat4::scale(scale);
     return translationMat * rotationMat * scaleMat;
+  }
+
+  Transform inverseNoScale() const {
+    Quat invRotation = rotation.conjugate();
+    Vec3 invTranslation = invRotation * -position;
+    return Transform(invRotation, invTranslation, scale);
   }
 
   /**
@@ -74,11 +86,10 @@ struct Transform {
    * @brief Computes the exact inverse transform.
    */
   Transform inverse() const {
-    Transform inv;
-    inv.scale = Vec3::One / scale;
-    inv.rotation = rotation.conjugate();
-    inv.position = inv.rotation * (-position * inv.scale);
-    return inv;
+    Quat invRotation = rotation.conjugate();
+    Vec3 invScale = Vec3::One / scale;
+    Vec3 invPosition = invRotation * (-position * invScale);
+    return Transform(invRotation, invPosition, invScale);
   }
 
   /**
@@ -115,6 +126,12 @@ struct Transform {
     world.rotation = iParent.rotation * iChild.rotation;
     world.scale = iParent.scale * iChild.scale;
     return world;
+  }
+
+  inline bool equals(const Transform& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+    return position.equals(iOther.position, iTolerance) &&
+           rotation.equals(iOther.rotation, iTolerance) &&
+           scale.equals(iOther.scale, iTolerance);
   }
 };
 

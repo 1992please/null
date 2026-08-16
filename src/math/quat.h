@@ -73,6 +73,13 @@ struct Quat : public glm::quat {
     return false;
   }
 
+  inline bool equals(const Quat& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+    return math::abs(w - iOther.w) <= iTolerance &&
+           math::abs(x - iOther.x) <= iTolerance &&
+           math::abs(y - iOther.y) <= iTolerance &&
+           math::abs(z - iOther.z) <= iTolerance;
+  }
+
   inline std::string toString() const {
     char buf[128];
     std::snprintf(buf, sizeof(buf), "Quat(w=%.3f, x=%.3f, y=%.3f, z=%.3f)", w, x, y, z);

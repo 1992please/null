@@ -107,6 +107,13 @@ struct Vec4 {
     return x * iOther.x + y * iOther.y + z * iOther.z + w * iOther.w;
   }
 
+  constexpr bool equals(const Vec4& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+    return math::abs(x - iOther.x) <= iTolerance &&
+           math::abs(y - iOther.y) <= iTolerance &&
+           math::abs(z - iOther.z) <= iTolerance &&
+           math::abs(w - iOther.w) <= iTolerance;
+  }
+
   // --- Arithmetic Operators ---
 
   constexpr Vec4 operator+(const Vec4& iV) const {
@@ -229,11 +236,11 @@ struct Vec4 {
 inline const Vec4 Vec4::Zero{0.0f, 0.0f, 0.0f, 0.0f};
 inline const Vec4 Vec4::One{1.0f, 1.0f, 1.0f, 1.0f};
 
-constexpr inline Vec4 operator*(float iScale, const Vec4& iV) {
+constexpr Vec4 operator*(float iScale, const Vec4& iV) {
   return Vec4(iV.x * iScale, iV.y * iScale, iV.z * iScale, iV.w * iScale);
 }
 
-constexpr inline Vec4 operator+(float iBias, const Vec4& iV) {
+constexpr Vec4 operator+(float iBias, const Vec4& iV) {
   return Vec4(iV.x + iBias, iV.y + iBias, iV.z + iBias, iV.w + iBias);
 }
 
@@ -265,27 +272,27 @@ struct UVec4 {
 
 namespace math {
 
-constexpr inline Vec4 clamp(const Vec4& iV, const Vec4& iMinVal, const Vec4& iMaxVal) {
+constexpr Vec4 clamp(const Vec4& iV, const Vec4& iMinVal, const Vec4& iMaxVal) {
   return Vec4(math::clamp(iV.x, iMinVal.x, iMaxVal.x), math::clamp(iV.y, iMinVal.y, iMaxVal.y), math::clamp(iV.z, iMinVal.z, iMaxVal.z), math::clamp(iV.w, iMinVal.w, iMaxVal.w));
 }
 
-constexpr inline Vec4 min(const Vec4& iA, const Vec4& iB) {
+constexpr Vec4 min(const Vec4& iA, const Vec4& iB) {
   return Vec4(math::min(iA.x, iB.x), math::min(iA.y, iB.y), math::min(iA.z, iB.z), math::min(iA.w, iB.w));
 }
 
-constexpr inline Vec4 max(const Vec4& iA, const Vec4& iB) {
+constexpr Vec4 max(const Vec4& iA, const Vec4& iB) {
   return Vec4(math::max(iA.x, iB.x), math::max(iA.y, iB.y), math::max(iA.z, iB.z), math::max(iA.w, iB.w));
 }
 
-constexpr inline Vec4 abs(const Vec4& iV) {
+constexpr Vec4 abs(const Vec4& iV) {
   return Vec4(math::abs(iV.x), math::abs(iV.y), math::abs(iV.z), math::abs(iV.w));
 }
 
-constexpr inline Vec4 radians(const Vec4& iDeg) {
+constexpr Vec4 radians(const Vec4& iDeg) {
   return Vec4(math::radians(iDeg.x), math::radians(iDeg.y), math::radians(iDeg.z), math::radians(iDeg.w));
 }
 
-constexpr inline Vec4 degrees(const Vec4& iRad) {
+constexpr Vec4 degrees(const Vec4& iRad) {
   return Vec4(math::degrees(iRad.x), math::degrees(iRad.y), math::degrees(iRad.z), math::degrees(iRad.w));
 }
 

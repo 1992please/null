@@ -29,7 +29,11 @@ struct Mat4 : public glm::mat4 {
 
   static const Mat4 Identity;
 
-  // --- Vector Multiplication Operator ---
+  // --- Matrix & Vector Multiplication Operators ---
+
+  inline Mat4 operator*(const Mat4& iM) const {
+    return glm::operator*(static_cast<const glm::mat4&>(*this), static_cast<const glm::mat4&>(iM));
+  }
 
   inline Vec4 operator*(const Vec4& iV) const {
     glm::vec4 res = static_cast<const glm::mat4&>(*this) * glm::vec4(iV.x, iV.y, iV.z, iV.w);
@@ -48,16 +52,6 @@ struct Mat4 : public glm::mat4 {
 
   static inline Mat4 scale(const Vec3& iV) {
     return glm::scale(glm::mat4(1.0f), glm::vec3(iV.x, iV.y, iV.z));
-  }
-
-  static inline Mat4 perspective(float iFovYRad, float iAspect, float iNearVal, float iFarVal) {
-    Mat4 proj = glm::perspective(iFovYRad, iAspect, iNearVal, iFarVal);
-    proj[1][1] *= -1.0f; // Vulkan NDC Y-flip correction
-    return proj;
-  }
-
-  static inline Mat4 lookAt(const Vec3& iEye, const Vec3& iCenter, const Vec3& iUp = Vec3::Up) {
-    return glm::lookAt(glm::vec3(iEye.x, iEye.y, iEye.z), glm::vec3(iCenter.x, iCenter.y, iCenter.z), glm::vec3(iUp.x, iUp.y, iUp.z));
   }
 
   static inline Mat4 fromQuat(const Quat& iQ) {
@@ -84,6 +78,17 @@ struct Mat4 : public glm::mat4 {
 
   inline Mat4 inversed() const {
     return glm::inverse(static_cast<const glm::mat4&>(*this));
+  }
+
+  inline bool equals(const Mat4& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+    for (int c = 0; c < 4; ++c) {
+      for (int r = 0; r < 4; ++r) {
+        if (math::abs((*this)[c][r] - iOther[c][r]) > iTolerance) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   inline std::string toString() const {

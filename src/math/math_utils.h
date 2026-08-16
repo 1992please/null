@@ -56,6 +56,14 @@ constexpr T degrees(T iRad) {
   return iRad * static_cast<T>(RAD_TO_DEG);
 }
 
+constexpr bool equals(float iA, float iB, float iTolerance = KINDA_SMALL_NUMBER) {
+  return abs(iA - iB) <= iTolerance;
+}
+
+constexpr bool equals(double iA, double iB, double iTolerance = static_cast<double>(KINDA_SMALL_NUMBER)) {
+  return abs(iA - iB) <= iTolerance;
+}
+
 inline float sqrt(float iVal) {
   return std::sqrt(iVal);
 }
