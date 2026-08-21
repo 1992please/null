@@ -2,23 +2,19 @@
 
 /**
  * @file mat4.h
- * @brief 4x4 Transformation Matrix struct.
+ * @brief Pure 4x4 Linear Algebra Matrix struct.
  */
 
 #include "math/vec3.h"
 #include "math/vec4.h"
-#include "math/quat.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
 #include <string>
 
 namespace ne {
 
 /**
  * @struct Mat4
- * @brief 4x4 float matrix providing 100% binary & math compatibility with Vulkan & GLM,
- * providing default identity initialization, static transformation factories, and instance helpers.
+ * @brief Pure 4x4 float matrix providing 100% binary & math compatibility with Vulkan column-major layout,
+ * identity initialization, matrix arithmetic, inversion, transposition, and equals.
  */
 struct Mat4 {
   Vec4 cols[4]{
@@ -49,81 +45,96 @@ struct Mat4 {
 
   // --- Matrix & Vector Multiplication Operators ---
 
-  inline Mat4 operator*(const Mat4& iM) const {
-    const auto& selfGlm = *reinterpret_cast<const glm::mat4*>(this);
-    const auto& otherGlm = *reinterpret_cast<const glm::mat4*>(&iM);
-    glm::mat4 res = selfGlm * otherGlm;
-    return *reinterpret_cast<const Mat4*>(&res);
+  constexpr Mat4 operator*(const Mat4& iM) const {
+    Mat4 res;
+    res.cols[0] = cols[0] * iM.cols[0].x + cols[1] * iM.cols[0].y + cols[2] * iM.cols[0].z + cols[3] * iM.cols[0].w;
+    res.cols[1] = cols[0] * iM.cols[1].x + cols[1] * iM.cols[1].y + cols[2] * iM.cols[1].z + cols[3] * iM.cols[1].w;
+    res.cols[2] = cols[0] * iM.cols[2].x + cols[1] * iM.cols[2].y + cols[2] * iM.cols[2].z + cols[3] * iM.cols[2].w;
+    res.cols[3] = cols[0] * iM.cols[3].x + cols[1] * iM.cols[3].y + cols[2] * iM.cols[3].z + cols[3] * iM.cols[3].w;
+    return res;
   }
 
-  inline Vec4 operator*(const Vec4& iV) const {
-    const auto& selfGlm = *reinterpret_cast<const glm::mat4*>(this);
-    glm::vec4 res = selfGlm * glm::vec4(iV.x, iV.y, iV.z, iV.w);
-    return Vec4(res.x, res.y, res.z, res.w);
+  constexpr Vec4 operator*(const Vec4& iV) const {
+    return Vec4(
+      cols[0].x * iV.x + cols[1].x * iV.y + cols[2].x * iV.z + cols[3].x * iV.w,
+      cols[0].y * iV.x + cols[1].y * iV.y + cols[2].y * iV.z + cols[3].y * iV.w,
+      cols[0].z * iV.x + cols[1].z * iV.y + cols[2].z * iV.z + cols[3].z * iV.w,
+      cols[0].w * iV.x + cols[1].w * iV.y + cols[2].w * iV.z + cols[3].w * iV.w
+    );
   }
 
-  // --- Static Transformation Factories ---
+  // --- Linear Algebra Operations ---
 
-  static inline Mat4 translate(const Vec3& iV) {
-    glm::mat4 res = glm::translate(glm::mat4(1.0f), glm::vec3(iV.x, iV.y, iV.z));
-    return *reinterpret_cast<const Mat4*>(&res);
+  constexpr Mat4 transposed() const {
+    return Mat4(
+      Vec4(cols[0].x, cols[1].x, cols[2].x, cols[3].x),
+      Vec4(cols[0].y, cols[1].y, cols[2].y, cols[3].y),
+      Vec4(cols[0].z, cols[1].z, cols[2].z, cols[3].z),
+      Vec4(cols[0].w, cols[1].w, cols[2].w, cols[3].w)
+    );
   }
 
-  static inline Mat4 rotate(float iAngleRad, const Vec3& iAxis) {
-    glm::mat4 res = glm::rotate(glm::mat4(1.0f), iAngleRad, glm::vec3(iAxis.x, iAxis.y, iAxis.z));
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
+  constexpr Mat4 inversed() const {
+    const float m00 = cols[0].x, m01 = cols[0].y, m02 = cols[0].z, m03 = cols[0].w;
+    const float m10 = cols[1].x, m11 = cols[1].y, m12 = cols[1].z, m13 = cols[1].w;
+    const float m20 = cols[2].x, m21 = cols[2].y, m22 = cols[2].z, m23 = cols[2].w;
+    const float m30 = cols[3].x, m31 = cols[3].y, m32 = cols[3].z, m33 = cols[3].w;
 
-  static inline Mat4 scale(const Vec3& iV) {
-    glm::mat4 res = glm::scale(glm::mat4(1.0f), glm::vec3(iV.x, iV.y, iV.z));
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
+    const float s0 = m00 * m11 - m10 * m01;
+    const float s1 = m00 * m12 - m10 * m02;
+    const float s2 = m00 * m13 - m10 * m03;
+    const float s3 = m01 * m12 - m11 * m02;
+    const float s4 = m01 * m13 - m11 * m03;
+    const float s5 = m02 * m13 - m12 * m03;
 
-  static inline Mat4 fromQuat(const Quat& iQ) {
-    const auto& qGlm = *reinterpret_cast<const glm::quat*>(&iQ);
-    glm::mat4 res = glm::mat4_cast(qGlm);
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
+    const float c5 = m22 * m33 - m32 * m23;
+    const float c4 = m21 * m33 - m31 * m23;
+    const float c3 = m21 * m32 - m31 * m22;
+    const float c2 = m20 * m33 - m30 * m23;
+    const float c1 = m20 * m32 - m30 * m22;
+    const float c0 = m20 * m31 - m30 * m21;
 
-  static inline Mat4 inverse(const Mat4& iM) {
-    const auto& mGlm = *reinterpret_cast<const glm::mat4*>(&iM);
-    glm::mat4 res = glm::inverse(mGlm);
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
+    const float det = s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
 
-  // --- Instance Transformation Methods ---
+    if (math::abs(det) <= math::SMALL_NUMBER) {
+      return Mat4::Identity;
+    }
 
-  inline Mat4 translated(const Vec3& iV) const {
-    const auto& selfGlm = *reinterpret_cast<const glm::mat4*>(this);
-    glm::mat4 res = glm::translate(selfGlm, glm::vec3(iV.x, iV.y, iV.z));
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
+    const float invDet = 1.0f / det;
 
-  inline Mat4 rotated(float iAngleRad, const Vec3& iAxis) const {
-    const auto& selfGlm = *reinterpret_cast<const glm::mat4*>(this);
-    glm::mat4 res = glm::rotate(selfGlm, iAngleRad, glm::vec3(iAxis.x, iAxis.y, iAxis.z));
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
-
-  inline Mat4 scaled(const Vec3& iV) const {
-    const auto& selfGlm = *reinterpret_cast<const glm::mat4*>(this);
-    glm::mat4 res = glm::scale(selfGlm, glm::vec3(iV.x, iV.y, iV.z));
-    return *reinterpret_cast<const Mat4*>(&res);
-  }
-
-  inline Mat4 inversed() const {
-    return inverse(*this);
+    Mat4 res(1.0f);
+    res.cols[0] = Vec4(
+      ( m11 * c5 - m12 * c4 + m13 * c3) * invDet,
+      (-m01 * c5 + m02 * c4 - m03 * c3) * invDet,
+      ( m31 * s5 - m32 * s4 + m33 * s3) * invDet,
+      (-m21 * s5 + m22 * s4 - m23 * s3) * invDet
+    );
+    res.cols[1] = Vec4(
+      (-m10 * c5 + m12 * c2 - m13 * c1) * invDet,
+      ( m00 * c5 - m02 * c2 + m03 * c1) * invDet,
+      (-m30 * s5 + m32 * s2 - m33 * s1) * invDet,
+      ( m20 * s5 - m22 * s2 + m23 * s1) * invDet
+    );
+    res.cols[2] = Vec4(
+      ( m10 * c4 - m11 * c2 + m13 * c0) * invDet,
+      (-m00 * c4 + m01 * c2 - m03 * c0) * invDet,
+      ( m30 * s4 - m31 * s2 + m33 * s0) * invDet,
+      (-m20 * s4 + m21 * s2 - m23 * s0) * invDet
+    );
+    res.cols[3] = Vec4(
+      (-m10 * c3 + m11 * c1 - m12 * c0) * invDet,
+      ( m00 * c3 - m01 * c1 + m02 * c0) * invDet,
+      (-m30 * s3 + m31 * s1 - m32 * s0) * invDet,
+      ( m20 * s3 - m21 * s1 + m22 * s0) * invDet
+    );
+    return res;
   }
 
   inline bool equals(const Mat4& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
-    for (int c = 0; c < 4; ++c) {
-      for (int r = 0; r < 4; ++r) {
-        if (math::abs(cols[c][r] - iOther.cols[c][r]) > iTolerance) {
-          return false;
-        }
-      }
-    }
-    return true;
+    return cols[0].equals(iOther.cols[0], iTolerance) &&
+           cols[1].equals(iOther.cols[1], iTolerance) &&
+           cols[2].equals(iOther.cols[2], iTolerance) &&
+           cols[3].equals(iOther.cols[3], iTolerance);
   }
 
   inline std::string toString() const {

@@ -58,9 +58,9 @@ struct CameraComponent {
     const Vec3 forward = iTransform.getForward();
 
     Mat4 view{1.0f};
-    view[0][0] = right.x;   view[1][0] = right.y;   view[2][0] = right.z;   view[3][0] = -Vec3::dot(right, eye);
-    view[0][1] = up.x;      view[1][1] = up.y;      view[2][1] = up.z;      view[3][1] = -Vec3::dot(up, eye);
-    view[0][2] = forward.x; view[1][2] = forward.y; view[2][2] = forward.z; view[3][2] = -Vec3::dot(forward, eye);
+    view[0][0] = right.x;   view[1][0] = right.y;   view[2][0] = right.z;   view[3][0] = -right.dot(eye);
+    view[0][1] = up.x;      view[1][1] = up.y;      view[2][1] = up.z;      view[3][1] = -up.dot(eye);
+    view[0][2] = forward.x; view[1][2] = forward.y; view[2][2] = forward.z; view[3][2] = -forward.dot(eye);
     return view;
   }
 

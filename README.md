@@ -38,6 +38,9 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
 - [ ] **Context-Driven Encoder Pattern**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability.
 
+### Misc
+- [ ] Look at the matrix inverse algorithm if we need it be faster
+- [ ] Look at [Render Graph](https://themaister.net/blog/2017/08/15/render-graphs-and-vulkan-a-deep-dive/) maybe read this article.
 ---
 
 ## ⚡ Core Technical Architecture

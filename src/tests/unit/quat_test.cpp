@@ -76,6 +76,18 @@ NE_TEST_CASE("quat", "Quat Normalization") {
   NE_TEST_ASSERT(zeroQ.equals(Quat::Identity), "Zero quaternion normalize fallback must reset to Identity.");
 }
 
+NE_TEST_CASE("quat", "Quat toMatrix & Vector Rotation Equivalence") {
+  Quat q = Quat::fromEuler(Vec3(30.0f, 45.0f, 60.0f));
+  Mat4 matFromQuat = q.toMatrix();
+
+  Vec3 testVec(2.0f, -3.0f, 5.0f);
+  Vec3 vecViaQuat = q * testVec;
+  Vec4 vecViaMat = matFromQuat * Vec4(testVec.x, testVec.y, testVec.z, 0.0f);
+
+  NE_TEST_ASSERT(Vec3(vecViaMat.x, vecViaMat.y, vecViaMat.z).equals(vecViaQuat, 1e-4f),
+                 "Quat::toMatrix must yield exact same rotation as Quat::operator* on 3D vectors.");
+}
+
 NE_TEST_CASE("quat", "Quat Memory Layout & POD Properties") {
   static_assert(sizeof(Quat) == 16, "Quat must be 16 bytes in size.");
   static_assert(std::is_standard_layout_v<Quat>, "Quat must be standard layout.");

@@ -225,12 +225,6 @@ struct Vec4 {
     w *= inv;
     return *this;
   }
-
-  // --- Static Geometric Helpers ---
-
-  static constexpr float dot(const Vec4& iA, const Vec4& iB) {
-    return iA.dot(iB);
-  }
 };
 
 inline const Vec4 Vec4::Zero{0.0f, 0.0f, 0.0f, 0.0f};

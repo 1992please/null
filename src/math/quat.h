@@ -6,6 +6,7 @@
  */
 
 #include "math/vec3.h"
+#include "math/mat4.h"
 #include <glm/gtc/quaternion.hpp>
 
 namespace ne {
@@ -62,6 +63,25 @@ struct Quat {
   }
 
   // --- Instance Methods ---
+
+  constexpr Mat4 toMatrix() const {
+    const float xx = x * x;
+    const float yy = y * y;
+    const float zz = z * z;
+    const float xy = x * y;
+    const float xz = x * z;
+    const float yz = y * z;
+    const float wx = w * x;
+    const float wy = w * y;
+    const float wz = w * z;
+
+    Mat4 res(1.0f);
+    res.cols[0] = Vec4(1.0f - 2.0f * (yy + zz), 2.0f * (xy + wz),        2.0f * (xz - wy),        0.0f);
+    res.cols[1] = Vec4(2.0f * (xy - wz),        1.0f - 2.0f * (xx + zz), 2.0f * (yz + wx),        0.0f);
+    res.cols[2] = Vec4(2.0f * (xz + wy),        2.0f * (yz - wx),        1.0f - 2.0f * (xx + yy), 0.0f);
+    res.cols[3] = Vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    return res;
+  }
 
   inline Quat conjugate() const {
     return Quat(-x, -y, -z, w);

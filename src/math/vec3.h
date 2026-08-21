@@ -224,16 +224,6 @@ struct Vec3 {
     z *= inv;
     return *this;
   }
-
-  // --- Static Geometric Helpers ---
-
-  static constexpr float dot(const Vec3& iA, const Vec3& iB) {
-    return iA.dot(iB);
-  }
-
-  static constexpr Vec3 cross(const Vec3& iA, const Vec3& iB) {
-    return iA.cross(iB);
-  }
 };
 
 inline const Vec3 Vec3::Forward{1.0f, 0.0f, 0.0f};

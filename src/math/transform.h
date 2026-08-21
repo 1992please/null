@@ -25,13 +25,15 @@ struct Transform {
     : position(iPosition), rotation(iRotation), scale(iScale) {}
 
   /**
-   * @brief Constructs the 4x4 matrix representation: T * R * S.
+   * @brief Constructs the 4x4 matrix representation: T * R * S in O(1) time without matrix-matrix multiplications.
    */
-  Mat4 toMatrix() const {
-    Mat4 translationMat = Mat4::translate(position);
-    Mat4 rotationMat = Mat4::fromQuat(rotation);
-    Mat4 scaleMat = Mat4::scale(scale);
-    return translationMat * rotationMat * scaleMat;
+  constexpr Mat4 toMatrix() const {
+    Mat4 res = rotation.toMatrix();
+    res.cols[0] = res.cols[0] * scale.x;
+    res.cols[1] = res.cols[1] * scale.y;
+    res.cols[2] = res.cols[2] * scale.z;
+    res.cols[3] = Vec4(position, 1.0f);
+    return res;
   }
 
   Transform inverseNoScale() const {

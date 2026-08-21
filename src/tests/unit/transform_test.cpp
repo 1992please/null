@@ -167,9 +167,9 @@ NE_TEST_CASE("transform", "Transform Rigid Inverse (inverseNoScale)") {
   // 2. Validate inverseNoScale().toMatrix() matches general Mat4::inverse(forwardMat)
   Mat4 forwardMat = t.toMatrix();
   Mat4 invMat = rigidInv.toMatrix();
-  Mat4 expectedInvFromGlm = Mat4::inverse(forwardMat);
+  Mat4 expectedInv = forwardMat.inversed();
 
-  NE_TEST_ASSERT(invMat.equals(expectedInvFromGlm, 1e-4f), "inverseNoScale().toMatrix() must match general Mat4::inverse().");
+  NE_TEST_ASSERT(invMat.equals(expectedInv, 1e-4f), "inverseNoScale().toMatrix() must match general Mat4::inversed().");
 
   // 3. Validate M * M^-1 == Identity and M^-1 * M == Identity
   Mat4 identity1 = forwardMat * invMat;
