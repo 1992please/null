@@ -5,6 +5,7 @@
  * @brief Engine Scalar Math Utilities & Constants
  */
 
+#include "math/simd.h"
 #include <cmath>
 
 namespace ne::math {
@@ -80,4 +81,17 @@ inline float tan(float iRad) {
   return std::tan(iRad);
 }
 
+inline float asin(float iVal) {
+  return std::asin(iVal);
+}
+
+inline float acos(float iVal) {
+  return std::acos(iVal);
+}
+
+inline float atan2(float iY, float iX) {
+  return std::atan2(iY, iX);
+}
+
 } // namespace ne::math
+

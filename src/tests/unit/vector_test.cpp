@@ -101,14 +101,14 @@ NE_TEST_CASE("vector", "Vec3 Operations & Member Functions") {
   compound *= 2.0f;
   NE_TEST_ASSERT(compound.equals(Vec3(4.0f, 6.0f, 8.0f)), "Vec3 *= scalar operator.");
 
-  // Static geometric helpers & difference length
+  // Geometric helpers & difference length
   NE_TEST_ASSERT(math::equals((a - Vec3::Zero).length(), 3.0f), "Vec3 distance via difference length must be 3.");
-  NE_TEST_ASSERT(Vec3::cross(Vec3::Forward, Vec3::Right).equals(Vec3::Up), "Vec3 static cross product must equal Up (+Z).");
-  NE_TEST_ASSERT(math::equals(Vec3::dot(Vec3::Forward, Vec3::Right), 0.0f), "Vec3 static dot product must be 0.");
+  NE_TEST_ASSERT(Vec3::Forward.cross(Vec3::Right).equals(Vec3::Up), "Vec3 cross product must equal Up (+Z).");
+  NE_TEST_ASSERT(math::equals(Vec3::Forward.dot(Vec3::Right), 0.0f), "Vec3 dot product must be 0.");
 
   Vec3 fwd = Vec3::Forward;
   Vec3 right = Vec3::Right;
-  Vec3 up = Vec3::cross(fwd, right);
+  Vec3 up = fwd.cross(right);
   NE_TEST_ASSERT(up.equals(Vec3::Up), "Forward x Right in LH system must equal Up (+Z).");
 
   Vec3 normTarget = a;
@@ -159,8 +159,8 @@ NE_TEST_CASE("vector", "Vec4 Operations & Member Functions") {
   compound *= 2.0f;
   NE_TEST_ASSERT(compound.equals(Vec4(4.0f, 6.0f, 8.0f, 10.0f)), "Vec4 *= scalar operator.");
 
-  // Static geometric helpers & difference length
-  NE_TEST_ASSERT(math::equals(Vec4::dot(a, Vec4(1.0f, 0.0f, 0.0f, 0.0f)), 0.0f), "Vec4 static dot product must be 0.");
+  // Geometric helpers & difference length
+  NE_TEST_ASSERT(math::equals(a.dot(Vec4(1.0f, 0.0f, 0.0f, 0.0f)), 0.0f), "Vec4 dot product must be 0.");
   NE_TEST_ASSERT(math::equals((Vec4(1.0f, 0.0f, 0.0f, 0.0f) - Vec4::Zero).length(), 1.0f), "Vec4 difference length must be 1.");
 
   Vec4 normTarget = a;

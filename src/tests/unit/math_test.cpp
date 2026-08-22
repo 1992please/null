@@ -78,6 +78,21 @@ NE_TEST_CASE("math", "Scalar math::equals & Member equals Tolerances") {
   NE_TEST_ASSERT(t1.equals(t2, 1e-4f), "Transform::equals member method.");
 }
 
+NE_TEST_CASE("math", "Hardware-Accelerated Inverse Square Root (invSqrt)") {
+  NE_TEST_ASSERT(math::equals(math::invSqrt(1.0f), 1.0f, 1e-4f), "invSqrt(1.0) == 1.0");
+  NE_TEST_ASSERT(math::equals(math::invSqrt(4.0f), 0.5f, 1e-4f), "invSqrt(4.0) == 0.5");
+  NE_TEST_ASSERT(math::equals(math::invSqrt(16.0f), 0.25f, 1e-4f), "invSqrt(16.0) == 0.25");
+  NE_TEST_ASSERT(math::equals(math::invSqrt(100.0f), 0.1f, 1e-4f), "invSqrt(100.0) == 0.1");
+  NE_TEST_ASSERT(math::equals(math::invSqrt(0.04f), 5.0f, 1e-4f), "invSqrt(0.04) == 5.0");
+
+  const float testValues[] = {0.001f, 0.5f, 2.0f, 9.0f, 25.0f, 137.5f, 1024.0f, 65536.0f};
+  for (float val : testValues) {
+    float expected = 1.0f / std::sqrt(val);
+    float actual = math::invSqrt(val);
+    NE_TEST_ASSERT(math::equals(actual, expected, 1e-4f), "invSqrt accuracy across arbitrary scalars.");
+  }
+}
+
 } // namespace ne::test
 
 #endif

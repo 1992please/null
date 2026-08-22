@@ -63,7 +63,7 @@ struct Vec2 {
   inline bool normalize(float iTolerance = math::SMALL_NUMBER) {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
-      float invLen = 1.0f / math::sqrt(lenSq);
+      float invLen = math::invSqrt(lenSq);
       x *= invLen;
       y *= invLen;
       return true;
@@ -78,14 +78,14 @@ struct Vec2 {
   }
 
   inline Vec2 getUnsafeNormal() const {
-    float invLen = 1.0f / length();
+    float invLen = math::invSqrt(lengthSquared());
     return Vec2(x * invLen, y * invLen);
   }
 
   inline Vec2 getSafeNormal(float iTolerance = math::SMALL_NUMBER, const Vec2& iFallback = Vec2::Zero) const {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
-      float invLen = 1.0f / math::sqrt(lenSq);
+      float invLen = math::invSqrt(lenSq);
       return Vec2(x * invLen, y * invLen);
     }
     return iFallback;

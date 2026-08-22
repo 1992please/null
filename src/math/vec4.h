@@ -65,7 +65,7 @@ struct Vec4 {
   inline bool normalize(float iTolerance = math::SMALL_NUMBER) {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
-      float invLen = 1.0f / math::sqrt(lenSq);
+      float invLen = math::invSqrt(lenSq);
       x *= invLen;
       y *= invLen;
       z *= invLen;
@@ -84,14 +84,14 @@ struct Vec4 {
   }
 
   inline Vec4 getUnsafeNormal() const {
-    float invLen = 1.0f / length();
+    float invLen = math::invSqrt(lengthSquared());
     return Vec4(x * invLen, y * invLen, z * invLen, w * invLen);
   }
 
   inline Vec4 getSafeNormal(float iTolerance = math::SMALL_NUMBER, const Vec4& iFallback = Vec4::Zero) const {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
-      float invLen = 1.0f / math::sqrt(lenSq);
+      float invLen = math::invSqrt(lenSq);
       return Vec4(x * invLen, y * invLen, z * invLen, w * invLen);
     }
     return iFallback;

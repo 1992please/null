@@ -50,7 +50,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 * **Shader Pipeline**: Written in Slang (`.slang`, `.comp`) and compiled directly to SPIR-V at build time via `slangc`.
 * **Memory & Concurrency**: Double-buffered frames-in-flight (`MAX_FRAMES_IN_FLIGHT = 2`) with dedicated per-frame command pools, pre-allocated geometry pools (64MB vertex / 32MB index), and dynamic host-mapped upload ring buffers.
 * **Coordinate System (Unreal Convention)**:
-  * **Axes**: `+X` Forward, `+Y` Right, `+Z` Up (Left-handed via `GLM_FORCE_LEFT_HANDED`).
+  * **Axes**: `+X` Forward, `+Y` Right, `+Z` Up (Left-handed coordinate convention).
   * **Depth**: Reverse-Z floating-point depth (`VK_FORMAT_D32_SFLOAT`, `0.0` far clear, `VK_COMPARE_OP_GREATER_OR_EQUAL`) when camera integration is active.
 
 ---

@@ -6,7 +6,7 @@
  *
  * Engine Coordinate System Specification (Unreal Engine Style):
  *   - World Axes : +X Forward, +Y Right, +Z Up
- *   - Handedness : Left-handed coordinate system (GLM_FORCE_LEFT_HANDED)
+ *   - Handedness : Left-handed coordinate system
  *                  Right = Up x Forward  (+Y = +Z x +X)
  */
 

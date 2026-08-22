@@ -88,6 +88,33 @@ NE_TEST_CASE("quat", "Quat toMatrix & Vector Rotation Equivalence") {
                  "Quat::toMatrix must yield exact same rotation as Quat::operator* on 3D vectors.");
 }
 
+NE_TEST_CASE("quat", "Quat Multiplication & Inverse") {
+  Quat q1 = Quat::angleAxis(math::radians(45.0f), Vec3::Up);
+  Quat q2 = Quat::angleAxis(math::radians(45.0f), Vec3::Up);
+  Quat combined = q1 * q2;
+  Quat expected90 = Quat::angleAxis(math::radians(90.0f), Vec3::Up);
+
+  NE_TEST_ASSERT(combined.equals(expected90, 1e-4f), "Multiplying two 45-deg yaw quaternions must yield a 90-deg yaw quaternion.");
+
+  Quat qInv = q1.inverse();
+  Quat identityCheck = q1 * qInv;
+  NE_TEST_ASSERT(identityCheck.equals(Quat::Identity, 1e-4f), "q * q.inverse() must equal Quat::Identity.");
+}
+
+NE_TEST_CASE("quat", "Quat Dot, Length & Constexpr Verification") {
+  constexpr Quat c1(1.0f, 0.0f, 0.0f, 0.0f);
+  constexpr Quat c2(0.0f, 1.0f, 0.0f, 0.0f);
+  constexpr Quat cMul = c1 * c2;
+  static_assert(cMul.w == 0.0f && cMul.z == 1.0f, "Quat constexpr multiplication check.");
+
+  Quat q(1.0f, 2.0f, 3.0f, 4.0f);
+  NE_TEST_ASSERT(math::equals(q.lengthSquared(), 30.0f), "Quat::lengthSquared check.");
+  NE_TEST_ASSERT(math::equals(q.length(), math::sqrt(30.0f), 1e-4f), "Quat::length check.");
+
+  Quat unitQ = Quat::Identity;
+  NE_TEST_ASSERT(math::equals(unitQ.dot(unitQ), 1.0f), "Unit quaternion self-dot must equal 1.");
+}
+
 NE_TEST_CASE("quat", "Quat Memory Layout & POD Properties") {
   static_assert(sizeof(Quat) == 16, "Quat must be 16 bytes in size.");
   static_assert(std::is_standard_layout_v<Quat>, "Quat must be standard layout.");

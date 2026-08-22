@@ -29,12 +29,6 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory("${ThirdPartyDir}/glfw")
 
 # ----------------------------------------------------------------------
-# GLM
-add_library(glm INTERFACE)
-target_include_directories(glm INTERFACE "${ThirdPartyDir}/glm")
-target_compile_definitions(glm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE GLM_FORCE_LEFT_HANDED)
-
-# ----------------------------------------------------------------------
 # cgltf
 add_subdirectory("${ThirdPartyDir}/cgltf")
 
@@ -60,7 +54,7 @@ file(GLOB_RECURSE ENGINE_SHADERS
 )
 
 if(MSVC)
-    set(ENGINE_UTILS "${ThirdPartyDir}/glm/util/glm.natvis")
+    set(ENGINE_UTILS "")
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # Disable Exceptions
 else()
     set(ENGINE_UTILS "")
@@ -72,7 +66,6 @@ target_include_directories(${EngineTarget} PRIVATE ${SourceDir})
 target_link_libraries(${EngineTarget} PRIVATE
   Vulkan::volk
   glfw
-  glm
   cgltf
   spdlog
 )
