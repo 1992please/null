@@ -24,7 +24,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Input Abstraction**: Strongly-typed GLFW events (`KeyCode`, `MouseButton`, `InputAction`) and multicast delegate system (`ne::Event`).
 - [x] **Camera & Transform Math**: Projection matrix generator (Perspective, Orthographic, Reverse-Z, Infinite Far) and TRS `TransformComponent` with dirty caching.
 - [x] **Scene & ECS Integration**: Connect `CameraComponent` and `TransformComponent` to `Registry` and `RenderManager`.
-- [ ] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
+- [x] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
 - [ ] **OrbitCameraSystem**: Interactive Arcball rotation, smooth panning, and scroll zooming.
 - [ ] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
 
@@ -41,6 +41,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 ### Misc
 - [ ] Look at the matrix inverse algorithm if we need it be faster
 - [ ] Look at [Render Graph](https://themaister.net/blog/2017/08/15/render-graphs-and-vulkan-a-deep-dive/) maybe read this article.
+
 ---
 
 ## ⚡ Core Technical Architecture

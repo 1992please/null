@@ -10,7 +10,6 @@ NE_TEST_CASE("camera", "CameraComponent Default Constructor Invariant") {
 
   // The default constructor must initialize valid perspective projection matrices matching default parameters
   NE_TEST_ASSERT(camera.mProjectionType == CameraComponent::ProjectionType::Perspective, "Default projection type must be Perspective.");
-  NE_TEST_ASSERT(camera.mUseReverseZ, "Reverse-Z must be enabled by default.");
   NE_TEST_ASSERT(!camera.mProjectionMatrix.equals(Mat4::Identity), "Default projection matrix must not be Identity.");
   NE_TEST_ASSERT(!camera.mInverseProjectionMatrix.equals(Mat4::Identity), "Default inverse projection matrix must not be Identity.");
 
@@ -26,18 +25,18 @@ NE_TEST_CASE("camera", "CameraComponent Default Constructor Invariant") {
 
 NE_TEST_CASE("camera", "CameraComponent Parameterized Constructors & Static Factories") {
   // 1. Parameterized perspective constructor
-  CameraComponent camPersp(60.0f, 16.0f / 9.0f, 0.5f, 500.0f, true);
+  CameraComponent camPersp(60.0f, 16.0f / 9.0f, 0.5f, 500.0f);
   NE_TEST_ASSERT(camPersp.mProjectionType == CameraComponent::ProjectionType::Perspective, "Projection type is Perspective.");
   NE_TEST_ASSERT(math::equals(camPersp.mFovDeg, 60.0f), "FOV matches constructor arg.");
   NE_TEST_ASSERT(!camPersp.mProjectionMatrix.equals(Mat4::Identity), "Projection matrix must be calculated.");
 
   // 2. Static factory perspective
-  CameraComponent camFactoryPersp = CameraComponent::createPerspective(90.0f, 2.0f, 0.2f, 200.0f, true);
+  CameraComponent camFactoryPersp = CameraComponent::createPerspective(90.0f, 2.0f, 0.2f, 200.0f);
   NE_TEST_ASSERT(math::equals(camFactoryPersp.mFovDeg, 90.0f), "FOV matches factory arg.");
   NE_TEST_ASSERT(!camFactoryPersp.mProjectionMatrix.equals(Mat4::Identity), "Factory projection matrix must be calculated.");
 
   // 3. Parameterized orthographic constructor & factory
-  CameraComponent camOrtho = CameraComponent::createOrthographic(12.0f, 16.0f / 9.0f, 0.1f, 50.0f, false);
+  CameraComponent camOrtho = CameraComponent::createOrthographic(12.0f, 16.0f / 9.0f, 0.1f, 50.0f);
   NE_TEST_ASSERT(camOrtho.mProjectionType == CameraComponent::ProjectionType::Orthographic, "Projection type is Orthographic.");
   NE_TEST_ASSERT(math::equals(camOrtho.mOrthoSize, 12.0f), "Ortho size matches factory arg.");
   NE_TEST_ASSERT(!camOrtho.mProjectionMatrix.equals(Mat4::Identity), "Ortho projection matrix must be calculated.");
@@ -48,7 +47,6 @@ NE_TEST_CASE("camera", "CameraComponent Perspective Reverse-Z Projection") {
   camera.setPerspective(45.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
 
   NE_TEST_ASSERT(camera.mProjectionType == CameraComponent::ProjectionType::Perspective, "Projection type must be Perspective.");
-  NE_TEST_ASSERT(camera.mUseReverseZ, "Reverse-Z must be enabled by default.");
 
   const Mat4& proj = camera.mProjectionMatrix;
 
@@ -80,24 +78,6 @@ NE_TEST_CASE("camera", "CameraComponent Perspective Infinite Far Clip") {
   Vec4 distantPointClip = proj * Vec4(0.0f, 0.0f, 1e6f, 1.0f);
   float distantDepth = distantPointClip.z / distantPointClip.w;
   NE_TEST_ASSERT(math::equals(distantDepth, 0.0f, 1e-3f), "Distant point depth in Infinite Far Reverse-Z must approach 0.0.");
-}
-
-NE_TEST_CASE("camera", "CameraComponent Perspective Standard-Z Projection") {
-  CameraComponent camera;
-  camera.mUseReverseZ = false;
-  camera.setPerspective(45.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
-
-  const Mat4& proj = camera.mProjectionMatrix;
-
-  // Transform Near plane point (0, 0, 0.1, 1)
-  Vec4 nearPointClip = proj * Vec4(0.0f, 0.0f, 0.1f, 1.0f);
-  float nearDepth = nearPointClip.z / nearPointClip.w;
-  NE_TEST_ASSERT(math::equals(nearDepth, 0.0f, 1e-4f), "Near plane clip depth in Standard Z must map to 0.0.");
-
-  // Transform Far plane point (0, 0, 1000, 1)
-  Vec4 farPointClip = proj * Vec4(0.0f, 0.0f, 1000.0f, 1.0f);
-  float farDepth = farPointClip.z / farPointClip.w;
-  NE_TEST_ASSERT(math::equals(farDepth, 1.0f, 1e-4f), "Far plane clip depth in Standard Z must map to 1.0.");
 }
 
 NE_TEST_CASE("camera", "CameraComponent Orthographic Projection & Inversion") {

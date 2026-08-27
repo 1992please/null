@@ -86,7 +86,7 @@ BasicApp::BasicApp() {
   // Camera Entity
   mCameraEntity = mRegistry->createEntity();
   mRegistry->addComponent<TransformComponent>(mCameraEntity, Vec3(-4.0f, 0.0f, 0.0f));
-  mRegistry->addComponent<CameraComponent>(mCameraEntity, 45.0f, aspect, 0.1f, 100.0f, false);
+  mRegistry->addComponent<CameraComponent>(mCameraEntity, 45.0f, aspect, 0.1f, 100.0f);
 
   // Cube Entity 1 (Right: +Y axis)
   if (!mLoadedMeshes.empty()) {

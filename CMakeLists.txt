@@ -54,14 +54,11 @@ file(GLOB_RECURSE ENGINE_SHADERS
 )
 
 if(MSVC)
-    set(ENGINE_UTILS "")
     string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # Disable Exceptions
-else()
-    set(ENGINE_UTILS "")
 endif()
 
-target_sources(${EngineTarget} PRIVATE ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS} ${ENGINE_UTILS})
-set_source_files_properties(${ENGINE_SHADERS} ${ENGINE_UTILS} PROPERTIES HEADER_FILE_ONLY TRUE)
+target_sources(${EngineTarget} PRIVATE ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS})
+set_source_files_properties(${ENGINE_SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 target_include_directories(${EngineTarget} PRIVATE ${SourceDir})
 target_link_libraries(${EngineTarget} PRIVATE
   Vulkan::volk
@@ -147,7 +144,6 @@ if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${EngineTarget})
   set_property(TARGET ${EngineTarget} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${BinDir})
   source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS})
-  source_group("Misc" FILES ${ENGINE_UTILS})
   set_target_properties(glfw PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
   set_target_properties(update_mappings PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")
   set_target_properties(uninstall PROPERTIES FOLDER "Misc/Thirdparty/GLFW3")

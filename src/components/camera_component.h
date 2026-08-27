@@ -10,7 +10,7 @@ namespace ne {
  * @brief Manages camera lens, frustum parameters, and projection matrix generation.
  *
  * Designed for left-handed Unreal Engine coordinate conventions (+X Forward, +Y Right, +Z Up).
- * Supports Standard-Z, Reverse-Z, and Infinite Far Clip perspective and orthographic projections.
+ * Supports Reverse-Z, and Infinite Far Clip perspective and orthographic projections.
  */
 struct CameraComponent {
   enum class ProjectionType { Perspective, Orthographic };
@@ -24,8 +24,7 @@ struct CameraComponent {
   float mFarClip{1000.0f};
   float mOrthoSize{5.0f};           // Vertical size for orthographic camera
 
-  // Depth & Active Camera Flags
-  bool mUseReverseZ{true};          // Reverse-Z float depth (1.0 near, 0.0 far)
+  // Frustum Flags
   bool mInfiniteFarClip{false};     // Infinite far plane projection
   bool mIsPrimary{true};            // Main rendering camera
 
@@ -34,11 +33,11 @@ struct CameraComponent {
   Mat4 mInverseProjectionMatrix{1.0f};
 
   CameraComponent();
-  CameraComponent(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f, bool iUseReverseZ = true);
-  CameraComponent(ProjectionType iType, float iFovOrSize, float iAspect, float iNear, float iFar, bool iUseReverseZ = true);
+  CameraComponent(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f);
+  CameraComponent(ProjectionType iType, float iFovOrSize, float iAspect, float iNear, float iFar);
 
-  static CameraComponent createPerspective(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f, bool iUseReverseZ = true);
-  static CameraComponent createOrthographic(float iSize, float iAspect, float iNear, float iFar, bool iUseReverseZ = true);
+  static CameraComponent createPerspective(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f);
+  static CameraComponent createOrthographic(float iSize, float iAspect, float iNear, float iFar);
 
   // Mutators & Recalculation
   void updateProjection();

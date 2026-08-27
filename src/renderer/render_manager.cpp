@@ -104,7 +104,7 @@ void RenderManager::drawScene(Registry* iRegistry) {
   depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
   depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-  depthAttachmentInfo.clearValue.depthStencil = {1.0f, 0};
+  depthAttachmentInfo.clearValue.depthStencil = {0.0f, 0};
 
   VkRenderingInfo renderingInfo{};
   renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;

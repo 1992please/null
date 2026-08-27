@@ -237,11 +237,10 @@ NE_TEST_CASE("ecs", "In-Place Component Constructor Overload Dispatch") {
   NE_TEST_ASSERT(transform.getRotation().equals(rot), "Rotation forwarded correctly.");
   NE_TEST_ASSERT(transform.getScale().equals(Vec3(2.0f, 2.0f, 2.0f)), "Scale forwarded correctly.");
 
-  // 2. CameraComponent with (fov, aspect, near, far, reverseZ)
+  // 2. CameraComponent with (fov, aspect, near, far)
   Entity e2 = registry.createEntity();
-  auto& camera = registry.addComponent<CameraComponent>(e2, 60.0f, 16.0f / 9.0f, 0.5f, 500.0f, false);
+  auto& camera = registry.addComponent<CameraComponent>(e2, 60.0f, 16.0f / 9.0f, 0.5f, 500.0f);
   NE_TEST_ASSERT(math::equals(camera.mFovDeg, 60.0f), "Camera FOV forwarded correctly.");
-  NE_TEST_ASSERT(!camera.mUseReverseZ, "Camera reverse-Z flag forwarded correctly.");
   NE_TEST_ASSERT(!camera.mProjectionMatrix.equals(Mat4::Identity), "Projection matrix initialized immediately on construction.");
 }
 

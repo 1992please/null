@@ -10,7 +10,10 @@ class Renderer;
 
 class Pipeline {
 public:
-  enum DepthMode { DM_Disabled, DM_Standard, DM_ReverseZ };
+  // DM_Disabled (for UI / 2D overlays)
+  // DM_ReadWrite (internally maps to VK_COMPARE_OP_GREATER_OR_EQUAL)
+  // DM_ReadOnly (for post-passes or transparents or decals)
+  enum DepthMode { DM_Disabled, DM_ReadWrite, DM_ReadOnly };
   enum StencilMode { SM_Disabled, SM_Enabled };
 
   struct Config {
@@ -18,7 +21,7 @@ public:
     std::vector<VkVertexInputBindingDescription> mVertexBindingDescriptions;
     std::vector<VkVertexInputAttributeDescription> mVertexAttributeDescriptions;
     std::vector<VkPushConstantRange> mPushConstantRanges;
-    DepthMode mDepthMode = DM_Standard;
+    DepthMode mDepthMode = DM_ReadWrite;
     StencilMode mStencilMode = SM_Disabled;
   };
   Pipeline(Renderer* iRenderer, const Config& iConfig);
