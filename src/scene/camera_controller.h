@@ -9,17 +9,17 @@ class Window;
 
 class CameraController {
 public:
-  CameraController(float iMoveSpeed = 4.0f, float iLookSensitivity = 0.15f);
+  CameraController(float iMoveSpeed = 2.0f, float iLookSensitivity = 0.1f);
 
-  void update(const Window* iWindow, float iDeltaTime, TransformComponent& ioTransform);
+  void update(Window* iWindow, float iDeltaTime, TransformComponent& ioTransform);
 
 private:
-  float mMoveSpeed{4.0f};
-  float mLookSensitivity{0.15f};
+  float mMoveSpeed;
+  float mLookSensitivity;
 
   double mLastMouseX{0.0};
   double mLastMouseY{0.0};
-  bool mFirstMouse{true};
+  bool mWasLooking{false};
 };
 
 } // namespace ne

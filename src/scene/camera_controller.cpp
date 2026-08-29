@@ -7,32 +7,32 @@ namespace ne {
 CameraController::CameraController(float iMoveSpeed, float iLookSensitivity)
     : mMoveSpeed(iMoveSpeed), mLookSensitivity(iLookSensitivity) {}
 
-void CameraController::update(const Window* iWindow, float iDeltaTime, TransformComponent& ioTransform) {
+void CameraController::update(Window* iWindow, float iDeltaTime, TransformComponent& ioTransform) {
   if (!iWindow)
     return;
 
-  // 1. Mouse Look (Pitch & Yaw directly into TransformComponent Euler angles)
-  bool isLooking = iWindow->isMouseButtonPressed(MouseButton::Right) || iWindow->isMouseButtonPressed(MouseButton::Left);
+  // 1. Mouse Look
+  bool isLooking = iWindow->isMouseButtonPressed(MouseButton::Right);
   double currentX, currentY;
   iWindow->getCursorPos(&currentX, &currentY);
 
-  if (isLooking) {
-    if (!mFirstMouse) {
-      double deltaX = currentX - mLastMouseX;
-      double deltaY = currentY - mLastMouseY;
-
-      Vec3 euler = ioTransform.getEulerAngles();
-      euler.y = math::clamp(euler.y + static_cast<float>(deltaY) * mLookSensitivity, -89.0f, 89.0f); // Pitch
-      euler.z += static_cast<float>(deltaX) * mLookSensitivity;                                      // Yaw
-      euler.x = 0.0f;                                                                                // Keep roll zero
-
-      ioTransform.setEulerAngles(euler);
-    }
-    mFirstMouse = false;
-  } else {
-    mFirstMouse = true;
+  if (isLooking != mWasLooking) {
+    iWindow->setCursorMode(isLooking ? CursorMode::Disabled : CursorMode::Normal);
   }
 
+  if (isLooking && isLooking == mWasLooking) {
+    double deltaX = currentX - mLastMouseX;
+    double deltaY = currentY - mLastMouseY;
+
+    Vec3 euler = ioTransform.getEulerAngles();
+    euler.y = math::clamp(euler.y + static_cast<float>(deltaY) * mLookSensitivity, -89.0f, 89.0f); // Pitch
+    euler.z += static_cast<float>(deltaX) * mLookSensitivity;                                      // Yaw
+    euler.x = 0.0f;                                                                                // Keep roll zero
+
+    ioTransform.setEulerAngles(euler);
+  }
+
+  mWasLooking = isLooking;
   mLastMouseX = currentX;
   mLastMouseY = currentY;
 
