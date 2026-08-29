@@ -1,7 +1,7 @@
 #ifndef NE_BUILD_SHIPPING
 
 #include "tests/test_runner.h"
-#include "math/transform.h"
+#include "core/math/transform.h"
 #include "components/transform_component.h"
 #include "core/logger.h"
 

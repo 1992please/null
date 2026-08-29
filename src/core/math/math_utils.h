@@ -5,7 +5,7 @@
  * @brief Engine Scalar Math Utilities & Constants
  */
 
-#include "math/simd.h"
+#include "core/math/simd.h"
 #include <cmath>
 
 namespace ne::math {

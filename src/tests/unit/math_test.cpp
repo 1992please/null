@@ -1,8 +1,8 @@
 #ifndef NE_BUILD_SHIPPING
 
 #include "tests/test_runner.h"
-#include "math/math.h"
-#include "math/transform.h"
+#include "core/math/math.h"
+#include "core/math/transform.h"
 
 namespace ne::test {
 

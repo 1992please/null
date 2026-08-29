@@ -5,7 +5,7 @@
  * @brief Standalone 4D Vector struct and mathematical operations.
  */
 
-#include "math/vec3.h"
+#include "core/math/vec3.h"
 #include <string>
 
 namespace ne {

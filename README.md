@@ -65,11 +65,11 @@ null/
 ├── src/
 │   ├── apps/             # Application entrypoints (BasicApp)
 │   ├── components/       # ECS components (Camera, Transform, Mesh)
-│   ├── core/             # Logger, Assert, Events, ECS registry, Filesystem
+│   ├── core/             # Math (Vec, Mat4, Quat, Transform), Logger, Assert, Events, ECS, Filesystem
 │   ├── importers/        # glTF / asset importers
-│   ├── math/             # Vector, Matrix, Quaternion, Transform math
 │   ├── platform/         # Window abstraction & input handling
 │   ├── renderer/         # Vulkan RHI, buffers, pipeline, scene & render manager
+│   ├── scene/            # Scene systems (CameraSystem)
 │   └── tests/            # Automated unit testing suite
 ├── CMakeLists.txt        # Build system configuration
 └── CMakePresets.json     # Standardized build presets

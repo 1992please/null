@@ -5,9 +5,9 @@
  * @brief Quaternion rotation struct with (x, y, z, w) GPU shader & glTF component ordering.
  */
 
-#include "math/math_utils.h"
-#include "math/vec3.h"
-#include "math/mat4.h"
+#include "core/math/math_utils.h"
+#include "core/math/vec3.h"
+#include "core/math/mat4.h"
 #include <string>
 
 namespace ne {

@@ -5,7 +5,7 @@
  * @brief Standalone 2D Vector struct and mathematical operations.
  */
 
-#include "math/math_utils.h"
+#include "core/math/math_utils.h"
 #include <string>
 
 namespace ne {

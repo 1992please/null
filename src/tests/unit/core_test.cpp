@@ -5,7 +5,7 @@
 #include "core/event.h"
 #include "core/filesystem.h"
 #include "core/platform.h"
-#include "math/math.h"
+#include "core/math/math.h"
 
 namespace ne::test {
 

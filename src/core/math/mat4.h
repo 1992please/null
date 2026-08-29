@@ -5,8 +5,8 @@
  * @brief Pure 4x4 Linear Algebra Matrix struct.
  */
 
-#include "math/vec3.h"
-#include "math/vec4.h"
+#include "core/math/vec3.h"
+#include "core/math/vec4.h"
 #include <string>
 
 namespace ne {

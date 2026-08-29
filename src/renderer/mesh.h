@@ -1,7 +1,7 @@
 #pragma once
 
 #include "renderer/buffer.h"
-#include "math/math.h"
+#include "core/math/math.h"
 #include <volk/volk.h>
 
 #include "core/mesh_data.h"

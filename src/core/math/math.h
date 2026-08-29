@@ -10,9 +10,9 @@
  *                  Right = Up x Forward  (+Y = +Z x +X)
  */
 
-#include "math/math_utils.h"
-#include "math/vec2.h"
-#include "math/vec3.h"
-#include "math/vec4.h"
-#include "math/mat4.h"
-#include "math/quat.h"
+#include "core/math/math_utils.h"
+#include "core/math/vec2.h"
+#include "core/math/vec3.h"
+#include "core/math/vec4.h"
+#include "core/math/mat4.h"
+#include "core/math/quat.h"

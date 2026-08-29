@@ -6,7 +6,7 @@
 #include "core/logger.h"
 #include "core/time.h"
 #include "importers/gltf_importer.h"
-#include "math/math.h"
+#include "core/math/math.h"
 #include "platform/window.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
