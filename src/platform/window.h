@@ -37,6 +37,7 @@ public:
   void getWindowSize(int32_t* oWidth, int32_t* oHeight) const;
   GLFWwindow* getGLFWwindow() const { return mWindow; }
   const char* getWindowName() const;
+  void setTitle(const std::string& iTitle);
   std::vector<const char*> getRequiredInstanceExtensions() const;
   VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface);
 

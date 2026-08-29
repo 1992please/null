@@ -81,23 +81,17 @@ null/
 
 ### Linux
 ```bash
-# Configure preset (debug | development | shipping)
+# Configure preset (debug | development | shipping) - first time only
 cmake --preset=debug
 
-# Build
-cmake --build --preset debug
-
-# Run Unit Tests
-./build/debug/bin/null_engine --run-tests
+# Build & Run Unit Tests (Single Command)
+cmake --build --preset debug && ./build/debug/bin/null_engine --run-tests
 ```
 
-### Windows
+### Windows (PowerShell)
 ```powershell
-# Build with debug preset
-.\build.ps1 -Preset debug
-
-# Run Unit Tests
-.\build\debug\bin\null_engine.exe --run-tests
+# Build & Run Unit Tests (Single Command)
+.\build.ps1 -Preset debug; .\build\debug\bin\null_engine.exe --run-tests
 ```
 
 > **Packaged Builds**: Configure with `-DNE_PACKAGED_BUILD=ON` to copy assets alongside the output binary.

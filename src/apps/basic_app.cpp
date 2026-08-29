@@ -4,13 +4,14 @@
 #include "components/transform_component.h"
 #include "core/defines.h"
 #include "core/logger.h"
+#include "core/math/math.h"
 #include "core/time.h"
 #include "importers/gltf_importer.h"
-#include "core/math/math.h"
 #include "platform/window.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/render_manager.h"
+#include <format>
 
 namespace ne {
 
@@ -28,7 +29,7 @@ void colorizeModel(ModelData& ioModel) {
 
 BasicApp::BasicApp() {
   Time::init();
-  mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
+  mWindow = std::make_unique<Window>(mWidth, mHeight, mBaseTitle);
 
   // Register Input Event Callbacks & store IDs for RAII unsubscription
   mKeyCallbackId = mWindow->addKeyCallback([](KeyCode key, int32_t scancode, InputAction action, KeyMods mods) {
@@ -147,6 +148,21 @@ void BasicApp::update(float iDeltaTime) {
 
   if (mRegistry->isValid(mHelmetEntity)) {
     mRegistry->getComponent<TransformComponent>(mHelmetEntity).setRotation(rotZ);
+  }
+
+  updateFPS(iDeltaTime);
+}
+
+void BasicApp::updateFPS(float iDeltaTime) {
+  mFpsTimer += iDeltaTime;
+  mFpsFrameCount++;
+
+  if (mFpsTimer >= 1.0f) {
+    const float fps = static_cast<float>(mFpsFrameCount) / mFpsTimer;
+    const float frameTimeMs = (mFpsTimer / static_cast<float>(mFpsFrameCount)) * 1000.0f;
+    mWindow->setTitle(std::format("{} - {:.1f} FPS ({:.2f} ms)", mBaseTitle, fps, frameTimeMs));
+    mFpsTimer = 0.0f;
+    mFpsFrameCount = 0;
   }
 }
 

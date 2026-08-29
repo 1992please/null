@@ -28,6 +28,8 @@ public:
   void runForFrames(size_t iFrameCount = 1);
 
 private:
+  void updateFPS(float iDeltaTime);
+
   std::unique_ptr<Window> mWindow;
   std::unique_ptr<RenderManager> mRenderManager;
   std::unique_ptr<Registry> mRegistry;
@@ -45,5 +47,10 @@ private:
   std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;
   std::shared_ptr<Material> mMaterial;
   float mCurrentRotationAngle{0.0f};
+
+  // FPS tracking
+  float mFpsTimer{0.0f};
+  uint32_t mFpsFrameCount{0};
+  std::string mBaseTitle{"Basic App (MDI Showcase)"};
 };
 } // namespace ne

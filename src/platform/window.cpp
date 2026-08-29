@@ -41,6 +41,8 @@ void Window::waitEvents() { glfwWaitEvents(); }
 
 const char* Window::getWindowName() const { return glfwGetWindowTitle(mWindow); }
 
+void Window::setTitle(const std::string& iTitle) { glfwSetWindowTitle(mWindow, iTitle.c_str()); }
+
 bool Window::shouldClose() const { return glfwWindowShouldClose(mWindow); }
 
 void Window::getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const { glfwGetFramebufferSize(mWindow, oWidth, oHeight); }
