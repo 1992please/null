@@ -31,30 +31,6 @@ BasicApp::BasicApp() {
   Time::init();
   mWindow = std::make_unique<Window>(mWidth, mHeight, mBaseTitle);
 
-  // Register Input Event Callbacks & store IDs for RAII unsubscription
-  mKeyCallbackId = mWindow->addKeyCallback([](KeyCode key, int32_t scancode, InputAction action, KeyMods mods) {
-    NE_UNUSED(scancode);
-    NE_UNUSED(mods);
-    NE_UNUSED(key);
-    if (action == InputAction::Press) {
-      NE_LOG("Key Pressed: {}", static_cast<int16_t>(key));
-    }
-  });
-
-  mMouseButtonCallbackId = mWindow->addMouseButtonCallback([](MouseButton button, InputAction action, KeyMods mods) {
-    NE_UNUSED(mods);
-    NE_UNUSED(button);
-    if (action == InputAction::Press) {
-      NE_LOG("Mouse Button Pressed: {}", static_cast<uint8_t>(button));
-    }
-  });
-
-  mScrollCallbackId = mWindow->addScrollCallback([](double xoffset, double yoffset) {
-    NE_UNUSED(xoffset);
-    NE_UNUSED(yoffset);
-    NE_LOG("Mouse Scroll Offset: ({}, {})", xoffset, yoffset);
-  });
-
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
   mRegistry = std::make_unique<Registry>();
 
@@ -112,18 +88,10 @@ BasicApp::BasicApp() {
 }
 
 BasicApp::~BasicApp() {
-  if (mWindow) {
-    if (mKeyCallbackId != 0)
-      mWindow->removeKeyCallback(mKeyCallbackId);
-    if (mMouseButtonCallbackId != 0)
-      mWindow->removeMouseButtonCallback(mMouseButtonCallbackId);
-    if (mScrollCallbackId != 0)
-      mWindow->removeScrollCallback(mScrollCallbackId);
-  }
 }
 
 void BasicApp::update(float iDeltaTime) {
-  // 1. Update Camera Aspect Ratio
+  // 1. Update Camera Aspect Ratio & Controller
   int32_t width, height;
   mWindow->getFrameBufferSize(&width, &height);
   if (width > 0 && height > 0 && mRegistry->isValid(mCameraEntity)) {
@@ -132,6 +100,7 @@ void BasicApp::update(float iDeltaTime) {
     if (std::abs(cam.mAspectRatio - aspect) > 1e-4f) {
       cam.setPerspective(cam.mFovDeg, aspect, cam.mNearClip, cam.mFarClip);
     }
+    mCameraController.update(mWindow.get(), iDeltaTime, mRegistry->getComponent<TransformComponent>(mCameraEntity));
   }
 
   // 2. Animate Entity Transforms

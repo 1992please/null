@@ -3,6 +3,7 @@
 #include "apps/application.h"
 #include "core/ecs.h"
 #include "core/event.h"
+#include "scene/camera_controller.h"
 #include <memory>
 #include <vector>
 
@@ -39,9 +40,7 @@ private:
   Entity mCubeEntity2{NullEntity};
   Entity mHelmetEntity{NullEntity};
 
-  CallbackId mKeyCallbackId{0};
-  CallbackId mMouseButtonCallbackId{0};
-  CallbackId mScrollCallbackId{0};
+  CameraController mCameraController;
 
   // Showcase assets
   std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;

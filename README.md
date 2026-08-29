@@ -25,7 +25,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Camera & Transform Math**: Projection matrix generator (Perspective, Orthographic, Reverse-Z, Infinite Far) and TRS `TransformComponent` with dirty caching.
 - [x] **Scene & ECS Integration**: Connect `CameraComponent` and `TransformComponent` to `Registry` and `RenderManager`.
 - [x] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
-- [ ] **OrbitCameraSystem**: Interactive Arcball rotation, smooth panning, and scroll zooming.
+- [x] **CameraController**: Interactive Free-Fly camera (WASD + QE + Mouse Look) driving `TransformComponent`.
 - [ ] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
 
 ### Step 3: Materials & Bindless Resources

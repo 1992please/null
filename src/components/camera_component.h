@@ -9,28 +9,11 @@ namespace ne {
  * @struct CameraComponent
  * @brief Manages camera lens, frustum parameters, and projection matrix generation.
  *
- * Designed for left-handed Unreal Engine coordinate conventions (+X Forward, +Y Right, +Z Up).
+ * Designed for left-handed coordinate conventions (+X Forward, +Y Right, +Z Up).
  * Supports Reverse-Z, and Infinite Far Clip perspective and orthographic projections.
  */
 struct CameraComponent {
   enum class ProjectionType { Perspective, Orthographic };
-
-  ProjectionType mProjectionType{ProjectionType::Perspective};
-
-  // Lens Parameters
-  float mFovDeg{45.0f};             // Vertical Field of View in degrees
-  float mAspectRatio{16.0f / 9.0f};  // Viewport Width / Height
-  float mNearClip{0.1f};
-  float mFarClip{1000.0f};
-  float mOrthoSize{5.0f};           // Vertical size for orthographic camera
-
-  // Frustum Flags
-  bool mInfiniteFarClip{false};     // Infinite far plane projection
-  bool mIsPrimary{true};            // Main rendering camera
-
-  // Cached Projection Matrices
-  Mat4 mProjectionMatrix{1.0f};
-  Mat4 mInverseProjectionMatrix{1.0f};
 
   CameraComponent();
   CameraComponent(float iFovDeg, float iAspect, float iNear = 0.1f, float iFar = 1000.0f);
@@ -66,6 +49,23 @@ struct CameraComponent {
   Mat4 getViewProjectionMatrix(const TransformComponent& iTransform) const {
     return mProjectionMatrix * getViewMatrix(iTransform);
   }
+
+  ProjectionType mProjectionType{ProjectionType::Perspective};
+
+  // Lens Parameters
+  float mFovDeg{45.0f};             // Vertical Field of View in degrees
+  float mAspectRatio{16.0f / 9.0f};  // Viewport Width / Height
+  float mNearClip{0.1f};
+  float mFarClip{1000.0f};
+  float mOrthoSize{5.0f};           // Vertical size for orthographic camera
+
+  // Frustum Flags
+  bool mInfiniteFarClip{false};     // Infinite far plane projection
+  bool mIsPrimary{true};            // Main rendering camera
+
+  // Cached Projection Matrices
+  Mat4 mProjectionMatrix{1.0f};
+  Mat4 mInverseProjectionMatrix{1.0f};
 };
 
 } // namespace ne
