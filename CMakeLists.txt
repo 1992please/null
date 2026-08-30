@@ -16,34 +16,36 @@ set(CompiledShaderRelDir "compiled_shaders")
 set(BinShaderDir "${BinDir}/${CompiledShaderRelDir}")
 
 # ----------------------------------------------------------------------
+# Thirdparty
+# ----------------------------------------------------------------------
 # Vulkan
 find_package(Vulkan REQUIRED COMPONENTS volk)
 find_program(Vulkan_SLANGC_EXECUTABLE slangc HINTS $ENV{VULKAN_SDK}/bin REQUIRED)
 message(STATUS "slang: ${Vulkan_SLANGC_EXECUTABLE}")
 
-# ----------------------------------------------------------------------
 # GLFW
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory("${ThirdPartyDir}/glfw")
 
-# ----------------------------------------------------------------------
 # cgltf
 add_subdirectory("${ThirdPartyDir}/cgltf")
 
-# ----------------------------------------------------------------------
 # spdlog
-add_library(spdlog INTERFACE)
-target_include_directories(spdlog INTERFACE "${ThirdPartyDir}/spdlog")
+add_subdirectory("${ThirdPartyDir}/spdlog")
+
+# Dear ImGui
+add_subdirectory("${ThirdPartyDir}/imgui")
 
 # ----------------------------------------------------------------------
-# The Engine
+# The Main App
+# ----------------------------------------------------------------------
 add_executable(${EngineTarget})
 
 file(GLOB_RECURSE ENGINE_SOURCE_FILES
   LIST_DIRECTORIES false
-  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} 
+  RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
   src/*.h src/*.cpp
 )
 
@@ -54,7 +56,7 @@ file(GLOB_RECURSE ENGINE_SHADERS
 )
 
 if(MSVC)
-    string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # Disable Exceptions
+  string(REGEX REPLACE "/EH[a-z]+" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}") # Disable Exceptions
 endif()
 
 target_sources(${EngineTarget} PRIVATE ${ENGINE_SOURCE_FILES} ${ENGINE_SHADERS})
@@ -65,6 +67,7 @@ target_link_libraries(${EngineTarget} PRIVATE
   glfw
   cgltf
   spdlog
+  imgui
 )
 target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CONFIG:Debug>:NE_BUILD_DEBUG>
@@ -82,22 +85,21 @@ target_compile_definitions(${EngineTarget} PRIVATE
   NE_SHADER_DIR="${CompiledShaderRelDir}"
 
   # Disable Exceptions
-  $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0> 
-  SPDLOG_NO_EXCEPTIONS
+  $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0>
 
   VK_NO_PROTOTYPES
 )
 
 target_compile_options(${EngineTarget} PRIVATE
-    $<$<CXX_COMPILER_ID:MSVC>:/W4 /utf-8 /Zc:preprocessor /MP>
-    $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall;-Wextra;-Wpedantic;-fno-exceptions>
+  $<$<CXX_COMPILER_ID:MSVC>:/W4 /utf-8 /Zc:preprocessor /MP>
+  $<$<OR:$<CXX_COMPILER_ID:GNU>,$<CXX_COMPILER_ID:Clang>>:-Wall;-Wextra;-Wpedantic;-fno-exceptions>
 )
 
 set_target_properties(${EngineTarget} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${BinDir})
 
 # ----------------------------------------------------------------------
 # Shaders
-
+# ----------------------------------------------------------------------
 file(MAKE_DIRECTORY ${BinShaderDir})
 set(CompiledShaders "")
 
@@ -121,8 +123,8 @@ foreach(shader_file ${ENGINE_SHADERS})
 endforeach()
 
 add_custom_target(
-	Shaders
-	DEPENDS ${CompiledShaders}
+ Shaders
+ DEPENDS ${CompiledShaders}
 )
 
 add_dependencies(${EngineTarget} Shaders)
@@ -140,6 +142,7 @@ endif()
 
 # ----------------------------------------------------------------------
 # Visual Studio
+# ----------------------------------------------------------------------
 if(MSVC)
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${EngineTarget})
   set_property(TARGET ${EngineTarget} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${BinDir})
