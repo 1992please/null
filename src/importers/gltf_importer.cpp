@@ -3,7 +3,7 @@
 #include "core/filesystem.h"
 #include "core/logger.h"
 
-#include <cgltf/cgltf.h>
+#include <cgltf.h>
 
 namespace ne {
 
