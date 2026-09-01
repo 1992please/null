@@ -83,6 +83,7 @@ target_compile_definitions(${EngineTarget} PRIVATE
   # Asset referencing configuration
   NE_CONTENT_DIR="$<IF:$<BOOL:${NE_PACKAGED_BUILD}>,content,../../../content>"
   NE_SHADER_DIR="${CompiledShaderRelDir}"
+  NE_SAVED_DIR="saved"
 
   # Disable Exceptions
   $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0>

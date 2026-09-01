@@ -103,7 +103,7 @@ void Renderer::createInstance() {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = mEngineName.c_str();
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = VK_API_VERSION_1_4;
+  appInfo.apiVersion = API_VERSION;
 
   // Get all the supported instance extensions
   uint32_t availableExtensionCount = 0;

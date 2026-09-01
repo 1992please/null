@@ -10,6 +10,7 @@
 #include <vector>
 
 struct GLFWwindow;
+struct GLFWmonitor;
 
 namespace ne {
 
@@ -36,6 +37,7 @@ public:
   void getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const;
   void getWindowSize(int32_t* oWidth, int32_t* oHeight) const;
   GLFWwindow* getGLFWwindow() const { return mWindow; }
+  GLFWmonitor* getPrimaryMonitor() const;
   const char* getWindowName() const;
   void setTitle(const std::string& iTitle);
   std::vector<const char*> getRequiredInstanceExtensions() const;

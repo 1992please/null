@@ -49,6 +49,10 @@ void Window::getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const { glfwG
 
 void Window::getWindowSize(int32_t* oWidth, int32_t* oHeight) const { glfwGetWindowSize(mWindow, oWidth, oHeight); }
 
+GLFWmonitor* Window::getPrimaryMonitor() const {
+  return glfwGetPrimaryMonitor();
+}
+
 std::vector<const char*> Window::getRequiredInstanceExtensions() const {
   uint32_t count = 0;
   const char** extensions = glfwGetRequiredInstanceExtensions(&count);

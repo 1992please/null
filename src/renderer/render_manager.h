@@ -4,6 +4,7 @@
 #include <volk/volk.h>
 
 // std
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@ class Mesh;
 class Pipeline;
 class Material;
 class Registry;
+class ImGuiManager;
 
 class RenderManager {
 public:
@@ -30,12 +32,12 @@ public:
   // Getters
   Renderer* getRenderer() const { return mRenderer.get(); }
   GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
+  ImGuiManager* getImGuiManager() const { return mImGuiManager.get(); }
 
   // Forwarding lifecycle methods
   void waitIdle();
 
-  // Drawing Interface (Dynamic command recording)
-  void drawScene(Registry* iRegistry);
+  void drawScene(Registry* iRegistry, const std::function<void()>& iGuiCallback = nullptr);
 
   // Pipeline/Material Creation
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName);
@@ -57,6 +59,7 @@ private:
 
   std::unique_ptr<Renderer> mRenderer;
   std::unique_ptr<GeometryAllocator> mGeometryAllocator;
+  std::unique_ptr<ImGuiManager> mImGuiManager;
   std::vector<DrawCall> mDrawCalls;
 };
 

@@ -29,7 +29,7 @@ void colorizeModel(ModelData& ioModel) {
 
 BasicApp::BasicApp() {
   Time::init();
-  mWindow = std::make_unique<Window>(mWidth, mHeight, mBaseTitle);
+  mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
 
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
   mRegistry = std::make_unique<Registry>();
@@ -87,8 +87,7 @@ BasicApp::BasicApp() {
   }
 }
 
-BasicApp::~BasicApp() {
-}
+BasicApp::~BasicApp() {}
 
 void BasicApp::update(float iDeltaTime) {
   // 1. Update Camera Aspect Ratio & Controller
@@ -119,23 +118,15 @@ void BasicApp::update(float iDeltaTime) {
     mRegistry->getComponent<TransformComponent>(mHelmetEntity).setRotation(rotZ);
   }
 
-  updateFPS(iDeltaTime);
+  mCurrentFrameTime = iDeltaTime;
+  mCurrentFPS = mCurrentFrameTime > 0 ? 1 / mCurrentFrameTime : 0;
 }
 
-void BasicApp::updateFPS(float iDeltaTime) {
-  mFpsTimer += iDeltaTime;
-  mFpsFrameCount++;
-
-  if (mFpsTimer >= 1.0f) {
-    const float fps = static_cast<float>(mFpsFrameCount) / mFpsTimer;
-    const float frameTimeMs = (mFpsTimer / static_cast<float>(mFpsFrameCount)) * 1000.0f;
-    mWindow->setTitle(std::format("{} - {:.1f} FPS ({:.2f} ms)", mBaseTitle, fps, frameTimeMs));
-    mFpsTimer = 0.0f;
-    mFpsFrameCount = 0;
-  }
+void BasicApp::render() {
+  mRenderManager->drawScene(mRegistry.get(), [this]() {
+    mDemoUI.render(mCurrentFPS, mCurrentFrameTime);
+  });
 }
-
-void BasicApp::render() { mRenderManager->drawScene(mRegistry.get()); }
 
 void BasicApp::stepFrame() {
   Time::tick();

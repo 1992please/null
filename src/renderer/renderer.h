@@ -33,9 +33,16 @@ public:
   void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0,
                   VkDeviceSize dstOffset = 0);
 
+  uint32_t getApiVersion() const { return API_VERSION; }
+
   VkDevice getDevice() const { return mDevice; }
+  VkInstance getInstance() const { return mInstance; }
+  VkQueue getQueue() const { return mQueue; }
+  uint32_t getQueueFamilyIndex() const { return mPhysicalDeviceQueueIndex; }
   const VkSurfaceFormatKHR& getSwapChainSurfaceFormat() const { return mSwapChainSurfaceFormat; }
   VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
+  const VkPhysicalDeviceProperties& getPhysicalDeviceProperties() const { return mPhysicalDeviceProperties; }
+  size_t getSwapChainImageCount() const { return mSwapChainImages.size(); }
 
   Buffer* getUploadBuffer() const { return mFrames[mFrameIndex].mUploadBuffer.get(); }
   void recreateUploadBuffer(VkDeviceSize newSize);
@@ -86,6 +93,8 @@ private:
 
   VkFormat findDepthFormat();
   VkFormat findSupportedFormat(const std::vector<VkFormat>& iCandidates, VkImageTiling iTiling, VkFormatFeatureFlags iFeatures);
+
+  static constexpr uint32_t API_VERSION = VK_API_VERSION_1_4;
 
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
   const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};

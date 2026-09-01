@@ -12,4 +12,8 @@ std::string resolveShaderPath(const std::string& iShaderName) {
   return (std::filesystem::path(platform::getExecutableDirectory()) / NE_SHADER_DIR / (iShaderName + ".spv")).string();
 }
 
+std::string resolveSavedPath(const std::string& iRelativePath) {
+  return (std::filesystem::path(platform::getExecutableDirectory()) / NE_SAVED_DIR / iRelativePath).string();
+}
+
 } // namespace ne::fs

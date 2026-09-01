@@ -26,7 +26,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Scene & ECS Integration**: Connect `CameraComponent` and `TransformComponent` to `Registry` and `RenderManager`.
 - [x] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
 - [x] **CameraController**: Interactive Free-Fly camera (WASD + QE + Mouse Look) driving `TransformComponent`.
-- [ ] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
+- [x] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
 
 ### Step 3: Materials & Bindless Resources
 - [ ] **Push Descriptors**: Integrate `VK_EXT_push_descriptors` / push constants for transient per-draw data.
