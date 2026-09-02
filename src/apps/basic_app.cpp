@@ -8,6 +8,7 @@
 #include "core/time.h"
 #include "importers/gltf_importer.h"
 #include "platform/window.h"
+#include "renderer/imgui_manager.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/render_manager.h"
@@ -32,6 +33,7 @@ BasicApp::BasicApp() {
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
 
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
+  mImGuiManager = std::make_unique<ImGuiManager>(mWindow.get(), mRenderManager->getRenderer());
   mRegistry = std::make_unique<Registry>();
 
   // 1. CPU import phase (relative to content folder)
@@ -85,6 +87,13 @@ BasicApp::BasicApp() {
     mRegistry->addComponent<TransformComponent>(mHelmetEntity, Vec3(0.0f, -1.5f, -0.5f));
     mRegistry->addComponent<MeshComponent>(mHelmetEntity, mLoadedMeshes[1], mMaterial, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
   }
+
+  // 4. Register Global Hotkeys
+  mWindow->addKeyCallback([this](KeyCode key, int32_t, InputAction action, KeyMods) {
+    if (key == KeyCode::F1 && action == InputAction::Press) {
+      mShowUI = !mShowUI;
+    }
+  });
 }
 
 BasicApp::~BasicApp() {}
@@ -99,10 +108,17 @@ void BasicApp::update(float iDeltaTime) {
     if (std::abs(cam.mAspectRatio - aspect) > 1e-4f) {
       cam.setPerspective(cam.mFovDeg, aspect, cam.mNearClip, cam.mFarClip);
     }
-    mCameraController.update(mWindow.get(), iDeltaTime, mRegistry->getComponent<TransformComponent>(mCameraEntity));
+
+    bool isUiConsumingInput = mShowUI && mImGuiManager &&
+                              (mImGuiManager->wantsCaptureMouse() || mImGuiManager->wantsCaptureKeyboard());
+
+    if (!isUiConsumingInput) {
+      mCameraController.update(mWindow.get(), Time::getUnscaledDeltaTime(),
+                               mRegistry->getComponent<TransformComponent>(mCameraEntity));
+    }
   }
 
-  // 2. Animate Entity Transforms
+  // 2. Animate Entity Transforms (driven by scaled simulation time)
   mCurrentRotationAngle += math::radians(30.0f) * iDeltaTime;
   Quat rotZ = Quat::angleAxis(mCurrentRotationAngle, Vec3(0.0f, 0.0f, 1.0f));
 
@@ -118,14 +134,14 @@ void BasicApp::update(float iDeltaTime) {
     mRegistry->getComponent<TransformComponent>(mHelmetEntity).setRotation(rotZ);
   }
 
-  mCurrentFrameTime = iDeltaTime;
-  mCurrentFPS = mCurrentFrameTime > 0 ? 1 / mCurrentFrameTime : 0;
 }
 
 void BasicApp::render() {
-  mRenderManager->drawScene(mRegistry.get(), [this]() {
-    mDemoUI.render(mCurrentFPS, mCurrentFrameTime);
-  });
+  mImGuiManager->beginFrame();
+  mMainMenu.draw(*this);
+  mImGuiManager->endFrame();
+
+  mRenderManager->draw(mRegistry.get(), mImGuiManager.get());
 }
 
 void BasicApp::stepFrame() {

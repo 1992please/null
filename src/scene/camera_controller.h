@@ -13,6 +13,12 @@ public:
 
   void update(Window* iWindow, float iDeltaTime, TransformComponent& ioTransform);
 
+  float getMoveSpeed() const { return mMoveSpeed; }
+  void setMoveSpeed(float iSpeed) { mMoveSpeed = iSpeed; }
+
+  float getLookSensitivity() const { return mLookSensitivity; }
+  void setLookSensitivity(float iSensitivity) { mLookSensitivity = iSensitivity; }
+
 private:
   float mMoveSpeed;
   float mLookSensitivity;

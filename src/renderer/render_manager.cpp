@@ -38,11 +38,9 @@ RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, co
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
   mGeometryAllocator =
       std::make_unique<GeometryAllocator>(mRenderer.get(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
-  mImGuiManager = std::make_unique<ImGuiManager>(iWindow, mRenderer.get());
 }
 
 RenderManager::~RenderManager() {
-  mImGuiManager.reset();
   mGeometryAllocator.reset();
   mRenderer.reset();
 }
@@ -65,17 +63,9 @@ std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShad
   return std::make_shared<Material>(pipeline);
 }
 
-void RenderManager::drawScene(Registry* iRegistry, const std::function<void()>& iGuiCallback) {
+void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   if (!iRegistry) {
     return;
-  }
-
-  // 1. Begin ImGui Frame & Record UI Commands
-  if (mImGuiManager) {
-    mImGuiManager->beginFrame();
-    if (iGuiCallback) {
-      iGuiCallback();
-    }
   }
 
   VkCommandBuffer commandBuffer = mRenderer->beginFrame();
@@ -163,8 +153,8 @@ void RenderManager::drawScene(Registry* iRegistry, const std::function<void()>& 
   submit(commandBuffer, viewProj);
 
   // 4. Render ImGui Overlay
-  if (mImGuiManager) {
-    mImGuiManager->endFrame(commandBuffer);
+  if (iGuiManager) {
+    iGuiManager->draw(commandBuffer);
   }
 
   // 5. End Swapchain Render Pass

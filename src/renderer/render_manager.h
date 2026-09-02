@@ -32,12 +32,11 @@ public:
   // Getters
   Renderer* getRenderer() const { return mRenderer.get(); }
   GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
-  ImGuiManager* getImGuiManager() const { return mImGuiManager.get(); }
 
   // Forwarding lifecycle methods
   void waitIdle();
 
-  void drawScene(Registry* iRegistry, const std::function<void()>& iGuiCallback = nullptr);
+  void draw(Registry* iRegistry, ImGuiManager* iGuiManager = nullptr);
 
   // Pipeline/Material Creation
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName);
@@ -59,7 +58,6 @@ private:
 
   std::unique_ptr<Renderer> mRenderer;
   std::unique_ptr<GeometryAllocator> mGeometryAllocator;
-  std::unique_ptr<ImGuiManager> mImGuiManager;
   std::vector<DrawCall> mDrawCalls;
 };
 

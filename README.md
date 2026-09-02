@@ -27,6 +27,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
 - [x] **CameraController**: Interactive Free-Fly camera (WASD + QE + Mouse Look) driving `TransformComponent`.
 - [x] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
+- [x] **Simulation Time Controls & UI Toggle**: Scalable `timeScale` (0x-3x), unscaled frame metrics, UI input isolation, and `F1` overlay toggle.
 
 ### Step 3: Materials & Bindless Resources
 - [ ] **Push Descriptors**: Integrate `VK_EXT_push_descriptors` / push constants for transient per-draw data.
@@ -34,6 +35,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
 
 ### Step 4: GPU-Driven Pipeline & Optimization
+- [ ] **Offscreen Viewport & Multi-View Panels**: Render 3D scene to an offscreen HDR/SDR `VkImage` target displayed via `ImGui::Image` inside a dedicated Viewport panel with dynamic aspect-ratio resizing.
 - [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
 - [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
 - [ ] **Context-Driven Encoder Pattern**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability.

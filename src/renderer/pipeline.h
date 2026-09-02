@@ -36,7 +36,7 @@ public:
   VkPipelineLayout getPipelineLayout() const { return mPipelineLayout; }
 
 private:
-  [[nodiscard]] VkShaderModule createShaderModule(const std::string& iFilename);
+  VkShaderModule createShaderModule(const std::string& iFilename);
 
   VkDevice mDevice = VK_NULL_HANDLE;
   VkPipeline mGraphicsPipeline = VK_NULL_HANDLE;

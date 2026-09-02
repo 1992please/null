@@ -32,6 +32,7 @@ public:
   Window& operator=(const Window&) = delete;
 
   bool shouldClose() const;
+  void setShouldClose(bool iClose = true);
   void processEvents();
   void waitEvents();
   void getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const;

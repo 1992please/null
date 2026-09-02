@@ -1,7 +1,7 @@
 #pragma once
 
 #include "apps/application.h"
-#include "apps/demo_ui.h"
+#include "apps/main_menu.h"
 #include "core/ecs.h"
 #include "core/event.h"
 #include "scene/camera_controller.h"
@@ -12,6 +12,7 @@ namespace ne {
 
 class Window;
 class RenderManager;
+class ImGuiManager;
 class Mesh;
 class Material;
 
@@ -29,9 +30,18 @@ public:
   void stepFrame();
   void runForFrames(size_t iFrameCount = 1);
 
+  // UI & Inspection Accessors
+  Registry* getRegistry() const { return mRegistry.get(); }
+  Window* getWindow() const { return mWindow.get(); }
+  Entity getCameraEntity() const { return mCameraEntity; }
+  CameraController& getCameraController() { return mCameraController; }
+  bool isUIShown() const { return mShowUI; }
+  void setShowUI(bool iShow) { mShowUI = iShow; }
+
 private:
   std::unique_ptr<Window> mWindow;
   std::unique_ptr<RenderManager> mRenderManager;
+  std::unique_ptr<ImGuiManager> mImGuiManager;
   std::unique_ptr<Registry> mRegistry;
 
   Entity mCameraEntity{NullEntity};
@@ -47,10 +57,7 @@ private:
   float mCurrentRotationAngle{0.0f};
 
   // Modular UI
-  DemoUI mDemoUI;
-
-  // FPS tracking
-  float mCurrentFPS{0.0f};
-  float mCurrentFrameTime{0.0f};
+  MainMenu mMainMenu;
+  bool mShowUI{true};
 };
 } // namespace ne

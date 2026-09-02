@@ -88,7 +88,7 @@ private:
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
   void recreateSwapChain(bool iForceRecreate = false);
 
-  [[nodiscard]] VkCommandBuffer beginOneTimeCommand();
+  VkCommandBuffer beginOneTimeCommand();
   void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   VkFormat findDepthFormat();

@@ -19,7 +19,11 @@ public:
   ImGuiManager& operator=(ImGuiManager&&) = delete;
 
   void beginFrame();
-  void endFrame(VkCommandBuffer iCommandBuffer);
+  void endFrame();
+  void draw(VkCommandBuffer iCommandBuffer);
+
+  bool wantsCaptureMouse() const;
+  bool wantsCaptureKeyboard() const;
 
 private:
   void setupIO();

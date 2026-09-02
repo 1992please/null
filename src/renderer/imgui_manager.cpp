@@ -69,13 +69,23 @@ void ImGuiManager::beginFrame() {
   ImGui::NewFrame();
 }
 
-void ImGuiManager::endFrame(VkCommandBuffer iCommandBuffer) {
+void ImGuiManager::endFrame() {
   ImGui::Render();
+}
+
+void ImGuiManager::draw(VkCommandBuffer iCommandBuffer) {
   ImDrawData* drawData = ImGui::GetDrawData();
-  const bool isMinimized = (drawData->DisplaySize.x <= 0.0f || drawData->DisplaySize.y <= 0.0f);
-  if (!isMinimized) {
+  if (drawData && drawData->DisplaySize.x > 0.0f && drawData->DisplaySize.y > 0.0f) {
     ImGui_ImplVulkan_RenderDrawData(drawData, iCommandBuffer);
   }
+}
+
+bool ImGuiManager::wantsCaptureMouse() const {
+  return ImGui::GetIO().WantCaptureMouse;
+}
+
+bool ImGuiManager::wantsCaptureKeyboard() const {
+  return ImGui::GetIO().WantCaptureKeyboard;
 }
 
 void ImGuiManager::setupIO() {
