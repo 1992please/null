@@ -88,11 +88,24 @@ BasicApp::BasicApp() {
     mRegistry->addComponent<MeshComponent>(mHelmetEntity, mLoadedMeshes[1], mMaterial, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
   }
 
-  // 4. Register Global Hotkeys
-  mWindow->addKeyCallback([this](KeyCode key, int32_t, InputAction action, KeyMods) {
-    if (key == KeyCode::F1 && action == InputAction::Press) {
-      mShowUI = !mShowUI;
+  // 4. Register Delegated Input Callbacks
+  mWindow->addKeyCallback([this](KeyCode iKey, int32_t iScancode, InputAction iAction, KeyMods iMods) {
+    NE_UNUSED(iScancode);
+    if (mMainUI.onKey(iKey, iAction, iMods)) {
+      return;
     }
+    mCameraController.onKey(iKey, iAction, iMods);
+  });
+
+  mWindow->addMouseButtonCallback([this](MouseButton iButton, InputAction iAction, KeyMods iMods) {
+    if (mMainUI.onMouseButton(iButton, iAction, iMods)) {
+      return;
+    }
+    mCameraController.onMouseButton(mWindow.get(), iButton, iAction, iMods);
+  });
+
+  mWindow->addCursorPosCallback([this](double iXpos, double iYpos) {
+    mCameraController.onCursorPos(iXpos, iYpos);
   });
 }
 
@@ -109,13 +122,8 @@ void BasicApp::update(float iDeltaTime) {
       cam.setPerspective(cam.mFovDeg, aspect, cam.mNearClip, cam.mFarClip);
     }
 
-    bool isUiConsumingInput = mShowUI && mImGuiManager &&
-                              (mImGuiManager->wantsCaptureMouse() || mImGuiManager->wantsCaptureKeyboard());
-
-    if (!isUiConsumingInput) {
-      mCameraController.update(mWindow.get(), Time::getUnscaledDeltaTime(),
-                               mRegistry->getComponent<TransformComponent>(mCameraEntity));
-    }
+    mCameraController.update(Time::getUnscaledDeltaTime(),
+                             mRegistry->getComponent<TransformComponent>(mCameraEntity));
   }
 
   // 2. Animate Entity Transforms (driven by scaled simulation time)
@@ -138,7 +146,7 @@ void BasicApp::update(float iDeltaTime) {
 
 void BasicApp::render() {
   mImGuiManager->beginFrame();
-  mMainMenu.draw(*this);
+  mMainUI.draw(*this);
   mImGuiManager->endFrame();
 
   mRenderManager->draw(mRegistry.get(), mImGuiManager.get());

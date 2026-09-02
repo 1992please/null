@@ -1,7 +1,7 @@
 #pragma once
 
 #include "apps/application.h"
-#include "apps/main_menu.h"
+#include "apps/main_ui.h"
 #include "core/ecs.h"
 #include "core/event.h"
 #include "scene/camera_controller.h"
@@ -31,12 +31,13 @@ public:
   void runForFrames(size_t iFrameCount = 1);
 
   // UI & Inspection Accessors
+  float getFPS() const { return mCurrentFPS; }
+  float getFrameTime() const { return mCurrentFrameTime; }
   Registry* getRegistry() const { return mRegistry.get(); }
   Window* getWindow() const { return mWindow.get(); }
   Entity getCameraEntity() const { return mCameraEntity; }
   CameraController& getCameraController() { return mCameraController; }
-  bool isUIShown() const { return mShowUI; }
-  void setShowUI(bool iShow) { mShowUI = iShow; }
+  MainUI& getMainUI() { return mMainUI; }
 
 private:
   std::unique_ptr<Window> mWindow;
@@ -57,7 +58,10 @@ private:
   float mCurrentRotationAngle{0.0f};
 
   // Modular UI
-  MainMenu mMainMenu;
-  bool mShowUI{true};
+  MainUI mMainUI;
+
+  // FPS tracking
+  float mCurrentFPS{0.0f};
+  float mCurrentFrameTime{0.0f};
 };
 } // namespace ne

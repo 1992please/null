@@ -1,8 +1,9 @@
-#include "apps/main_menu.h"
+#include "apps/main_ui.h"
 #include "apps/basic_app.h"
 #include "components/camera_component.h"
 #include "components/transform_component.h"
 #include "core/ecs.h"
+#include "core/logger.h"
 #include "core/time.h"
 #include "platform/window.h"
 
@@ -10,7 +11,42 @@
 
 namespace ne {
 
-void MainMenu::draw(BasicApp& iApp) {
+bool MainUI::onKey(KeyCode iKey, InputAction iAction, KeyMods iMods) {
+  NE_UNUSED(iMods);
+
+  // 1. Global UI Toggle Hotkeys (F1 / Tab)
+  if (iAction == InputAction::Press && (iKey == KeyCode::F1 || iKey == KeyCode::Tab)) {
+    toggleVisible();
+    NE_LOG("UI Overlay visibility: {}", mVisible ? "Visible" : "Hidden");
+    return true;
+  }
+
+  // 2. Consume input if UI is visible and actively capturing keyboard (e.g. typing in a field)
+  if (mVisible && ImGui::GetIO().WantCaptureKeyboard) {
+    return true;
+  }
+
+  return false;
+}
+
+bool MainUI::onMouseButton(MouseButton iButton, InputAction iAction, KeyMods iMods) {
+  NE_UNUSED(iButton);
+  NE_UNUSED(iAction);
+  NE_UNUSED(iMods);
+
+  // Consume mouse click if UI is visible and actively interacting with a window
+  if (mVisible && ImGui::GetIO().WantCaptureMouse) {
+    return true;
+  }
+
+  return false;
+}
+
+void MainUI::draw(BasicApp& iApp) {
+  if (!mVisible) {
+    return;
+  }
+
   drawMainMenuBar(iApp);
 
   if (mShowDiagnostics) {
@@ -30,7 +66,7 @@ void MainMenu::draw(BasicApp& iApp) {
   }
 }
 
-void MainMenu::drawMainMenuBar(BasicApp& iApp) {
+void MainUI::drawMainMenuBar(BasicApp& iApp) {
   if (ImGui::BeginMainMenuBar()) {
     if (ImGui::BeginMenu("File")) {
       if (ImGui::MenuItem("Exit", "Alt+F4")) {
@@ -45,7 +81,10 @@ void MainMenu::drawMainMenuBar(BasicApp& iApp) {
       ImGui::MenuItem("Diagnostics / Stats", nullptr, &mShowDiagnostics);
       ImGui::MenuItem("Camera Controls", nullptr, &mShowCameraSettings);
       ImGui::Separator();
-      ImGui::MenuItem("Toggle UI Overlay", "F1", nullptr, false);
+      if (ImGui::MenuItem("Hide UI Overlay", "F1 / Tab")) {
+        mVisible = false;
+        NE_LOG("UI Overlay visibility: Hidden");
+      }
       ImGui::MenuItem("ImGui Demo Window", nullptr, &mShowDemoWindow);
       ImGui::EndMenu();
     }
@@ -79,7 +118,7 @@ void MainMenu::drawMainMenuBar(BasicApp& iApp) {
   }
 }
 
-void MainMenu::drawDiagnostics(BasicApp& iApp) {
+void MainUI::drawDiagnostics(BasicApp& iApp) {
   ImGui::SetNextWindowSize(ImVec2(340, 240), ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Diagnostics", &mShowDiagnostics)) {
     float currentFrameTime = Time::getUnscaledDeltaTime();
@@ -120,7 +159,7 @@ void MainMenu::drawDiagnostics(BasicApp& iApp) {
   ImGui::End();
 }
 
-void MainMenu::drawCameraSettings(BasicApp& iApp) {
+void MainUI::drawCameraSettings(BasicApp& iApp) {
   ImGui::SetNextWindowSize(ImVec2(360, 340), ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Camera Settings", &mShowCameraSettings)) {
     auto* reg = iApp.getRegistry();
@@ -183,7 +222,7 @@ void MainMenu::drawCameraSettings(BasicApp& iApp) {
   ImGui::End();
 }
 
-void MainMenu::resetCamera(BasicApp& iApp) {
+void MainUI::resetCamera(BasicApp& iApp) {
   if (auto* reg = iApp.getRegistry()) {
     Entity camEntity = iApp.getCameraEntity();
     if (reg->isValid(camEntity) && reg->hasComponent<TransformComponent>(camEntity)) {
@@ -194,7 +233,7 @@ void MainMenu::resetCamera(BasicApp& iApp) {
   }
 }
 
-void MainMenu::drawAboutModal() {
+void MainUI::drawAboutModal() {
   if (mShowAboutModal) {
     ImGui::OpenPopup("About Null Engine");
   }
@@ -219,8 +258,9 @@ void MainMenu::drawAboutModal() {
 
     ImGui::Text("Navigation & Controls:");
     ImGui::BulletText("Fly Camera: WASD + QE (Up/Down)");
+    ImGui::BulletText("Speed Boost: Hold Shift while flying");
     ImGui::BulletText("Mouse Look: Hold Right-Click + Move Mouse");
-    ImGui::BulletText("Toggle UI: F1 to hide/show menus and panels");
+    ImGui::BulletText("Toggle UI: F1 or Tab to hide/show menus and panels");
     ImGui::Spacing();
 
     ImGui::Separator();
