@@ -8,6 +8,7 @@
 #include "core/time.h"
 #include "importers/gltf_importer.h"
 #include "platform/window.h"
+#include "platform/input.h"
 #include "renderer/imgui_manager.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
@@ -33,6 +34,7 @@ BasicApp::BasicApp() {
   mWindow = std::make_unique<Window>(mWidth, mHeight, "Basic App (MDI Showcase)");
 
   mRenderManager = std::make_unique<RenderManager>(mWindow.get(), mEngineName, "Basic App Showcase");
+  Input::init(mWindow.get());
   mImGuiManager = std::make_unique<ImGuiManager>(mWindow.get(), mRenderManager->getRenderer());
   mRegistry = std::make_unique<Registry>();
 
@@ -87,29 +89,9 @@ BasicApp::BasicApp() {
     mRegistry->addComponent<TransformComponent>(mHelmetEntity, Vec3(0.0f, -1.5f, -0.5f));
     mRegistry->addComponent<MeshComponent>(mHelmetEntity, mLoadedMeshes[1], mMaterial, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
   }
-
-  // 4. Register Delegated Input Callbacks
-  mWindow->addKeyCallback([this](KeyCode iKey, int32_t iScancode, InputAction iAction, KeyMods iMods) {
-    NE_UNUSED(iScancode);
-    if (mMainUI.onKey(iKey, iAction, iMods)) {
-      return;
-    }
-    mCameraController.onKey(iKey, iAction, iMods);
-  });
-
-  mWindow->addMouseButtonCallback([this](MouseButton iButton, InputAction iAction, KeyMods iMods) {
-    if (mMainUI.onMouseButton(iButton, iAction, iMods)) {
-      return;
-    }
-    mCameraController.onMouseButton(mWindow.get(), iButton, iAction, iMods);
-  });
-
-  mWindow->addCursorPosCallback([this](double iXpos, double iYpos) {
-    mCameraController.onCursorPos(iXpos, iYpos);
-  });
 }
 
-BasicApp::~BasicApp() {}
+BasicApp::~BasicApp() = default;
 
 void BasicApp::update(float iDeltaTime) {
   // 1. Update Camera Aspect Ratio & Controller
@@ -145,16 +127,18 @@ void BasicApp::update(float iDeltaTime) {
 }
 
 void BasicApp::render() {
-  mImGuiManager->beginFrame();
-  mMainUI.draw(*this);
-  mImGuiManager->endFrame();
-
   mRenderManager->draw(mRegistry.get(), mImGuiManager.get());
 }
 
 void BasicApp::stepFrame() {
   Time::tick();
+  Input::beginFrame();
   mWindow->processEvents();
+
+  mImGuiManager->beginFrame();
+  mMainUI.draw(*this);
+  mImGuiManager->endFrame();
+
   update(Time::getDeltaTime());
   render();
 }

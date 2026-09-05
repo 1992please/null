@@ -5,7 +5,6 @@
 #include "platform/window.h"
 #include "renderer/renderer.h"
 
-#include <filesystem>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
@@ -92,10 +91,10 @@ void ImGuiManager::setupIO() {
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+  io.ConfigNavCaptureKeyboard = false;
 
   mIniPath = fs::resolveSavedPath("imgui.ini");
-  std::error_code ec;
-  std::filesystem::create_directories(std::filesystem::path(mIniPath).parent_path(), ec);
+  fs::ensureParentDirectoryExists(mIniPath);
   io.IniFilename = mIniPath.c_str();
 }
 

@@ -9,24 +9,13 @@ namespace ne {
 Window::Window(int32_t iWidth, int32_t iHeight, const std::string& iName) {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  // NOTE: NADER remove this when you support resizable
-  // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-  // make sure the window is floating for now
-  // #if defined(NE_PLATFORM_LINUX)
-  //   glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
-  // #endif
 
   mWindow = glfwCreateWindow(iWidth, iHeight, iName.c_str(), nullptr, nullptr);
   NE_LOG("Initialized GLFW and created window '{}' ({}x{})", iName, iWidth, iHeight);
 
   glfwSetWindowUserPointer(mWindow, this);
   glfwSetFramebufferSizeCallback(mWindow, framebufferResizeCallback);
-  glfwSetKeyCallback(mWindow, keyCallback);
-  glfwSetCharCallback(mWindow, charCallback);
-  glfwSetMouseButtonCallback(mWindow, mouseButtonCallback);
-  glfwSetCursorPosCallback(mWindow, cursorPosCallback);
-  glfwSetScrollCallback(mWindow, scrollCallback);
-  glfwSetCursorEnterCallback(mWindow, cursorEnterCallback);
+  glfwSetWindowFocusCallback(mWindow, windowFocusCallback);
 }
 
 Window::~Window() {
@@ -66,16 +55,6 @@ VkResult Window::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface)
   return glfwCreateWindowSurface(instance, mWindow, nullptr, surface);
 }
 
-bool Window::isKeyPressed(KeyCode key) const {
-  int state = glfwGetKey(mWindow, static_cast<int>(key));
-  return state == GLFW_PRESS || state == GLFW_REPEAT;
-}
-
-bool Window::isMouseButtonPressed(MouseButton button) const {
-  int state = glfwGetMouseButton(mWindow, static_cast<int>(button));
-  return state == GLFW_PRESS;
-}
-
 void Window::getCursorPos(double* oXpos, double* oYpos) const {
   glfwGetCursorPos(mWindow, oXpos, oYpos);
 }
@@ -88,6 +67,15 @@ void Window::setCursorMode(CursorMode mode) {
     case CursorMode::Disabled: glfwMode = GLFW_CURSOR_DISABLED; break;
   }
   glfwSetInputMode(mWindow, GLFW_CURSOR, glfwMode);
+  if (mode == CursorMode::Disabled) {
+    if (glfwRawMouseMotionSupported()) {
+      glfwSetInputMode(mWindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    }
+  } else {
+    if (glfwRawMouseMotionSupported()) {
+      glfwSetInputMode(mWindow, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+    }
+  }
 }
 
 void Window::framebufferResizeCallback(GLFWwindow* iGLFWindow, int iWidth, int iHeight) {
@@ -97,49 +85,11 @@ void Window::framebufferResizeCallback(GLFWwindow* iGLFWindow, int iWidth, int i
   }
 }
 
-void Window::keyCallback(GLFWwindow* iGLFWindow, int iKey, int iScancode, int iAction, int iMods) {
+void Window::windowFocusCallback(GLFWwindow* iGLFWindow, int iFocused) {
   Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
   if (window) {
-    window->mKeyEvent.broadcast(static_cast<KeyCode>(iKey), static_cast<int32_t>(iScancode), static_cast<InputAction>(iAction),
-                                static_cast<KeyMods>(iMods));
-  }
-}
-
-void Window::charCallback(GLFWwindow* iGLFWindow, unsigned int iCodepoint) {
-  Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
-  if (window) {
-    window->mCharEvent.broadcast(static_cast<uint32_t>(iCodepoint));
-  }
-}
-
-void Window::mouseButtonCallback(GLFWwindow* iGLFWindow, int iButton, int iAction, int iMods) {
-  Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
-  if (window) {
-    window->mMouseButtonEvent.broadcast(static_cast<MouseButton>(iButton), static_cast<InputAction>(iAction),
-                                        static_cast<KeyMods>(iMods));
-  }
-}
-
-void Window::cursorPosCallback(GLFWwindow* iGLFWindow, double iXpos, double iYpos) {
-  Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
-  if (window) {
-    window->mCursorPosEvent.broadcast(iXpos, iYpos);
-  }
-}
-
-void Window::scrollCallback(GLFWwindow* iGLFWindow, double iXoffset, double iYoffset) {
-  Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
-  if (window) {
-    window->mScrollEvent.broadcast(iXoffset, iYoffset);
-  }
-}
-
-void Window::cursorEnterCallback(GLFWwindow* iGLFWindow, int iEntered) {
-  Window* window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(iGLFWindow));
-  if (window) {
-    window->mCursorEnterEvent.broadcast(iEntered != 0);
+    window->mWindowFocusEvent.broadcast(iFocused != 0);
   }
 }
 
 } // namespace ne
-

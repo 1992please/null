@@ -1,6 +1,6 @@
 #include "scene/camera_controller.h"
 #include "components/transform_component.h"
-#include "platform/window.h"
+#include "platform/input.h"
 #include "core/defines.h"
 
 namespace ne {
@@ -8,110 +8,53 @@ namespace ne {
 CameraController::CameraController(float iMoveSpeed, float iLookSensitivity)
     : mMoveSpeed(iMoveSpeed), mLookSensitivity(iLookSensitivity) {}
 
-bool CameraController::onKey(KeyCode iKey, InputAction iAction, KeyMods iMods) {
-  bool isPressed = (iAction == InputAction::Press || iAction == InputAction::Repeat);
-  bool isRelease = (iAction == InputAction::Release);
+void CameraController::update(float iDeltaTime, TransformComponent& ioTransform) {
+  // 1. Mouse look toggle and orientation synchronization
+  if (Input::isMouseButtonPressed(MouseButton::Right)) {
+    mIsLooking = true;
+    Input::setCursorMode(CursorMode::Disabled);
 
-  if (!isPressed && !isRelease) {
-    return false;
-  }
-
-  // Update speed boost dynamically via KeyMods or Shift key
-  mSpeedBoost = (iMods & KeyMods::Shift);
-
-  switch (iKey) {
-    case KeyCode::W: mMoveForward = isPressed; return true;
-    case KeyCode::S: mMoveBackward = isPressed; return true;
-    case KeyCode::D: mMoveRight = isPressed; return true;
-    case KeyCode::A: mMoveLeft = isPressed; return true;
-    case KeyCode::E:
-    case KeyCode::Space: mMoveUp = isPressed; return true;
-    case KeyCode::Q:
-    case KeyCode::C: mMoveDown = isPressed; return true;
-    case KeyCode::LeftShift:
-    case KeyCode::RightShift: mSpeedBoost = isPressed; return true;
-    default: return false;
-  }
-}
-
-bool CameraController::onMouseButton(Window* iWindow, MouseButton iButton, InputAction iAction, KeyMods iMods) {
-  NE_UNUSED(iMods);
-  if (iButton == MouseButton::Right) {
-    if (iAction == InputAction::Press) {
-      mIsLooking = true;
-      mMouseDeltaX = 0.0;
-      mMouseDeltaY = 0.0;
-      if (iWindow) {
-        iWindow->getCursorPos(&mLastMouseX, &mLastMouseY);
-        iWindow->setCursorMode(CursorMode::Disabled);
-      }
-      return true;
-    } else if (iAction == InputAction::Release) {
+    // Synchronize pitch and yaw from current transform orientation once at look start
+    Vec3 euler = ioTransform.getEulerAngles();
+    mPitch = euler.y;
+    mYaw = euler.z;
+  } else if (Input::isMouseButtonReleased(MouseButton::Right)) {
+    if (mIsLooking) {
       mIsLooking = false;
-      mMouseDeltaX = 0.0;
-      mMouseDeltaY = 0.0;
-      if (iWindow) {
-        iWindow->setCursorMode(CursorMode::Normal);
-      }
-      return true;
+      Input::setCursorMode(CursorMode::Normal);
     }
   }
-  return false;
-}
 
-void CameraController::onCursorPos(double iXpos, double iYpos) {
+  // 2. Mouse look rotation
   if (mIsLooking) {
-    mMouseDeltaX += (iXpos - mLastMouseX);
-    mMouseDeltaY += (iYpos - mLastMouseY);
+    Vec2 mouseDelta = Input::getMouseDelta();
+    mYaw += mouseDelta.x * mLookSensitivity;
+    mPitch = math::clamp(mPitch + mouseDelta.y * mLookSensitivity, -89.0f, 89.0f);
+    ioTransform.setEulerAngles(Vec3(0.0f, mPitch, mYaw));
   }
 
-  mLastMouseX = iXpos;
-  mLastMouseY = iYpos;
-}
-
-void CameraController::reset() {
-  mMoveForward = false;
-  mMoveBackward = false;
-  mMoveRight = false;
-  mMoveLeft = false;
-  mMoveUp = false;
-  mMoveDown = false;
-  mSpeedBoost = false;
-  mIsLooking = false;
-  mMouseDeltaX = 0.0;
-  mMouseDeltaY = 0.0;
-}
-
-void CameraController::update(float iDeltaTime, TransformComponent& ioTransform) {
-  // 1. Apply accumulated mouse look rotation
-  if (mIsLooking) {
-    Vec3 euler = ioTransform.getEulerAngles();
-    euler.y = math::clamp(euler.y + static_cast<float>(mMouseDeltaY) * mLookSensitivity, -89.0f, 89.0f);
-    euler.z += static_cast<float>(mMouseDeltaX) * mLookSensitivity;
-    euler.x = 0.0f;
-
-    ioTransform.setEulerAngles(euler);
-
-    mMouseDeltaX = 0.0;
-    mMouseDeltaY = 0.0;
+  // 3. Mouse wheel speed adjustment
+  Vec2 scroll = Input::getMouseScroll();
+  if (scroll.y != 0.0f) {
+    mMoveSpeed = math::clamp(mMoveSpeed + scroll.y * 0.5f, 0.2f, 50.0f);
   }
 
-  // 2. Apply keyboard translation movement
+  // 4. 1:1 Keyboard translation movement (W/S/A/D/E/Q + Shift)
   if (iDeltaTime > 0.0f) {
     Vec3 forward = ioTransform.getForward();
     Vec3 right = ioTransform.getRight();
     Vec3 moveDir = Vec3::Zero;
 
-    if (mMoveForward) moveDir += forward;
-    if (mMoveBackward) moveDir -= forward;
-    if (mMoveRight) moveDir += right;
-    if (mMoveLeft) moveDir -= right;
-    if (mMoveUp) moveDir += Vec3::Up;
-    if (mMoveDown) moveDir -= Vec3::Up;
+    if (Input::isKeyDown(KeyCode::W)) moveDir += forward;
+    if (Input::isKeyDown(KeyCode::S)) moveDir -= forward;
+    if (Input::isKeyDown(KeyCode::D)) moveDir += right;
+    if (Input::isKeyDown(KeyCode::A)) moveDir -= right;
+    if (Input::isKeyDown(KeyCode::E)) moveDir += Vec3::Up;
+    if (Input::isKeyDown(KeyCode::Q)) moveDir -= Vec3::Up;
 
     if (moveDir.lengthSquared() > math::SMALL_NUMBER) {
       moveDir.normalize();
-      float speed = mMoveSpeed * (mSpeedBoost ? 2.5f : 1.0f);
+      float speed = mMoveSpeed * (Input::isShiftDown() ? 2.5f : 1.0f);
       ioTransform.translate(moveDir * (speed * iDeltaTime));
     }
   }

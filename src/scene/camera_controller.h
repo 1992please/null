@@ -6,16 +6,10 @@
 namespace ne {
 
 struct TransformComponent;
-class Window;
 
 class CameraController {
 public:
   CameraController(float iMoveSpeed = 2.0f, float iLookSensitivity = 0.1f);
-
-  bool onKey(KeyCode iKey, InputAction iAction, KeyMods iMods);
-  bool onMouseButton(Window* iWindow, MouseButton iButton, InputAction iAction, KeyMods iMods);
-  void onCursorPos(double iXpos, double iYpos);
-  void reset();
 
   void update(float iDeltaTime, TransformComponent& ioTransform);
 
@@ -31,20 +25,9 @@ private:
   float mMoveSpeed;
   float mLookSensitivity;
 
-  double mLastMouseX{0.0};
-  double mLastMouseY{0.0};
-  double mMouseDeltaX{0.0};
-  double mMouseDeltaY{0.0};
+  float mPitch{0.0f};
+  float mYaw{0.0f};
   bool mIsLooking{false};
-
-  // Active movement states
-  bool mMoveForward{false};
-  bool mMoveBackward{false};
-  bool mMoveRight{false};
-  bool mMoveLeft{false};
-  bool mMoveUp{false};
-  bool mMoveDown{false};
-  bool mSpeedBoost{false};
 };
 
 } // namespace ne

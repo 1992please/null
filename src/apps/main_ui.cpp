@@ -6,64 +6,46 @@
 #include "core/logger.h"
 #include "core/time.h"
 #include "platform/window.h"
+#include "platform/input.h"
 
 #include <imgui.h>
 
 namespace ne {
 
-bool MainUI::onKey(KeyCode iKey, InputAction iAction, KeyMods iMods) {
-  NE_UNUSED(iMods);
-
-  // 1. Global UI Toggle Hotkeys (F1 / Tab)
-  if (iAction == InputAction::Press && (iKey == KeyCode::F1 || iKey == KeyCode::Tab)) {
-    toggleVisible();
-    NE_LOG("UI Overlay visibility: {}", mVisible ? "Visible" : "Hidden");
-    return true;
-  }
-
-  // 2. Consume input if UI is visible and actively capturing keyboard (e.g. typing in a field)
-  if (mVisible && ImGui::GetIO().WantCaptureKeyboard) {
-    return true;
-  }
-
-  return false;
-}
-
-bool MainUI::onMouseButton(MouseButton iButton, InputAction iAction, KeyMods iMods) {
-  NE_UNUSED(iButton);
-  NE_UNUSED(iAction);
-  NE_UNUSED(iMods);
-
-  // Consume mouse click if UI is visible and actively interacting with a window
-  if (mVisible && ImGui::GetIO().WantCaptureMouse) {
-    return true;
-  }
-
-  return false;
-}
-
 void MainUI::draw(BasicApp& iApp) {
-  if (!mVisible) {
-    return;
+  if (Input::isKeyPressed(KeyCode::H) && !ImGui::GetIO().WantTextInput) {
+    toggleVisible();
   }
 
-  drawMainMenuBar(iApp);
-
-  if (mShowDiagnostics) {
-    drawDiagnostics(iApp);
+  // 1. Right-Click on empty space (void) unfocuses windows just like Left-Click already does natively in ImGui
+  if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
+    ImGui::SetWindowFocus(nullptr);
   }
 
-  if (mShowCameraSettings) {
-    drawCameraSettings(iApp);
+  if (mVisible) {
+    drawMainMenuBar(iApp);
+
+    if (mShowDiagnostics) {
+      drawDiagnostics(iApp);
+    }
+
+    if (mShowCameraSettings) {
+      drawCameraSettings(iApp);
+    }
+
+    if (mShowAboutModal) {
+      drawAboutModal();
+    }
+
+    if (mShowDemoWindow) {
+      ImGui::ShowDemoWindow(&mShowDemoWindow);
+    }
   }
 
-  if (mShowAboutModal) {
-    drawAboutModal();
-  }
-
-  if (mShowDemoWindow) {
-    ImGui::ShowDemoWindow(&mShowDemoWindow);
-  }
+  // 2. Forward UI capture state to Input subsystem
+  ImGuiIO& io = ImGui::GetIO();
+  Input::setUICapture(mVisible && io.WantCaptureMouse,
+                      mVisible && io.WantCaptureKeyboard);
 }
 
 void MainUI::drawMainMenuBar(BasicApp& iApp) {
@@ -81,7 +63,7 @@ void MainUI::drawMainMenuBar(BasicApp& iApp) {
       ImGui::MenuItem("Diagnostics / Stats", nullptr, &mShowDiagnostics);
       ImGui::MenuItem("Camera Controls", nullptr, &mShowCameraSettings);
       ImGui::Separator();
-      if (ImGui::MenuItem("Hide UI Overlay", "F1 / Tab")) {
+      if (ImGui::MenuItem("Hide UI Overlay", "H")) {
         mVisible = false;
         NE_LOG("UI Overlay visibility: Hidden");
       }
@@ -259,8 +241,9 @@ void MainUI::drawAboutModal() {
     ImGui::Text("Navigation & Controls:");
     ImGui::BulletText("Fly Camera: WASD + QE (Up/Down)");
     ImGui::BulletText("Speed Boost: Hold Shift while flying");
+    ImGui::BulletText("Speed Adjust: Scroll Mouse Wheel");
     ImGui::BulletText("Mouse Look: Hold Right-Click + Move Mouse");
-    ImGui::BulletText("Toggle UI: F1 or Tab to hide/show menus and panels");
+    ImGui::BulletText("Toggle UI: Press H to hide/show menus and panels");
     ImGui::Spacing();
 
     ImGui::Separator();
