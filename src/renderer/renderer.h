@@ -32,6 +32,11 @@ public:
 
   void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0,
                   VkDeviceSize dstOffset = 0);
+  void copyBufferToImage(VkCommandBuffer iCommandBuffer, VkBuffer iBuffer, VkImage iImage, uint32_t iWidth,
+                         uint32_t iHeight, VkDeviceSize iBufferOffset = 0);
+
+  VkCommandBuffer beginOneTimeCommand();
+  void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   uint32_t getApiVersion() const { return API_VERSION; }
 
@@ -87,9 +92,6 @@ private:
   };
   SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
   void recreateSwapChain(bool iForceRecreate = false);
-
-  VkCommandBuffer beginOneTimeCommand();
-  void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 
   VkFormat findDepthFormat();
   VkFormat findSupportedFormat(const std::vector<VkFormat>& iCandidates, VkImageTiling iTiling, VkFormatFeatureFlags iFeatures);

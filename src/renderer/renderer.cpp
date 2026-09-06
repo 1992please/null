@@ -605,6 +605,31 @@ void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize s
   endOneTimeCommand(commandBuffer);
 }
 
+void Renderer::copyBufferToImage(VkCommandBuffer iCommandBuffer, VkBuffer iBuffer, VkImage iImage, uint32_t iWidth,
+                                 uint32_t iHeight, VkDeviceSize iBufferOffset) {
+  VkBufferImageCopy2 copyRegion{};
+  copyRegion.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
+  copyRegion.bufferOffset = iBufferOffset;
+  copyRegion.bufferRowLength = 0;
+  copyRegion.bufferImageHeight = 0;
+  copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  copyRegion.imageSubresource.mipLevel = 0;
+  copyRegion.imageSubresource.baseArrayLayer = 0;
+  copyRegion.imageSubresource.layerCount = 1;
+  copyRegion.imageOffset = {0, 0, 0};
+  copyRegion.imageExtent = {iWidth, iHeight, 1};
+
+  VkCopyBufferToImageInfo2 copyInfo{};
+  copyInfo.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2;
+  copyInfo.srcBuffer = iBuffer;
+  copyInfo.dstImage = iImage;
+  copyInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+  copyInfo.regionCount = 1;
+  copyInfo.pRegions = &copyRegion;
+
+  vkCmdCopyBufferToImage2(iCommandBuffer, &copyInfo);
+}
+
 void Renderer::recreateSwapChain(bool iForceRecreate) {
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
