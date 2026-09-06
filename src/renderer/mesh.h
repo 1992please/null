@@ -14,8 +14,10 @@ class GeometryAllocator;
 class Mesh {
 public:
   struct Vertex {
-    Vec3 mPos;
-    Vec3 mColor;
+    Vec3 mPos{0.0f};
+    Vec3 mNormal{0.0f, 0.0f, 1.0f};
+    Vec2 mTexCoord{0.0f};
+    Vec4 mColor{1.0f};
   };
 
   Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVertices, const std::vector<uint32_t>& iIndices);

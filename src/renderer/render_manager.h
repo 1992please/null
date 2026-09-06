@@ -46,6 +46,7 @@ private:
 
   struct InstanceData {
     Mat4 modelMatrix;
+    Mat4 normalMatrix;
     Vec4 color;
   };
 

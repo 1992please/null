@@ -30,15 +30,19 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Simulation Time Controls & UI Toggle**: Scalable `timeScale` (0x-3x), unscaled frame metrics, UI input isolation, and `H` overlay toggle.
 
 ### Step 3: Materials & Bindless Resources
-- [ ] **Push Descriptors**: Integrate `VK_EXT_push_descriptors` / push constants for transient per-draw data.
-- [ ] **Bindless Textures**: Unsized texture arrays (`Texture2D gTextures[]`) with Slang dynamic indexing.
+- [x] **Transient Per-Draw Data Core**: Zero-overhead 64-bit Buffer Device Address (BDA) pointers and per-draw metadata dispatched via `vkCmdPushConstants` directly into Multi-Draw Indirect (MDI).
+- [x] **Vertex Attribute Modernization**: Expand vertex attributes (`Position`, `Normal`, `TexCoord`, `Color/Tangent`) for BDA vertex pulling in Slang shaders.
+- [ ] **RHI Texture & Sampler Core**: Vulkan 1.4 image allocation, `Synchronization2` layout transitions, staging buffer uploads (`vkCmdCopyBufferToImage2`), and sampler states.
+- [ ] **Bindless Texture Architecture**: Unsized texture arrays (`Texture2D gTextures[]` in Slang) with Vulkan 1.4 descriptor indexing (`partiallyBound`, `updateAfterBind`).
+- [ ] **glTF PBR Material Pipeline**: Material parameter representation (factors, textures), `stb_image` decoding, and glTF 2.0 metallic-roughness PBR lighting.
 - [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
 
 ### Step 4: GPU-Driven Pipeline & Optimization
 - [ ] **Offscreen Viewport & Multi-View Panels**: Render 3D scene to an offscreen HDR/SDR `VkImage` target displayed via `ImGui::Image` inside a dedicated Viewport panel with dynamic aspect-ratio resizing.
+- [ ] **Push Descriptors for Utility Passes**: Integrate `VK_KHR_push_descriptor` (Vulkan 1.4 core `pushDescriptors`) for single-pass post-processing and compute passes without descriptor pool overhead.
 - [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
 - [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
-- [ ] **Context-Driven Encoder Pattern**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability.
+- [ ] **Context-Driven Encoder Pattern & RHI Decoupling**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability, formalizing the boundary between low-level hardware abstraction (`RHI` / `Device` / resources) and high-level scene passes.
 
 ### Misc
 - [ ] Look at the matrix inverse algorithm if we need it be faster

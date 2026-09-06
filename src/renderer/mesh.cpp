@@ -19,12 +19,18 @@ Mesh::Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVe
 Mesh::Mesh(GeometryAllocator* iGeometryAllocator, const MeshData& iMeshData) {
   NE_ASSERT(iGeometryAllocator);
   NE_ASSERT(!iMeshData.mPositions.empty(), "Mesh positions cannot be empty");
-  NE_ASSERT(iMeshData.mPositions.size() == iMeshData.mColors.size(), "Mesh position and color counts must match");
 
-  std::vector<Vertex> vertices(iMeshData.mPositions.size());
-  for (size_t i = 0; i < vertices.size(); ++i) {
+  const size_t vertexCount = iMeshData.mPositions.size();
+  const bool hasNormals = (iMeshData.mNormals.size() == vertexCount);
+  const bool hasTexCoords = (iMeshData.mTexCoords.size() == vertexCount);
+  const bool hasColors = (iMeshData.mColors.size() == vertexCount);
+
+  std::vector<Vertex> vertices(vertexCount);
+  for (size_t i = 0; i < vertexCount; ++i) {
     vertices[i].mPos = iMeshData.mPositions[i];
-    vertices[i].mColor = iMeshData.mColors[i];
+    vertices[i].mNormal = hasNormals ? iMeshData.mNormals[i] : Vec3(0.0f, 0.0f, 1.0f);
+    vertices[i].mTexCoord = hasTexCoords ? iMeshData.mTexCoords[i] : Vec2(0.0f, 0.0f);
+    vertices[i].mColor = hasColors ? Vec4(iMeshData.mColors[i], 1.0f) : Vec4(1.0f);
   }
 
   mVertexCount = static_cast<uint32_t>(vertices.size());

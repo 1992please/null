@@ -228,7 +228,11 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
       uint32_t instanceCount = 0;
       // Collect all instances for this mesh
       while (i < mDrawCalls.size() && mDrawCalls[i].pipeline == currentPipeline && mDrawCalls[i].mesh == currentMesh) {
-        instanceData.push_back(InstanceData{.modelMatrix = mDrawCalls[i].transform, .color = mDrawCalls[i].color});
+        Mat4 normalMatrix = mDrawCalls[i].transform.inversed().transposed();
+        instanceData.push_back(InstanceData{
+            .modelMatrix = mDrawCalls[i].transform,
+            .normalMatrix = normalMatrix,
+            .color = mDrawCalls[i].color});
         instanceCount++;
         i++;
       }
