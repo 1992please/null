@@ -32,6 +32,9 @@ add_subdirectory("${ThirdPartyDir}/glfw")
 # cgltf
 add_subdirectory("${ThirdPartyDir}/cgltf")
 
+# stb
+add_subdirectory("${ThirdPartyDir}/stb")
+
 # spdlog
 add_subdirectory("${ThirdPartyDir}/spdlog")
 
@@ -66,6 +69,7 @@ target_link_libraries(${EngineTarget} PRIVATE
   Vulkan::volk
   glfw
   cgltf
+  stb
   spdlog
   imgui
 )

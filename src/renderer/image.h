@@ -8,15 +8,16 @@
 namespace ne {
 
 class Renderer;
+struct ImageData;
 
 /**
- * @class Texture
+ * @class Image
  * @brief RAII management of a 2D Vulkan Image, Device Memory, and Image View.
  *
- * Implements modern Vulkan 1.4 Synchronization2 layout transitions and staging buffer
- * pixel uploads via vkCmdCopyBufferToImage2.
+ * Serves as the Vulkan RHI wrapper for sampled images, render targets, depth attachments,
+ * and storage images with modern Vulkan 1.4 Synchronization2 layout transitions.
  */
-class Texture {
+class Image {
 public:
   struct Config {
     uint32_t width = 0;
@@ -27,44 +28,33 @@ public:
     std::string debugName = "";
   };
 
-  Texture(Renderer* iRenderer, const Config& iConfig, const void* iPixelData = nullptr, VkDeviceSize iSize = 0);
-  ~Texture();
-
-  // Static 1x1 fallback textures
-  static std::unique_ptr<Texture> createWhite1x1(Renderer* iRenderer, std::string iDebugName = "Texture_White1x1");
-  static std::unique_ptr<Texture> createFlatNormal1x1(Renderer* iRenderer, std::string iDebugName = "Texture_FlatNormal1x1");
-  static std::unique_ptr<Texture> createBlack1x1(Renderer* iRenderer, std::string iDebugName = "Texture_Black1x1");
+  Image(Renderer* iRenderer, const Config& iConfig, const void* iPixelData = nullptr, VkDeviceSize iSize = 0);
+  Image(Renderer* iRenderer, const ImageData& iImageData, bool iSrgb = true, std::string iDebugName = "");
+  ~Image();
 
   // Prevent copying
-  Texture(const Texture&) = delete;
-  Texture& operator=(const Texture&) = delete;
+  Image(const Image&) = delete;
+  Image& operator=(const Image&) = delete;
 
   // Move semantics
-  Texture(Texture&& other);
-  Texture& operator=(Texture&& other);
-
-  void uploadData(const void* iPixelData, VkDeviceSize iSize);
+  Image(Image&& other);
+  Image& operator=(Image&& other);
 
   void transitionLayout(VkCommandBuffer iCommandBuffer, VkImageLayout iNewLayout, VkAccessFlags2 iDstAccessMask,
                         VkPipelineStageFlags2 iDstStageMask);
   void transitionLayout(VkImageLayout iNewLayout, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iDstStageMask);
 
   // Getters
+  bool isValid() const { return mImage != VK_NULL_HANDLE; }
   VkImage getImage() const { return mImage; }
   VkImageView getImageView() const { return mImageView; }
   VkDeviceMemory getMemory() const { return mImageMemory; }
-  VkFormat getFormat() const { return mConfig.format; }
-  uint32_t getWidth() const { return mConfig.width; }
-  uint32_t getHeight() const { return mConfig.height; }
-  uint32_t getMipLevels() const { return mConfig.mipLevels; }
-  VkImageUsageFlags getUsage() const { return mConfig.usage; }
   VkImageLayout getCurrentLayout() const { return mCurrentLayout; }
-  const std::string& getDebugName() const { return mConfig.debugName; }
   const Config& getConfig() const { return mConfig; }
 
 private:
-  void initResources();
   void releaseResources();
+  void uploadData(const void* iPixelData, VkDeviceSize iSize);
 
   Renderer* mRenderer = nullptr;
   Config mConfig;
