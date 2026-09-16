@@ -30,11 +30,6 @@ public:
   void waitIdle();
   uint32_t getCurrentFrameIndex() const { return mFrameIndex; }
 
-  void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset = 0,
-                  VkDeviceSize dstOffset = 0);
-  void copyBufferToImage(VkCommandBuffer iCommandBuffer, VkBuffer iBuffer, VkImage iImage, uint32_t iWidth,
-                         uint32_t iHeight, VkDeviceSize iBufferOffset = 0);
-
   VkCommandBuffer beginOneTimeCommand();
   void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
 

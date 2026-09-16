@@ -68,9 +68,7 @@ void ImGuiManager::beginFrame() {
   ImGui::NewFrame();
 }
 
-void ImGuiManager::endFrame() {
-  ImGui::Render();
-}
+void ImGuiManager::endFrame() { ImGui::Render(); }
 
 void ImGuiManager::draw(VkCommandBuffer iCommandBuffer) {
   ImDrawData* drawData = ImGui::GetDrawData();
@@ -79,13 +77,9 @@ void ImGuiManager::draw(VkCommandBuffer iCommandBuffer) {
   }
 }
 
-bool ImGuiManager::wantsCaptureMouse() const {
-  return ImGui::GetIO().WantCaptureMouse;
-}
+bool ImGuiManager::wantsCaptureMouse() const { return ImGui::GetIO().WantCaptureMouse; }
 
-bool ImGuiManager::wantsCaptureKeyboard() const {
-  return ImGui::GetIO().WantCaptureKeyboard;
-}
+bool ImGuiManager::wantsCaptureKeyboard() const { return ImGui::GetIO().WantCaptureKeyboard; }
 
 void ImGuiManager::setupIO() {
   ImGuiIO& io = ImGui::GetIO();

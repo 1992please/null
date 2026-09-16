@@ -1,6 +1,9 @@
 #include "renderer/geometry_allocator.h"
 #include "core/assert.h"
+#include "core/mesh_data.h"
+#include "renderer/mesh.h"
 #include "renderer/renderer.h"
+#include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
 namespace ne {
@@ -20,59 +23,45 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
 
   NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", vk_utils::formatBytes(iVertexPoolSize),
          vk_utils::formatBytes(iIndexPoolSize));
-  createStagingBuffer(vk_utils::DEFAULT_STAGING_BUFFER_SIZE);
 }
 
-GeometryAllocation GeometryAllocator::allocateGeometry(const void* vertexData, VkDeviceSize vertexSize,
-                                                       const std::vector<uint32_t>& indices) {
-  VkDeviceSize indexSize = indices.size() * sizeof(uint32_t);
+GeometryAllocation GeometryAllocator::stageGeometry(StagingManager& iStagingManager, const MeshData& iMeshData) {
+  NE_ASSERT(!iMeshData.mPositions.empty(), "Mesh positions cannot be empty");
+  NE_ASSERT(!iMeshData.mIndices.empty(), "Mesh indices cannot be empty");
 
-  // Align offsets to 16 bytes for safety
-  mCurrentVertexOffset = vk_utils::alignUp(mCurrentVertexOffset, static_cast<VkDeviceSize>(16));
-  mCurrentIndexOffset = vk_utils::alignUp(mCurrentIndexOffset, static_cast<VkDeviceSize>(16));
+  const size_t vertexCount = iMeshData.mPositions.size();
+  const bool hasNormals = (iMeshData.mNormals.size() == vertexCount);
+  const bool hasTexCoords = (iMeshData.mTexCoords.size() == vertexCount);
+  const bool hasColors = (iMeshData.mColors.size() == vertexCount);
 
-  NE_ASSERT(mCurrentVertexOffset + vertexSize <= mVertexBuffer->getBufferSize(), "Vertex pool out of memory!");
-  NE_ASSERT(mCurrentIndexOffset + indexSize <= mIndexBuffer->getBufferSize(), "Index pool out of memory!");
-
-  // Ensure staging buffer is large enough for the largest single copy
-  VkDeviceSize requiredSize = std::max(vertexSize, indexSize);
-  if (mStagingBuffer->getBufferSize() < requiredSize) {
-    VkDeviceSize newSize = std::max(requiredSize, mStagingBuffer->getBufferSize() * 2);
-    NE_LOG("GeometryAllocator: Resizing staging buffer from {} to {}", vk_utils::formatBytes(mStagingBuffer->getBufferSize()),
-           vk_utils::formatBytes(newSize));
-    createStagingBuffer(newSize);
+  std::vector<Mesh::Vertex> vertices(vertexCount);
+  for (size_t i = 0; i < vertexCount; ++i) {
+    vertices[i].mPos = iMeshData.mPositions[i];
+    vertices[i].mNormal = hasNormals ? iMeshData.mNormals[i] : Vec3(0.0f, 0.0f, 1.0f);
+    vertices[i].mTexCoord = hasTexCoords ? iMeshData.mTexCoords[i] : Vec2(0.0f, 0.0f);
+    vertices[i].mColor = hasColors ? Vec4(iMeshData.mColors[i], 1.0f) : Vec4(1.0f);
   }
 
-  // 1. Upload vertices
-  mStagingBuffer->writeToBuffer(vertexData, vertexSize, 0);
-  mRenderer->copyBuffer(mStagingBuffer->getBuffer(), mVertexBuffer->getBuffer(), vertexSize, 0, mCurrentVertexOffset);
+  VkDeviceSize vertexSize = vertices.size() * sizeof(Mesh::Vertex);
+  VkDeviceSize indexSize = iMeshData.mIndices.size() * sizeof(uint32_t);
 
-  // 2. Upload indices
-  mStagingBuffer->writeToBuffer(indices.data(), indexSize, 0);
-  mRenderer->copyBuffer(mStagingBuffer->getBuffer(), mIndexBuffer->getBuffer(), indexSize, 0, mCurrentIndexOffset);
-
-  GeometryAllocation alloc{};
-  alloc.mVertexAddress = mVertexBuffer->getDeviceAddress() + mCurrentVertexOffset;
-  alloc.mFirstIndex = static_cast<uint32_t>(mCurrentIndexOffset / sizeof(uint32_t));
-
-  mCurrentVertexOffset += vertexSize;
-  mCurrentIndexOffset += indexSize;
+  VkDeviceSize vertexOffset = mVertexBuffer->suballocate(vertexSize);
+  VkDeviceSize indexOffset = mIndexBuffer->suballocate(indexSize);
 
   NE_LOG("Allocated geometry: vertex size: {}, index size: {} | Pool occupancy: vertex={}/{} ({:.2f}%), index={}/{} ({:.2f}%)",
-         vk_utils::formatBytes(vertexSize), vk_utils::formatBytes(indexSize), vk_utils::formatBytes(mCurrentVertexOffset),
+         vk_utils::formatBytes(vertexSize), vk_utils::formatBytes(indexSize), vk_utils::formatBytes(mVertexBuffer->getUploadOffset()),
          vk_utils::formatBytes(mVertexBuffer->getBufferSize()),
-         (static_cast<double>(mCurrentVertexOffset) / mVertexBuffer->getBufferSize()) * 100.0, vk_utils::formatBytes(mCurrentIndexOffset),
-         vk_utils::formatBytes(mIndexBuffer->getBufferSize()),
-         (static_cast<double>(mCurrentIndexOffset) / mIndexBuffer->getBufferSize()) * 100.0);
+         (static_cast<double>(mVertexBuffer->getUploadOffset()) / mVertexBuffer->getBufferSize()) * 100.0,
+         vk_utils::formatBytes(mIndexBuffer->getUploadOffset()), vk_utils::formatBytes(mIndexBuffer->getBufferSize()),
+         (static_cast<double>(mIndexBuffer->getUploadOffset()) / mIndexBuffer->getBufferSize()) * 100.0);
 
+  iStagingManager.stageBufferCopy(mVertexBuffer->getBuffer(), vertices.data(), vertexSize, vertexOffset);
+  iStagingManager.stageBufferCopy(mIndexBuffer->getBuffer(), iMeshData.mIndices.data(), indexSize, indexOffset);
+
+  GeometryAllocation alloc{};
+  alloc.mVertexAddress = mVertexBuffer->getDeviceAddress(vertexOffset);
+  alloc.mFirstIndex = static_cast<uint32_t>(indexOffset / sizeof(uint32_t));
   return alloc;
-}
-
-void GeometryAllocator::createStagingBuffer(VkDeviceSize size) {
-  mStagingBuffer = std::make_unique<Buffer>(mRenderer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                            "GeometryAllocator_StagingBuffer");
-  mStagingBuffer->mapMemory();
 }
 
 } // namespace ne

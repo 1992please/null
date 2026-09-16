@@ -45,15 +45,13 @@ BasicApp::BasicApp() {
   colorizeModel(cubeModel);
   colorizeModel(helmetModel);
 
-  // 2. GPU upload phase
+  // 2. GPU upload phase (batched via RenderManager facade with 0 redundant stalls)
   for (const auto& submesh : cubeModel.mSubmeshes) {
-    auto gpuMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), submesh);
-    mLoadedMeshes.push_back(gpuMesh);
+    mLoadedMeshes.push_back(mRenderManager->createMesh(submesh));
   }
 
   for (const auto& submesh : helmetModel.mSubmeshes) {
-    auto gpuMesh = std::make_shared<Mesh>(mRenderManager->getGeometryAllocator(), submesh);
-    mLoadedMeshes.push_back(gpuMesh);
+    mLoadedMeshes.push_back(mRenderManager->createMesh(submesh));
   }
 
   // Material setup - uses shader "base_shader" with modern Vertex Pulling + MDI

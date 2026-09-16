@@ -45,6 +45,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
 - [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
 - [ ] **Context-Driven Encoder Pattern & RHI Decoupling**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability, formalizing the boundary between low-level hardware abstraction (`RHI` / `Device` / resources) and high-level scene passes.
+- [ ] **Vulkan Memory Allocator (VMA) Integration**: Sub-allocate all buffers and images from unified device-local and host-visible memory pools to eliminate discrete `vkAllocateMemory` calls and prevent `maxMemoryAllocationCount` exhaustion.
 
 ### Misc
 - [ ] Look at the matrix inverse algorithm if we need it be faster

@@ -13,12 +13,16 @@ namespace ne {
 
 class Window;
 class Renderer;
+class StagingManager;
 class GeometryAllocator;
 class Mesh;
+class Image;
 class Pipeline;
 class Material;
 class Registry;
 class ImGuiManager;
+struct MeshData;
+struct ImageData;
 
 class RenderManager {
 public:
@@ -29,17 +33,25 @@ public:
   RenderManager(const RenderManager&) = delete;
   RenderManager& operator=(const RenderManager&) = delete;
 
-  // Getters
-  Renderer* getRenderer() const { return mRenderer.get(); }
-  GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
-
   // Forwarding lifecycle methods
   void waitIdle();
 
   void draw(Registry* iRegistry, ImGuiManager* iGuiManager = nullptr);
 
-  // Pipeline/Material Creation
+  // Material & Pipeline Creation
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName);
+
+  // Asset Creation & Staging Facades
+  std::shared_ptr<Mesh> createMesh(const MeshData& iMeshData);
+  std::unique_ptr<Image> createImage(const ImageData& iImageData, bool iSrgb = true, std::string iDebugName = "");
+
+  // Flush pending uploads
+  void flushUploads();
+
+  // Subsystem Getters
+  Renderer* getRenderer() const { return mRenderer.get(); }
+  StagingManager* getStagingManager() const { return mStagingManager.get(); }
+  GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
 
 private:
   void submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj);
@@ -58,6 +70,7 @@ private:
   };
 
   std::unique_ptr<Renderer> mRenderer;
+  std::unique_ptr<StagingManager> mStagingManager;
   std::unique_ptr<GeometryAllocator> mGeometryAllocator;
   std::vector<DrawCall> mDrawCalls;
 };

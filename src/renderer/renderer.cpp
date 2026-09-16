@@ -467,7 +467,7 @@ void Renderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
 
-    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::DEFAULT_UPLOAD_BUFFER_SIZE, std::format("UploadBuffer_Frame_{}", i));
+    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::UPLOAD_BUFFER_SIZE, std::format("UploadBuffer_Frame_{}", i));
 
     vk_utils::setDebugObjectName(mDevice, mFrames[i].mCommandPool, std::format("Frame_CommandPool_{}", i).c_str());
     vk_utils::setDebugObjectName(mDevice, mFrames[i].mCommandBuffer, std::format("Frame_CommandBuffer_{}", i).c_str());
@@ -582,53 +582,6 @@ void Renderer::endFrame() {
 }
 
 void Renderer::waitIdle() { vkDeviceWaitIdle(mDevice); }
-
-void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset,
-                          VkDeviceSize dstOffset) {
-  VkCommandBuffer commandBuffer = beginOneTimeCommand();
-
-  VkBufferCopy2 bufferCopy2{};
-  bufferCopy2.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
-  bufferCopy2.srcOffset = srcOffset;
-  bufferCopy2.dstOffset = dstOffset;
-  bufferCopy2.size = size;
-
-  VkCopyBufferInfo2 copyBufferInfo2{};
-  copyBufferInfo2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
-  copyBufferInfo2.srcBuffer = srcBuffer;
-  copyBufferInfo2.dstBuffer = dstBuffer;
-  copyBufferInfo2.regionCount = 1;
-  copyBufferInfo2.pRegions = &bufferCopy2;
-
-  vkCmdCopyBuffer2(commandBuffer, &copyBufferInfo2);
-
-  endOneTimeCommand(commandBuffer);
-}
-
-void Renderer::copyBufferToImage(VkCommandBuffer iCommandBuffer, VkBuffer iBuffer, VkImage iImage, uint32_t iWidth,
-                                 uint32_t iHeight, VkDeviceSize iBufferOffset) {
-  VkBufferImageCopy2 copyRegion{};
-  copyRegion.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
-  copyRegion.bufferOffset = iBufferOffset;
-  copyRegion.bufferRowLength = 0;
-  copyRegion.bufferImageHeight = 0;
-  copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  copyRegion.imageSubresource.mipLevel = 0;
-  copyRegion.imageSubresource.baseArrayLayer = 0;
-  copyRegion.imageSubresource.layerCount = 1;
-  copyRegion.imageOffset = {0, 0, 0};
-  copyRegion.imageExtent = {iWidth, iHeight, 1};
-
-  VkCopyBufferToImageInfo2 copyInfo{};
-  copyInfo.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2;
-  copyInfo.srcBuffer = iBuffer;
-  copyInfo.dstImage = iImage;
-  copyInfo.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-  copyInfo.regionCount = 1;
-  copyInfo.pRegions = &copyRegion;
-
-  vkCmdCopyBufferToImage2(iCommandBuffer, &copyInfo);
-}
 
 void Renderer::recreateSwapChain(bool iForceRecreate) {
   int32_t width = 0, height = 0;

@@ -1,16 +1,18 @@
 #pragma once
 
-#include "renderer/buffer.h"
 #include "core/math/math.h"
+#include <cstdint>
 #include <volk/volk.h>
-
-#include "core/mesh_data.h"
-#include <vector>
 
 namespace ne {
 
-class GeometryAllocator;
+struct GeometryAllocation;
 
+/**
+ * @class Mesh
+ * @brief Lightweight, trivially-copyable renderable descriptor referencing a geometry slice
+ * allocated inside the global vertex and index pools.
+ */
 class Mesh {
 public:
   struct Vertex {
@@ -20,25 +22,18 @@ public:
     Vec4 mColor{1.0f};
   };
 
-  Mesh(GeometryAllocator* iGeometryAllocator, const std::vector<Vertex>& iVertices, const std::vector<uint32_t>& iIndices);
-  Mesh(GeometryAllocator* iGeometryAllocator, const MeshData& iMeshData);
-  virtual ~Mesh() = default;
+  Mesh(const GeometryAllocation& iAllocation, uint32_t iIndexCount);
 
-  Mesh(const Mesh&) = delete;
-  Mesh& operator=(const Mesh&) = delete;
-
-  void draw(VkCommandBuffer iCommandBuffer);
+  void draw(VkCommandBuffer iCommandBuffer) const;
 
   VkDeviceAddress getVertexBufferAddress() const { return mVertexAddress; }
   uint32_t getIndexCount() const { return mIndexCount; }
   uint32_t getFirstIndex() const { return mFirstIndex; }
 
 private:
-  uint32_t mVertexCount = 0;
-  uint32_t mIndexCount = 0;
-
   VkDeviceAddress mVertexAddress = 0;
   uint32_t mFirstIndex = 0;
+  uint32_t mIndexCount = 0;
 };
 
 } // namespace ne

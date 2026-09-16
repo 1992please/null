@@ -13,8 +13,7 @@ namespace ne {
 
 namespace {
 
-#ifndef NE_BUILD_SHIPPING
-std::string bufferUsageToString(VkBufferUsageFlags usage) {
+[[maybe_unused]] std::string bufferUsageToString(VkBufferUsageFlags usage) {
   std::vector<std::string> flags;
   if (usage & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
     flags.push_back("TRANSFER_SRC");
@@ -47,7 +46,7 @@ std::string bufferUsageToString(VkBufferUsageFlags usage) {
   return result;
 }
 
-std::string memoryPropertiesToString(VkMemoryPropertyFlags properties) {
+[[maybe_unused]] std::string memoryPropertiesToString(VkMemoryPropertyFlags properties) {
   std::vector<std::string> flags;
   if (properties & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
     flags.push_back("DEVICE_LOCAL");
@@ -71,13 +70,13 @@ std::string memoryPropertiesToString(VkMemoryPropertyFlags properties) {
   }
   return result;
 }
-#endif // !NE_BUILD_SHIPPING
 
 } // namespace
 
 Buffer::Buffer(Renderer* iRenderer, VkDeviceSize iSize, VkBufferUsageFlags iUsage, VkMemoryPropertyFlags iProperties,
-               std::string iDebugName)
-    : mDevice(iRenderer->getDevice()), mUsage(iUsage), mBufferSize(iSize), mDebugName(std::move(iDebugName)) {
+               std::string iDebugName, VkDeviceSize iAlignment)
+    : mDevice(iRenderer->getDevice()), mUsage(iUsage), mBufferSize(iSize), mAlignment(iAlignment),
+      mDebugName(std::move(iDebugName)) {
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   bufferInfo.size = iSize;
@@ -114,75 +113,71 @@ Buffer::Buffer(Renderer* iRenderer, VkDeviceSize iSize, VkBufferUsageFlags iUsag
   bindInfo.memoryOffset = 0;
   VK_CHECK(vkBindBufferMemory2(mDevice, 1, &bindInfo));
 
+  if (mUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
+    VkBufferDeviceAddressInfo addressInfo{};
+    addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    addressInfo.buffer = mBuffer;
+    mDeviceAddress = vkGetBufferDeviceAddress(mDevice, &addressInfo);
+  }
+
   if (!mDebugName.empty()) {
     vk_utils::setDebugObjectName(mDevice, mBuffer, mDebugName);
     vk_utils::setDebugObjectName(mDevice, mMemory, mDebugName + "_Memory");
   }
 
-#ifndef NE_BUILD_SHIPPING
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(iRenderer->getPhysicalDevice(), &memProperties);
-  VkMemoryPropertyFlags allocatedProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
+  mMemoryProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
 
   NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Memory Type: [Index: {}, Properties: {}]",
          mDebugName.empty() ? "" : std::format(" '{}'", mDebugName), vk_utils::formatBytes(mBufferSize),
          vk_utils::formatBytes(memoryAllocateInfo.allocationSize), bufferUsageToString(iUsage),
-         memoryAllocateInfo.memoryTypeIndex, memoryPropertiesToString(allocatedProperties));
-#endif
+         memoryAllocateInfo.memoryTypeIndex, memoryPropertiesToString(mMemoryProperties));
 }
 
 Buffer::~Buffer() {
   if (mMapped) {
     unmapMemory();
   }
-  if (mBuffer != VK_NULL_HANDLE) {
-#ifndef NE_BUILD_SHIPPING
-    NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mDebugName.empty() ? "" : std::format(" '{}'", mDebugName),
-           vk_utils::formatBytes(mBufferSize), bufferUsageToString(mUsage));
-#endif
-    vkDestroyBuffer(mDevice, mBuffer, nullptr);
-  }
-  if (mMemory != VK_NULL_HANDLE) {
-    vkFreeMemory(mDevice, mMemory, nullptr);
-  }
+  NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mDebugName.empty() ? "" : std::format(" '{}'", mDebugName),
+         vk_utils::formatBytes(mBufferSize), bufferUsageToString(mUsage));
+  vkDestroyBuffer(mDevice, mBuffer, nullptr);
+  vkFreeMemory(mDevice, mMemory, nullptr);
 }
 
-void Buffer::mapMemory(VkDeviceSize size, VkDeviceSize offset) {
-  NE_ASSERT(!mMapped);
-  VK_CHECK(vkMapMemory(mDevice, mMemory, offset, size, 0, &mMapped));
+void Buffer::mapMemory(VkDeviceSize iSize, VkDeviceSize iOffset) {
+  NE_ASSERT(isHostVisible(), "Cannot map a buffer that is not host-visible!");
+  NE_ASSERT(!mMapped, "Buffer is already mapped!");
+  VK_CHECK(vkMapMemory(mDevice, mMemory, iOffset, iSize, 0, &mMapped));
 }
 
 void Buffer::writeToBuffer(const void* iData, VkDeviceSize iSize, VkDeviceSize iOffset) {
-  NE_ASSERT(mMapped);
+  NE_ASSERT(mMapped, "Buffer must be mapped before writing!");
+  NE_ASSERT(isHostCoherent(), "Buffer::writeToBuffer requires HOST_COHERENT memory!");
   VkDeviceSize writeSize = (iSize == VK_WHOLE_SIZE) ? mBufferSize - iOffset : iSize;
+  NE_ASSERT(iOffset + writeSize <= mBufferSize, "Buffer write exceeds buffer size!");
   std::memcpy(static_cast<char*>(mMapped) + iOffset, iData, writeSize);
 }
 
 void Buffer::unmapMemory() {
-  NE_ASSERT(mMapped);
+  NE_ASSERT(mMapped, "Buffer is not mapped!");
   vkUnmapMemory(mDevice, mMemory);
   mMapped = nullptr;
 }
 
-VkDeviceAddress Buffer::getDeviceAddress() const {
-  VkBufferDeviceAddressInfo addressInfo{};
-  addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-  addressInfo.buffer = mBuffer;
-  return vkGetBufferDeviceAddress(mDevice, &addressInfo);
+VkDeviceSize Buffer::suballocate(VkDeviceSize iSize) {
+  NE_ASSERT(canUpload(iSize), "Buffer overflow! Increase buffer size.");
+
+  VkDeviceSize allocatedOffset = mUploadOffset;
+  mUploadOffset = vk_utils::alignUp(allocatedOffset + iSize, mAlignment);
+  return allocatedOffset;
 }
 
-VkDeviceAddress Buffer::upload(const void* iData, VkDeviceSize iSize, VkDeviceSize iAlignment) {
+VkDeviceSize Buffer::upload(const void* iData, VkDeviceSize iSize) {
   NE_ASSERT(mMapped, "Buffer must be mapped before uploading!");
-  VkDeviceSize alignedOffset = vk_utils::alignUp(mUploadOffset, iAlignment);
-  NE_ASSERT(alignedOffset + iSize <= mBufferSize, "Buffer overflow! Increase buffer size.");
-
-  mUploadOffset = alignedOffset;
-  std::memcpy(static_cast<char*>(mMapped) + mUploadOffset, iData, iSize);
-
-  VkDeviceAddress address = getDeviceAddress() + mUploadOffset;
-  mUploadOffset += iSize;
-
-  return address;
+  VkDeviceSize allocatedOffset = suballocate(iSize);
+  writeToBuffer(iData, iSize, allocatedOffset);
+  return allocatedOffset;
 }
 
 uint32_t Buffer::findBufferMemoryType(Renderer* iRenderer, uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties,

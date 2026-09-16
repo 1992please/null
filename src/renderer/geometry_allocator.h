@@ -1,6 +1,7 @@
 #pragma once
 
 #include "renderer/buffer.h"
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <volk/volk.h>
@@ -8,6 +9,8 @@
 namespace ne {
 
 class Renderer;
+class StagingManager;
+struct MeshData;
 
 struct GeometryAllocation {
   VkDeviceAddress mVertexAddress = 0;
@@ -23,7 +26,8 @@ public:
   GeometryAllocator(const GeometryAllocator&) = delete;
   GeometryAllocator& operator=(const GeometryAllocator&) = delete;
 
-  GeometryAllocation allocateGeometry(const void* vertexData, VkDeviceSize vertexSize, const std::vector<uint32_t>& indices);
+  // Stages geometry copies into StagingManager
+  GeometryAllocation stageGeometry(StagingManager& iStagingManager, const MeshData& iMeshData);
 
   Buffer* getVertexBuffer() const { return mVertexBuffer.get(); }
   Buffer* getIndexBuffer() const { return mIndexBuffer.get(); }
@@ -32,11 +36,6 @@ private:
   Renderer* mRenderer = nullptr;
   std::unique_ptr<Buffer> mVertexBuffer;
   std::unique_ptr<Buffer> mIndexBuffer;
-  std::unique_ptr<Buffer> mStagingBuffer;
-  void createStagingBuffer(VkDeviceSize size);
-
-  VkDeviceSize mCurrentVertexOffset = 0;
-  VkDeviceSize mCurrentIndexOffset = 0;
 };
 
 } // namespace ne

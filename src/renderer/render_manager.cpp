@@ -1,16 +1,20 @@
 #include "renderer/render_manager.h"
+#include "components/camera_component.h"
+#include "components/mesh_component.h"
+#include "components/transform_component.h"
 #include "core/assert.h"
 #include "core/ecs.h"
-#include "components/camera_component.h"
-#include "components/transform_component.h"
-#include "components/mesh_component.h"
+#include "core/image_data.h"
+#include "core/mesh_data.h"
 #include "renderer/buffer.h"
 #include "renderer/geometry_allocator.h"
+#include "renderer/image.h"
 #include "renderer/imgui_manager.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/renderer.h"
+#include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
 // std
@@ -36,12 +40,14 @@ struct GlobalUniforms {
 
 RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
+  mStagingManager = std::make_unique<StagingManager>(mRenderer.get());
   mGeometryAllocator =
       std::make_unique<GeometryAllocator>(mRenderer.get(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
 }
 
 RenderManager::~RenderManager() {
   mGeometryAllocator.reset();
+  mStagingManager.reset();
   mRenderer.reset();
 }
 
@@ -63,9 +69,46 @@ std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShad
   return std::make_shared<Material>(pipeline);
 }
 
+std::shared_ptr<Mesh> RenderManager::createMesh(const MeshData& iMeshData) {
+  if (!mStagingManager->isBatching()) {
+    mStagingManager->beginBatch();
+  }
+  GeometryAllocation alloc = mGeometryAllocator->stageGeometry(*mStagingManager, iMeshData);
+  return std::make_shared<Mesh>(alloc, static_cast<uint32_t>(iMeshData.mIndices.size()));
+}
+
+std::unique_ptr<Image> RenderManager::createImage(const ImageData& iImageData, bool iSrgb, std::string iDebugName) {
+  if (!mStagingManager->isBatching()) {
+    mStagingManager->beginBatch();
+  }
+  Image::Config config{
+      .width = iImageData.mWidth,
+      .height = iImageData.mHeight,
+      .format = iSrgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
+      .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+      .mipLevels = 1,
+      .debugName = std::move(iDebugName),
+  };
+  auto image = std::make_unique<Image>(mRenderer.get(), config);
+  if (iImageData.mPixels && iImageData.getSizeInBytes() > 0) {
+    mStagingManager->stageImageUpload(*image, iImageData.mPixels, iImageData.getSizeInBytes());
+  }
+  return image;
+}
+
+void RenderManager::flushUploads() {
+  if (mStagingManager && mStagingManager->hasPendingUploads()) {
+    mStagingManager->endBatch();
+  }
+}
+
 void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   if (!iRegistry) {
     return;
+  }
+
+  if (mStagingManager && mStagingManager->hasPendingUploads()) {
+    flushUploads();
   }
 
   VkCommandBuffer commandBuffer = mRenderer->beginFrame();
@@ -142,11 +185,10 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
       [&](Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
         NE_UNUSED(entity);
         if (mesh.mMesh && mesh.mMaterial && mesh.mMaterial->getPipeline()) {
-          mDrawCalls.push_back(DrawCall{
-              .pipeline = mesh.mMaterial->getPipeline(),
-              .mesh = mesh.mMesh.get(),
-              .transform = transform.getLocalMatrix(),
-              .color = mesh.mColorTint});
+          mDrawCalls.push_back(DrawCall{.pipeline = mesh.mMaterial->getPipeline(),
+                                        .mesh = mesh.mMesh.get(),
+                                        .transform = transform.getLocalMatrix(),
+                                        .color = mesh.mColorTint});
         }
       });
 
@@ -205,7 +247,8 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
   // 4. Upload scene-wide uniforms
   GlobalUniforms globalUniforms;
   globalUniforms.viewProj = iViewProj;
-  VkDeviceAddress globalUniformsAddr = uploadBuffer->upload(&globalUniforms, sizeof(GlobalUniforms));
+  VkDeviceAddress globalUniformsAddr =
+      uploadBuffer->getDeviceAddress(uploadBuffer->upload(&globalUniforms, sizeof(GlobalUniforms)));
 
   // 5. Loop through sorted mDrawCalls and batch/submit
   size_t i = 0;
@@ -229,10 +272,8 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
       // Collect all instances for this mesh
       while (i < mDrawCalls.size() && mDrawCalls[i].pipeline == currentPipeline && mDrawCalls[i].mesh == currentMesh) {
         Mat4 normalMatrix = mDrawCalls[i].transform.inversed().transposed();
-        instanceData.push_back(InstanceData{
-            .modelMatrix = mDrawCalls[i].transform,
-            .normalMatrix = normalMatrix,
-            .color = mDrawCalls[i].color});
+        instanceData.push_back(
+            InstanceData{.modelMatrix = mDrawCalls[i].transform, .normalMatrix = normalMatrix, .color = mDrawCalls[i].color});
         instanceCount++;
         i++;
       }
@@ -253,12 +294,12 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
 
     uint32_t numUniqueMeshes = static_cast<uint32_t>(drawInfos.size());
 
-    VkDeviceAddress drawInfosAddr = uploadBuffer->upload(drawInfos.data(), drawInfos.size() * sizeof(DrawInfo));
-    VkDeviceAddress instancesAddr = uploadBuffer->upload(instanceData.data(), instanceData.size() * sizeof(InstanceData));
-    VkDeviceAddress indirectCmdsAddr =
+    VkDeviceAddress drawInfosAddr =
+        uploadBuffer->getDeviceAddress(uploadBuffer->upload(drawInfos.data(), drawInfos.size() * sizeof(DrawInfo)));
+    VkDeviceAddress instancesAddr =
+        uploadBuffer->getDeviceAddress(uploadBuffer->upload(instanceData.data(), instanceData.size() * sizeof(InstanceData)));
+    VkDeviceSize indirectOffset =
         uploadBuffer->upload(indirectCommands.data(), indirectCommands.size() * sizeof(VkDrawIndexedIndirectCommand));
-
-    VkDeviceSize indirectOffset = indirectCmdsAddr - uploadBuffer->getDeviceAddress();
 
     PushConstants pc{};
     pc.drawInfos = drawInfosAddr;

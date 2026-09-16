@@ -106,10 +106,10 @@ inline void setDebugObjectName(VkDevice device, T handle, const std::string& nam
   setDebugObjectName(device, handle, name.c_str());
 }
 
-constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;           // 64 MB
-constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;            // 32 MB
-constexpr VkDeviceSize DEFAULT_UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024; // 16 MB
-constexpr VkDeviceSize DEFAULT_STAGING_BUFFER_SIZE = 4 * 1024 * 1024; // 4 MB
+constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;    // 64 MB
+constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;     // 32 MB
+constexpr VkDeviceSize UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;  // 16 MB
+constexpr VkDeviceSize STAGING_BUFFER_SIZE = 64 * 1024 * 1024; // 64 MB
 
 template <typename T>
 constexpr T alignUp(T value, T alignment) {

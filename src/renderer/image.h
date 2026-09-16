@@ -15,7 +15,7 @@ struct ImageData;
  * @brief RAII management of a 2D Vulkan Image, Device Memory, and Image View.
  *
  * Serves as the Vulkan RHI wrapper for sampled images, render targets, depth attachments,
- * and storage images with modern Vulkan 1.4 Synchronization2 layout transitions.
+ * and storage images. Pinned GPU resource (non-copyable, non-moveable).
  */
 class Image {
 public:
@@ -28,33 +28,35 @@ public:
     std::string debugName = "";
   };
 
-  Image(Renderer* iRenderer, const Config& iConfig, const void* iPixelData = nullptr, VkDeviceSize iSize = 0);
-  Image(Renderer* iRenderer, const ImageData& iImageData, bool iSrgb = true, std::string iDebugName = "");
+  Image(Renderer* iRenderer, const Config& iConfig);
   ~Image();
 
-  // Prevent copying
+  // Non-copyable and non-moveable (pinned Vulkan RAII resource)
   Image(const Image&) = delete;
   Image& operator=(const Image&) = delete;
+  Image(Image&&) = delete;
+  Image& operator=(Image&&) = delete;
 
-  // Move semantics
-  Image(Image&& other);
-  Image& operator=(Image&& other);
+  // Synchronization State
+  VkImageLayout getCurrentLayout() const { return mCurrentLayout; }
+  VkAccessFlags2 getCurrentAccessMask() const { return mCurrentAccessMask; }
+  VkPipelineStageFlags2 getCurrentStageMask() const { return mCurrentStageMask; }
 
-  void transitionLayout(VkCommandBuffer iCommandBuffer, VkImageLayout iNewLayout, VkAccessFlags2 iDstAccessMask,
-                        VkPipelineStageFlags2 iDstStageMask);
-  void transitionLayout(VkImageLayout iNewLayout, VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iDstStageMask);
+  void setLayoutState(VkImageLayout iLayout, VkAccessFlags2 iAccessMask, VkPipelineStageFlags2 iStageMask) {
+    mCurrentLayout = iLayout;
+    mCurrentAccessMask = iAccessMask;
+    mCurrentStageMask = iStageMask;
+  }
 
   // Getters
   bool isValid() const { return mImage != VK_NULL_HANDLE; }
   VkImage getImage() const { return mImage; }
   VkImageView getImageView() const { return mImageView; }
   VkDeviceMemory getMemory() const { return mImageMemory; }
-  VkImageLayout getCurrentLayout() const { return mCurrentLayout; }
   const Config& getConfig() const { return mConfig; }
 
 private:
   void releaseResources();
-  void uploadData(const void* iPixelData, VkDeviceSize iSize);
 
   Renderer* mRenderer = nullptr;
   Config mConfig;
