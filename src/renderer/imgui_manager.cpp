@@ -3,6 +3,7 @@
 #include "core/filesystem.h"
 #include "core/logger.h"
 #include "platform/window.h"
+#include "renderer/image.h"
 #include "renderer/renderer.h"
 
 #include <imgui.h>
@@ -11,8 +12,8 @@
 
 namespace ne {
 
-ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWindow), mRenderer(iRenderer) {
-  NE_ASSERT(mWindow && mRenderer);
+ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWindow) {
+  NE_ASSERT(mWindow && iRenderer);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -26,22 +27,22 @@ ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWind
   renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
   renderingInfo.pNext = nullptr;
   renderingInfo.colorAttachmentCount = 1;
-  renderingInfo.pColorAttachmentFormats = &(mRenderer->getSwapChainSurfaceFormat().format);
-  renderingInfo.depthAttachmentFormat = mRenderer->getDepthFormat();
-  renderingInfo.stencilAttachmentFormat = mRenderer->getDepthFormat();
+  renderingInfo.pColorAttachmentFormats = &(iRenderer->getSwapChainSurfaceFormat().format);
+  renderingInfo.depthAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
+  renderingInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
 
   ImGui_ImplVulkan_InitInfo initInfo{};
-  initInfo.ApiVersion = mRenderer->getApiVersion();
-  initInfo.Instance = mRenderer->getInstance();
-  initInfo.PhysicalDevice = mRenderer->getPhysicalDevice();
-  initInfo.Device = mRenderer->getDevice();
-  initInfo.QueueFamily = mRenderer->getQueueFamilyIndex();
-  initInfo.Queue = mRenderer->getQueue();
+  initInfo.ApiVersion = iRenderer->getApiVersion();
+  initInfo.Instance = iRenderer->getInstance();
+  initInfo.PhysicalDevice = iRenderer->getPhysicalDevice();
+  initInfo.Device = iRenderer->getDevice();
+  initInfo.QueueFamily = iRenderer->getQueueFamilyIndex();
+  initInfo.Queue = iRenderer->getQueue();
   initInfo.PipelineCache = VK_NULL_HANDLE;
   initInfo.DescriptorPool = VK_NULL_HANDLE;
   initInfo.DescriptorPoolSize = 128;
   initInfo.MinImageCount = 2;
-  initInfo.ImageCount = static_cast<uint32_t>(mRenderer->getSwapChainImageCount());
+  initInfo.ImageCount = static_cast<uint32_t>(iRenderer->getSwapChainImageCount());
   initInfo.UseDynamicRendering = true;
   initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = renderingInfo;
   initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;

@@ -4,6 +4,7 @@
 #include "core/logger.h"
 #include "platform/window.h"
 #include "renderer/buffer.h"
+#include "renderer/image.h"
 #include "renderer/utils.h"
 
 // std
@@ -43,7 +44,7 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   pickPhysicalDevice();
   createLogicalDevice();
   createSwapChain();
-  createDepthResources();
+  createDepthImage();
   createFramesResources();
 }
 
@@ -60,18 +61,7 @@ Renderer::~Renderer() {
     frame.mUploadBuffer.reset();
   }
 
-  if (mDepthImageView != VK_NULL_HANDLE) {
-    vkDestroyImageView(mDevice, mDepthImageView, nullptr);
-    mDepthImageView = VK_NULL_HANDLE;
-  }
-  if (mDepthImage != VK_NULL_HANDLE) {
-    vkDestroyImage(mDevice, mDepthImage, nullptr);
-    mDepthImage = VK_NULL_HANDLE;
-  }
-  if (mDepthImageMemory != VK_NULL_HANDLE) {
-    vkFreeMemory(mDevice, mDepthImageMemory, nullptr);
-    mDepthImageMemory = VK_NULL_HANDLE;
-  }
+  mDepthImage.reset();
 
   for (SwapchainImageResources& image : mSwapChainImages) {
     vkDestroyImageView(mDevice, image.mImageView, nullptr);
@@ -412,8 +402,19 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
   mSwapChainImages.resize(swapChainImages.size());
   for (size_t i = 0; i < swapChainImages.size(); i++) {
     mSwapChainImages[i].mImage = swapChainImages[i];
-    mSwapChainImages[i].mImageView =
-        createImageView(swapChainImages[i], mSwapChainSurfaceFormat.format, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = swapChainImages[i];
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = mSwapChainSurfaceFormat.format;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    VK_CHECK(vkCreateImageView(mDevice, &viewInfo, nullptr, &mSwapChainImages[i].mImageView));
     // Create Semaphore for starting display to the image
     VkSemaphoreCreateInfo semaphoreCreateInfo{};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -431,11 +432,14 @@ void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
 }
 
 std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::string iDebugName) {
-  auto uploadBuffer =
-      std::make_unique<Buffer>(this, size,
-                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, std::move(iDebugName));
+  Buffer::Config config{
+      .size = size,
+      .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
+      .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .debugName = std::move(iDebugName),
+  };
+  auto uploadBuffer = std::make_unique<Buffer>(this, config);
   uploadBuffer->mapMemory();
   return uploadBuffer;
 }
@@ -526,7 +530,7 @@ VkCommandBuffer Renderer::beginFrame() {
 void Renderer::recreateUploadBuffer(VkDeviceSize newSize) {
   auto& currentFrame = mFrames[mFrameIndex];
 
-  NE_LOG("Upload buffer resizing from {} to {} bytes", currentFrame.mUploadBuffer->getBufferSize(), newSize);
+  NE_LOG("Upload buffer resizing from {} to {} bytes", currentFrame.mUploadBuffer->getConfig().size, newSize);
 
   currentFrame.mUploadBuffer = createUploadBuffer(newSize, std::format("UploadBuffer_Frame_{}", mFrameIndex));
 }
@@ -604,7 +608,7 @@ void Renderer::recreateSwapChain(bool iForceRecreate) {
 
   // Create the new swapchain, passing the old swapchain for resource recycling
   createSwapChain(oldSwapChain);
-  createDepthResources();
+  createDepthImage();
 
   // Safely destroy the old swapchain now that the new one is created
   if (oldSwapChain != VK_NULL_HANDLE) {
@@ -700,51 +704,6 @@ uint32_t Renderer::findMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iP
   return ~0U;
 }
 
-void Renderer::createImage(const VkImageCreateInfo& iImageInfo, VkMemoryPropertyFlags iProperties, VkImage& iImage,
-                           VkDeviceMemory& iImageMemory) {
-  VK_CHECK(vkCreateImage(mDevice, &iImageInfo, nullptr, &iImage));
-
-  VkImageMemoryRequirementsInfo2 memReqsInfo2{};
-  memReqsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
-  memReqsInfo2.image = iImage;
-
-  VkMemoryRequirements2 memReqs2{};
-  memReqs2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-  vkGetImageMemoryRequirements2(mDevice, &memReqsInfo2, &memReqs2);
-
-  VkMemoryAllocateInfo allocInfo{};
-  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  allocInfo.allocationSize = memReqs2.memoryRequirements.size;
-  allocInfo.memoryTypeIndex = findMemoryType(memReqs2.memoryRequirements.memoryTypeBits, iProperties);
-  NE_ASSERT(allocInfo.memoryTypeIndex != ~0U, "Failed to find suitable memory type!");
-
-  VK_CHECK(vkAllocateMemory(mDevice, &allocInfo, nullptr, &iImageMemory));
-
-  VkBindImageMemoryInfo bindImageInfo{};
-  bindImageInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
-  bindImageInfo.image = iImage;
-  bindImageInfo.memory = iImageMemory;
-  bindImageInfo.memoryOffset = 0;
-  VK_CHECK(vkBindImageMemory2(mDevice, 1, &bindImageInfo));
-}
-
-VkImageView Renderer::createImageView(VkImage iImage, VkFormat iFormat, VkImageAspectFlags iAspectFlags) {
-  VkImageViewCreateInfo viewInfo{};
-  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-  viewInfo.image = iImage;
-  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-  viewInfo.format = iFormat;
-  viewInfo.subresourceRange.aspectMask = iAspectFlags;
-  viewInfo.subresourceRange.baseMipLevel = 0;
-  viewInfo.subresourceRange.levelCount = 1;
-  viewInfo.subresourceRange.baseArrayLayer = 0;
-  viewInfo.subresourceRange.layerCount = 1;
-
-  VkImageView imageView;
-  VK_CHECK(vkCreateImageView(mDevice, &viewInfo, nullptr, &imageView));
-  return imageView;
-}
-
 // NOTE: Modern industry standards prioritize 32-bit floating-point depth with stencil (D32_SFLOAT_S8_UINT)
 // for maximum Z-precision, Reverse-Z compatibility, and stencil passes (outlining, selection, shadows).
 VkFormat Renderer::findDepthFormat() {
@@ -765,48 +724,22 @@ VkFormat Renderer::findSupportedFormat(const std::vector<VkFormat>& iCandidates,
   return VK_FORMAT_UNDEFINED;
 }
 
-void Renderer::createDepthResources() {
-  if (mDepthImageView != VK_NULL_HANDLE) {
-    vkDestroyImageView(mDevice, mDepthImageView, nullptr);
-    mDepthImageView = VK_NULL_HANDLE;
-  }
-  if (mDepthImage != VK_NULL_HANDLE) {
-    vkDestroyImage(mDevice, mDepthImage, nullptr);
-    mDepthImage = VK_NULL_HANDLE;
-  }
-  if (mDepthImageMemory != VK_NULL_HANDLE) {
-    vkFreeMemory(mDevice, mDepthImageMemory, nullptr);
-    mDepthImageMemory = VK_NULL_HANDLE;
-  }
+void Renderer::createDepthImage() {
+  VkFormat depthFormat = findDepthFormat();
 
-  mDepthFormat = findDepthFormat();
+  Image::Config depthConfig{
+      .width = mSwapChainExtent.width,
+      .height = mSwapChainExtent.height,
+      .format = depthFormat,
+      .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      .mipLevels = 1,
+      .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+      .debugName = "Depth_Image",
+  };
 
-  VkImageCreateInfo imageInfo{};
-  imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-  imageInfo.imageType = VK_IMAGE_TYPE_2D;
-  imageInfo.extent.width = mSwapChainExtent.width;
-  imageInfo.extent.height = mSwapChainExtent.height;
-  imageInfo.extent.depth = 1;
-  imageInfo.mipLevels = 1;
-  imageInfo.arrayLayers = 1;
-  imageInfo.format = mDepthFormat;
-  imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  mDepthImage = std::make_unique<Image>(this, depthConfig);
 
-  createImage(imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mDepthImage, mDepthImageMemory);
-
-  VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-
-  mDepthImageView = createImageView(mDepthImage, mDepthFormat, aspectMask);
-
-  vk_utils::setDebugObjectName(mDevice, mDepthImage, "Depth_Image");
-  vk_utils::setDebugObjectName(mDevice, mDepthImageMemory, "Depth_ImageMemory");
-  vk_utils::setDebugObjectName(mDevice, mDepthImageView, "Depth_ImageView");
-
-  NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(mDepthFormat), mSwapChainExtent.width,
+  NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(depthFormat), mSwapChainExtent.width,
          mSwapChainExtent.height);
 }
 

@@ -49,11 +49,12 @@ VkSamplerAddressMode toVkAddressMode(Sampler::AddressMode mode) {
 Sampler::Sampler(Renderer* iRenderer) : Sampler(iRenderer, Config{}) {}
 
 Sampler::Sampler(Renderer* iRenderer, const Config& iConfig)
-    : mRenderer(iRenderer), mDebugName(iConfig.debugName) {
-  NE_ASSERT(mRenderer, "Renderer must not be null");
+    : mDevice(iRenderer ? iRenderer->getDevice() : VK_NULL_HANDLE) {
+  NE_ASSERT(iRenderer, "Renderer must not be null");
+  NE_ASSERT(mDevice != VK_NULL_HANDLE, "Device must not be null");
 
   float maxAniso = iConfig.enableAnisotropy
-      ? std::min(iConfig.maxAnisotropy, mRenderer->getPhysicalDeviceProperties().limits.maxSamplerAnisotropy)
+      ? std::min(iConfig.maxAnisotropy, iRenderer->getPhysicalDeviceProperties().limits.maxSamplerAnisotropy)
       : 1.0f;
 
   VkSamplerCreateInfo samplerInfo{};
@@ -74,15 +75,15 @@ Sampler::Sampler(Renderer* iRenderer, const Config& iConfig)
   samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
   samplerInfo.unnormalizedCoordinates = VK_FALSE;
 
-  VK_CHECK(vkCreateSampler(mRenderer->getDevice(), &samplerInfo, nullptr, &mSampler));
+  VK_CHECK(vkCreateSampler(mDevice, &samplerInfo, nullptr, &mSampler));
 
-  if (!mDebugName.empty()) {
-    vk_utils::setDebugObjectName(mRenderer->getDevice(), mSampler, mDebugName);
+  if (!iConfig.debugName.empty()) {
+    vk_utils::setDebugObjectName(mDevice, mSampler, iConfig.debugName);
   }
 
 #ifndef NE_BUILD_SHIPPING
   NE_LOG("Created Sampler{}: Mag: {}, Min: {}, Anisotropy: {:.1f}x",
-         mDebugName.empty() ? "" : std::format(" '{}'", mDebugName),
+         iConfig.debugName.empty() ? "" : std::format(" '{}'", iConfig.debugName),
          iConfig.magFilter == Filter::Linear ? "Linear" : "Nearest",
          iConfig.minFilter == Filter::Linear ? "Linear" : "Nearest",
          iConfig.enableAnisotropy ? maxAniso : 0.0f);
@@ -94,27 +95,26 @@ Sampler::~Sampler() {
 }
 
 Sampler::Sampler(Sampler&& other)
-    : mRenderer(other.mRenderer), mSampler(other.mSampler), mDebugName(std::move(other.mDebugName)) {
+    : mDevice(other.mDevice), mSampler(other.mSampler) {
   other.mSampler = VK_NULL_HANDLE;
-  other.mRenderer = nullptr;
+  other.mDevice = VK_NULL_HANDLE;
 }
 
 Sampler& Sampler::operator=(Sampler&& other) {
   if (this != &other) {
     releaseResources();
-    mRenderer = other.mRenderer;
+    mDevice = other.mDevice;
     mSampler = other.mSampler;
-    mDebugName = std::move(other.mDebugName);
 
     other.mSampler = VK_NULL_HANDLE;
-    other.mRenderer = nullptr;
+    other.mDevice = VK_NULL_HANDLE;
   }
   return *this;
 }
 
 void Sampler::releaseResources() {
-  if (mRenderer && mRenderer->getDevice() != VK_NULL_HANDLE && mSampler != VK_NULL_HANDLE) {
-    vkDestroySampler(mRenderer->getDevice(), mSampler, nullptr);
+  if (mDevice != VK_NULL_HANDLE && mSampler != VK_NULL_HANDLE) {
+    vkDestroySampler(mDevice, mSampler, nullptr);
     mSampler = VK_NULL_HANDLE;
   }
 }

@@ -8,18 +8,25 @@
 
 namespace ne {
 
-GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize)
-    : mRenderer(iRenderer) {
-  NE_ASSERT(mRenderer);
+GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize) {
+  NE_ASSERT(iRenderer);
 
-  mVertexBuffer = std::make_unique<Buffer>(mRenderer, iVertexPoolSize,
-                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "GeometryAllocator_VertexBuffer");
+  Buffer::Config vertexConfig{
+      .size = iVertexPoolSize,
+      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+      .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .debugName = "GeometryAllocator_VertexBuffer",
+  };
+  mVertexBuffer = std::make_unique<Buffer>(iRenderer, vertexConfig);
 
-  mIndexBuffer =
-      std::make_unique<Buffer>(mRenderer, iIndexPoolSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "GeometryAllocator_IndexBuffer");
+  Buffer::Config indexConfig{
+      .size = iIndexPoolSize,
+      .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+      .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+      .debugName = "GeometryAllocator_IndexBuffer",
+  };
+  mIndexBuffer = std::make_unique<Buffer>(iRenderer, indexConfig);
 
   NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", vk_utils::formatBytes(iVertexPoolSize),
          vk_utils::formatBytes(iIndexPoolSize));
@@ -50,10 +57,10 @@ GeometryAllocation GeometryAllocator::stageGeometry(StagingManager& iStagingMana
 
   NE_LOG("Allocated geometry: vertex size: {}, index size: {} | Pool occupancy: vertex={}/{} ({:.2f}%), index={}/{} ({:.2f}%)",
          vk_utils::formatBytes(vertexSize), vk_utils::formatBytes(indexSize), vk_utils::formatBytes(mVertexBuffer->getUploadOffset()),
-         vk_utils::formatBytes(mVertexBuffer->getBufferSize()),
-         (static_cast<double>(mVertexBuffer->getUploadOffset()) / mVertexBuffer->getBufferSize()) * 100.0,
-         vk_utils::formatBytes(mIndexBuffer->getUploadOffset()), vk_utils::formatBytes(mIndexBuffer->getBufferSize()),
-         (static_cast<double>(mIndexBuffer->getUploadOffset()) / mIndexBuffer->getBufferSize()) * 100.0);
+         vk_utils::formatBytes(mVertexBuffer->getConfig().size),
+         (static_cast<double>(mVertexBuffer->getUploadOffset()) / mVertexBuffer->getConfig().size) * 100.0,
+         vk_utils::formatBytes(mIndexBuffer->getUploadOffset()), vk_utils::formatBytes(mIndexBuffer->getConfig().size),
+         (static_cast<double>(mIndexBuffer->getUploadOffset()) / mIndexBuffer->getConfig().size) * 100.0);
 
   iStagingManager.stageBufferCopy(mVertexBuffer->getBuffer(), vertices.data(), vertexSize, vertexOffset);
   iStagingManager.stageBufferCopy(mIndexBuffer->getBuffer(), iMeshData.mIndices.data(), indexSize, indexOffset);

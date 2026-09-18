@@ -55,14 +55,14 @@ void RenderManager::waitIdle() { mRenderer->waitIdle(); }
 
 std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShaderName) {
   Pipeline::Config config{};
-  config.mShaderName = iShaderName;
+  config.shaderName = iShaderName;
 
   // Configure push constants range using RenderManager's local PushConstants struct
   VkPushConstantRange pushConstantRange{};
   pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
   pushConstantRange.offset = 0;
   pushConstantRange.size = sizeof(PushConstants);
-  config.mPushConstantRanges = {pushConstantRange};
+  config.pushConstantRanges = {pushConstantRange};
 
   // Pipeline is created in RenderManager, passing mRenderer.get()
   auto pipeline = std::make_shared<Pipeline>(mRenderer.get(), config);
@@ -120,7 +120,8 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
 
   VkExtent2D extent = mRenderer->getSwapChainExtent();
   VkImage colorImage = mRenderer->getActiveSwapChainImage();
-  VkImage depthImage = mRenderer->getDepthImage();
+  Image* depthImage = mRenderer->getDepthImage();
+  NE_ASSERT(depthImage, "Depth image must not be null");
 
   // 1. Begin Swapchain Render Pass
   mRenderer->transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -128,7 +129,7 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
                                    VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-  mRenderer->transitionImageLayout(commandBuffer, depthImage, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+  mRenderer->transitionImageLayout(commandBuffer, depthImage->getImage(), VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
                                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
                                    VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                    VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
@@ -144,7 +145,7 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
 
   VkRenderingAttachmentInfo depthAttachmentInfo{};
   depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-  depthAttachmentInfo.imageView = mRenderer->getDepthImageView();
+  depthAttachmentInfo.imageView = depthImage->getImageView();
   depthAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
   depthAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   depthAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -238,8 +239,8 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
 
   // 3. Check and dynamically resize the upload buffer if needed
   Buffer* uploadBuffer = mRenderer->getUploadBuffer();
-  if (uploadBuffer->getBufferSize() < totalRequiredSize) {
-    VkDeviceSize newSize = std::max(totalRequiredSize, uploadBuffer->getBufferSize() * 2);
+  if (uploadBuffer->getConfig().size < totalRequiredSize) {
+    VkDeviceSize newSize = std::max(totalRequiredSize, uploadBuffer->getConfig().size * 2);
     mRenderer->recreateUploadBuffer(newSize);
     uploadBuffer = mRenderer->getUploadBuffer();
   }

@@ -12,6 +12,7 @@ namespace ne {
 
 class Window;
 class Buffer;
+class Image;
 
 class Renderer {
 public:
@@ -52,9 +53,7 @@ public:
   VkImageView getActiveSwapChainImageView() const { return mSwapChainImages[mSwapChainImageIndex].mImageView; }
   uint32_t getActiveSwapChainImageIndex() const { return mSwapChainImageIndex; }
 
-  VkFormat getDepthFormat() const { return mDepthFormat; }
-  VkImageView getDepthImageView() const { return mDepthImageView; }
-  VkImage getDepthImage() const { return mDepthImage; }
+  Image* getDepthImage() const { return mDepthImage.get(); }
 
   void transitionImageLayout(VkCommandBuffer iCommandBuffer, VkImage iImage, VkImageAspectFlags iAspectMask,
                              VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
@@ -62,9 +61,6 @@ public:
                              VkPipelineStageFlags2 iDstStageMask);
 
   uint32_t findMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties) const;
-  void createImage(const VkImageCreateInfo& iImageInfo, VkMemoryPropertyFlags iProperties, VkImage& iImage,
-                   VkDeviceMemory& iImageMemory);
-  VkImageView createImageView(VkImage iImage, VkFormat iFormat, VkImageAspectFlags iAspectFlags);
 
 private:
   std::unique_ptr<Buffer> createUploadBuffer(VkDeviceSize size, std::string iDebugName = "");
@@ -75,7 +71,7 @@ private:
   void pickPhysicalDevice();
   void createLogicalDevice();
   void createSwapChain(VkSwapchainKHR iOldSwapchain = VK_NULL_HANDLE);
-  void createDepthResources();
+  void createDepthImage();
   void destroySwapchainResources();
   void createFramesResources();
 
@@ -121,10 +117,7 @@ private:
   VkSurfaceFormatKHR mSwapChainSurfaceFormat = {};
   VkExtent2D mSwapChainExtent = {};
 
-  VkFormat mDepthFormat = VK_FORMAT_D32_SFLOAT;
-  VkImage mDepthImage = VK_NULL_HANDLE;
-  VkDeviceMemory mDepthImageMemory = VK_NULL_HANDLE;
-  VkImageView mDepthImageView = VK_NULL_HANDLE;
+  std::unique_ptr<Image> mDepthImage;
 
   VkCommandPool mOneTimeCommandPool = VK_NULL_HANDLE;
   VkCommandBuffer mOneTimeCommandBuffer = VK_NULL_HANDLE;

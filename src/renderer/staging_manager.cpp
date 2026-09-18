@@ -13,12 +13,16 @@ namespace ne {
 StagingManager::StagingManager(Renderer* iRenderer) : mRenderer(iRenderer) {
   NE_ASSERT(mRenderer, "Renderer must not be null");
 
-  mStagingBuffer = std::make_unique<Buffer>(mRenderer, vk_utils::STAGING_BUFFER_SIZE, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                            "StagingManager_StagingBuffer");
+  Buffer::Config stagingConfig{
+      .size = vk_utils::STAGING_BUFFER_SIZE,
+      .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+      .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .debugName = "StagingManager_StagingBuffer",
+  };
+  mStagingBuffer = std::make_unique<Buffer>(mRenderer, stagingConfig);
   mStagingBuffer->mapMemory();
 
-  NE_LOG("Initialized StagingManager: Staging Arena Size: {}", vk_utils::formatBytes(mStagingBuffer->getBufferSize()));
+  NE_LOG("Initialized StagingManager: Staging Arena Size: {}", vk_utils::formatBytes(mStagingBuffer->getConfig().size));
 }
 
 StagingManager::~StagingManager() {
@@ -56,16 +60,20 @@ void StagingManager::stageBufferCopy(VkBuffer dstBuffer, const void* data, VkDev
   }
 
   // Outlier Handling: If single payload is larger than the entire staging buffer capacity
-  if (size > mStagingBuffer->getBufferSize()) {
+  if (size > mStagingBuffer->getConfig().size) {
     NE_LOG("StagingManager: Staging buffer copy of size {} exceeds capacity {}. Using transient staging buffer.",
-           vk_utils::formatBytes(size), vk_utils::formatBytes(mStagingBuffer->getBufferSize()));
+           vk_utils::formatBytes(size), vk_utils::formatBytes(mStagingBuffer->getConfig().size));
     if (hasPendingUploads()) {
       flushBatch();
     }
 
-    Buffer tempStaging(mRenderer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                       "StagingManager_OutlierBufferStaging");
+    Buffer::Config outlierConfig{
+        .size = size,
+        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .debugName = "StagingManager_OutlierBufferStaging",
+    };
+    Buffer tempStaging(mRenderer, outlierConfig);
     tempStaging.mapMemory();
     tempStaging.writeToBuffer(data, size, 0);
 
@@ -91,16 +99,20 @@ void StagingManager::stageImageUpload(Image& dstImage, const void* pixelData, Vk
   }
 
   // Outlier Handling: If single image is larger than the entire staging buffer capacity
-  if (size > mStagingBuffer->getBufferSize()) {
+  if (size > mStagingBuffer->getConfig().size) {
     NE_LOG("StagingManager: Staging image upload of size {} exceeds capacity {}. Using transient staging buffer.",
-           vk_utils::formatBytes(size), vk_utils::formatBytes(mStagingBuffer->getBufferSize()));
+           vk_utils::formatBytes(size), vk_utils::formatBytes(mStagingBuffer->getConfig().size));
     if (hasPendingUploads()) {
       flushBatch();
     }
 
-    Buffer tempStaging(mRenderer, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                       "StagingManager_OutlierImageStaging");
+    Buffer::Config outlierConfig{
+        .size = size,
+        .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .debugName = "StagingManager_OutlierImageStaging",
+    };
+    Buffer tempStaging(mRenderer, outlierConfig);
     tempStaging.mapMemory();
     tempStaging.writeToBuffer(pixelData, size, 0);
 

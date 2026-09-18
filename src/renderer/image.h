@@ -25,6 +25,7 @@ public:
     VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
     VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     uint32_t mipLevels = 1;
+    VkImageAspectFlags aspectMask = 0; // 0 = auto-deduce from format
     std::string debugName = "";
   };
 
@@ -48,6 +49,9 @@ public:
     mCurrentStageMask = iStageMask;
   }
 
+  // Static helpers
+  static VkImageAspectFlags deduceAspectFlags(VkFormat format);
+
   // Getters
   bool isValid() const { return mImage != VK_NULL_HANDLE; }
   VkImage getImage() const { return mImage; }
@@ -58,7 +62,7 @@ public:
 private:
   void releaseResources();
 
-  Renderer* mRenderer = nullptr;
+  VkDevice mDevice = VK_NULL_HANDLE;
   Config mConfig;
 
   VkImage mImage = VK_NULL_HANDLE;

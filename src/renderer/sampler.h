@@ -41,14 +41,12 @@ public:
   Sampler& operator=(Sampler&& other);
 
   VkSampler getSampler() const { return mSampler; }
-  const std::string& getDebugName() const { return mDebugName; }
 
 private:
   void releaseResources();
 
-  Renderer* mRenderer = nullptr;
+  VkDevice mDevice = VK_NULL_HANDLE;
   VkSampler mSampler = VK_NULL_HANDLE;
-  std::string mDebugName;
 };
 
 } // namespace ne

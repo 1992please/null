@@ -2,6 +2,7 @@
 #include "core/assert.h"
 #include "core/filesystem.h"
 #include "core/platform.h"
+#include "renderer/image.h"
 #include "renderer/mesh.h"
 #include "renderer/renderer.h"
 #include "renderer/utils.h"
@@ -13,7 +14,7 @@
 namespace ne {
 
 Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRenderer->getDevice()) {
-  VkShaderModule shaderModule = createShaderModule(iConfig.mShaderName);
+  VkShaderModule shaderModule = createShaderModule(iConfig.shaderName);
 
   VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo{};
   vertShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -31,10 +32,10 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
 
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo{};
   vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputStateCreateInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(iConfig.mVertexBindingDescriptions.size());
-  vertexInputStateCreateInfo.pVertexBindingDescriptions = iConfig.mVertexBindingDescriptions.data();
-  vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(iConfig.mVertexAttributeDescriptions.size());
-  vertexInputStateCreateInfo.pVertexAttributeDescriptions = iConfig.mVertexAttributeDescriptions.data();
+  vertexInputStateCreateInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(iConfig.vertexBindingDescriptions.size());
+  vertexInputStateCreateInfo.pVertexBindingDescriptions = iConfig.vertexBindingDescriptions.data();
+  vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(iConfig.vertexAttributeDescriptions.size());
+  vertexInputStateCreateInfo.pVertexAttributeDescriptions = iConfig.vertexAttributeDescriptions.data();
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemplyStateCreateInfo{};
   inputAssemplyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -73,14 +74,14 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   // Depth And Stencil
   VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo{};
   depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depthStencilStateCreateInfo.depthTestEnable = iConfig.mDepthMode != Pipeline::DM_Disabled ? VK_TRUE : VK_FALSE;
-  depthStencilStateCreateInfo.depthWriteEnable = iConfig.mDepthMode == Pipeline::DM_ReadWrite ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.depthTestEnable = iConfig.depthMode != Pipeline::DM_Disabled ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.depthWriteEnable = iConfig.depthMode == Pipeline::DM_ReadWrite ? VK_TRUE : VK_FALSE;
   depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
   depthStencilStateCreateInfo.minDepthBounds = 0.0f;
   depthStencilStateCreateInfo.maxDepthBounds = 1.0f;
-  depthStencilStateCreateInfo.stencilTestEnable = iConfig.mStencilMode != Pipeline::SM_Disabled ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.stencilTestEnable = iConfig.stencilMode != Pipeline::SM_Disabled ? VK_TRUE : VK_FALSE;
   depthStencilStateCreateInfo.depthCompareOp =
-      iConfig.mDepthMode != Pipeline::DM_Disabled ? VK_COMPARE_OP_GREATER_OR_EQUAL : VK_COMPARE_OP_ALWAYS;
+      iConfig.depthMode != Pipeline::DM_Disabled ? VK_COMPARE_OP_GREATER_OR_EQUAL : VK_COMPARE_OP_ALWAYS;
 
   // Color blending (blends new color to the old color already in the frame buffer)
   /*
@@ -97,6 +98,7 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   colorBendAttachmentState.blendEnable = false;
   colorBendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
   colorBendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+  colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
   colorBendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
   colorBendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
   colorBendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -115,10 +117,10 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   layoutCreateInfo.setLayoutCount = 0;
   layoutCreateInfo.pSetLayouts = nullptr;
-  layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iConfig.mPushConstantRanges.size());
-  layoutCreateInfo.pPushConstantRanges = iConfig.mPushConstantRanges.empty() ? nullptr : iConfig.mPushConstantRanges.data();
+  layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iConfig.pushConstantRanges.size());
+  layoutCreateInfo.pPushConstantRanges = iConfig.pushConstantRanges.empty() ? nullptr : iConfig.pushConstantRanges.data();
   VK_CHECK(vkCreatePipelineLayout(mDevice, &layoutCreateInfo, nullptr, &mPipelineLayout));
-  vk_utils::setDebugObjectName(mDevice, mPipelineLayout, std::format("{}_PipelineLayout", iConfig.mShaderName).c_str());
+  vk_utils::setDebugObjectName(mDevice, mPipelineLayout, std::format("{}_PipelineLayout", iConfig.shaderName).c_str());
 
   // Dynamic Renderring
   std::vector<VkDynamicState> dynamicState = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
@@ -132,8 +134,9 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   renderingCreateInfo.colorAttachmentCount = 1;
   renderingCreateInfo.pColorAttachmentFormats = &iRenderer->getSwapChainSurfaceFormat().format;
 
-  renderingCreateInfo.depthAttachmentFormat = iRenderer->getDepthFormat();
-  renderingCreateInfo.stencilAttachmentFormat = iRenderer->getDepthFormat();
+  VkFormat depthFormat = iRenderer->getDepthImage() ? iRenderer->getDepthImage()->getConfig().format : VK_FORMAT_UNDEFINED;
+  renderingCreateInfo.depthAttachmentFormat = depthFormat;
+  renderingCreateInfo.stencilAttachmentFormat = depthFormat;
 
   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
   graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -156,10 +159,10 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   graphicsPipelineCreateInfo.basePipelineIndex = 0;
 
   VK_CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &graphicsPipelineCreateInfo, nullptr, &mGraphicsPipeline));
-  vk_utils::setDebugObjectName(mDevice, mGraphicsPipeline, std::format("{}_GraphicsPipeline", iConfig.mShaderName).c_str());
+  vk_utils::setDebugObjectName(mDevice, mGraphicsPipeline, std::format("{}_GraphicsPipeline", iConfig.shaderName).c_str());
 
   vkDestroyShaderModule(mDevice, shaderModule, nullptr);
-  NE_LOG("Created Graphics Pipeline for shader: '{}' (Pipeline: {}, Layout: {})", iConfig.mShaderName, (void*)mGraphicsPipeline,
+  NE_LOG("Created Graphics Pipeline for shader: '{}' (Pipeline: {}, Layout: {})", iConfig.shaderName, (void*)mGraphicsPipeline,
          (void*)mPipelineLayout);
 }
 

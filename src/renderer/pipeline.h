@@ -17,16 +17,17 @@ public:
   enum StencilMode { SM_Disabled, SM_Enabled };
 
   struct Config {
-    std::string mShaderName;
-    std::vector<VkVertexInputBindingDescription> mVertexBindingDescriptions;
-    std::vector<VkVertexInputAttributeDescription> mVertexAttributeDescriptions;
-    std::vector<VkPushConstantRange> mPushConstantRanges;
-    DepthMode mDepthMode = DM_ReadWrite;
-    StencilMode mStencilMode = SM_Disabled;
+    std::string shaderName;
+    std::vector<VkVertexInputBindingDescription> vertexBindingDescriptions;
+    std::vector<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
+    std::vector<VkPushConstantRange> pushConstantRanges;
+    DepthMode depthMode = DM_ReadWrite;
+    StencilMode stencilMode = SM_Disabled;
   };
   Pipeline(Renderer* iRenderer, const Config& iConfig);
   ~Pipeline();
 
+  // Prevent copying
   Pipeline(const Pipeline&) = delete;
   Pipeline& operator=(const Pipeline&) = delete;
 

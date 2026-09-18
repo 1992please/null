@@ -30,7 +30,6 @@ private:
   void setupStyle();
 
   Window* mWindow{nullptr};
-  Renderer* mRenderer{nullptr};
   std::string mIniPath;
 };
 

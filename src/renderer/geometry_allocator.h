@@ -33,7 +33,6 @@ public:
   Buffer* getIndexBuffer() const { return mIndexBuffer.get(); }
 
 private:
-  Renderer* mRenderer = nullptr;
   std::unique_ptr<Buffer> mVertexBuffer;
   std::unique_ptr<Buffer> mIndexBuffer;
 };
