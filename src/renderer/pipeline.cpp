@@ -98,7 +98,6 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   colorBendAttachmentState.blendEnable = false;
   colorBendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
   colorBendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-  colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
   colorBendAttachmentState.colorBlendOp = VK_BLEND_OP_ADD;
   colorBendAttachmentState.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
   colorBendAttachmentState.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
@@ -134,9 +133,8 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   renderingCreateInfo.colorAttachmentCount = 1;
   renderingCreateInfo.pColorAttachmentFormats = &iRenderer->getSwapChainSurfaceFormat().format;
 
-  VkFormat depthFormat = iRenderer->getDepthImage() ? iRenderer->getDepthImage()->getConfig().format : VK_FORMAT_UNDEFINED;
-  renderingCreateInfo.depthAttachmentFormat = depthFormat;
-  renderingCreateInfo.stencilAttachmentFormat = depthFormat;
+  renderingCreateInfo.depthAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
+  renderingCreateInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
 
   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
   graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
