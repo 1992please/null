@@ -14,6 +14,7 @@
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/renderer.h"
+#include "renderer/sampler_manager.h"
 #include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
@@ -40,6 +41,7 @@ struct GlobalUniforms {
 
 RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
+  mSamplerManager = std::make_unique<SamplerManager>(mRenderer.get());
   mStagingManager = std::make_unique<StagingManager>(mRenderer.get());
   mGeometryAllocator =
       std::make_unique<GeometryAllocator>(mRenderer.get(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
@@ -48,6 +50,7 @@ RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, co
 RenderManager::~RenderManager() {
   mGeometryAllocator.reset();
   mStagingManager.reset();
+  mSamplerManager.reset();
   mRenderer.reset();
 }
 

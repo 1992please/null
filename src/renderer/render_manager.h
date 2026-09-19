@@ -19,6 +19,7 @@ class Mesh;
 class Image;
 class Pipeline;
 class Material;
+class SamplerManager;
 class Registry;
 class ImGuiManager;
 struct MeshData;
@@ -52,6 +53,7 @@ public:
   Renderer* getRenderer() const { return mRenderer.get(); }
   StagingManager* getStagingManager() const { return mStagingManager.get(); }
   GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
+  SamplerManager* getSamplerManager() const { return mSamplerManager.get(); }
 
 private:
   void submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj);
@@ -72,6 +74,7 @@ private:
   std::unique_ptr<Renderer> mRenderer;
   std::unique_ptr<StagingManager> mStagingManager;
   std::unique_ptr<GeometryAllocator> mGeometryAllocator;
+  std::unique_ptr<SamplerManager> mSamplerManager;
   std::vector<DrawCall> mDrawCalls;
 };
 

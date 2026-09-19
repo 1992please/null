@@ -22,8 +22,7 @@ VkImageAspectFlags Image::deduceAspectFlags(VkFormat format) {
   }
 }
 
-Image::Image(Renderer* iRenderer, const Config& iConfig)
-    : mDevice(iRenderer->getDevice()), mConfig(iConfig) {
+Image::Image(Renderer* iRenderer, const Config& iConfig) : mDevice(iRenderer->getDevice()), mConfig(iConfig) {
   NE_ASSERT(mConfig.width > 0 && mConfig.height > 0, "Image dimensions must be greater than 0");
 
   VkImageCreateInfo imageInfo{};
@@ -67,8 +66,7 @@ Image::Image(Renderer* iRenderer, const Config& iConfig)
   bindImageInfo.memoryOffset = 0;
   VK_CHECK(vkBindImageMemory2(mDevice, 1, &bindImageInfo));
 
-  VkImageAspectFlags aspectMask =
-      mConfig.aspectMask != 0 ? mConfig.aspectMask : deduceAspectFlags(mConfig.format);
+  VkImageAspectFlags aspectMask = mConfig.aspectMask != 0 ? mConfig.aspectMask : deduceAspectFlags(mConfig.format);
 
   VkImageViewCreateInfo viewInfo{};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

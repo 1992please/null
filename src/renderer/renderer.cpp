@@ -251,7 +251,8 @@ void Renderer::pickPhysicalDevice() {
     // Check support for features you need
     bool supportsRequiredFeatures = vulkan11Features.shaderDrawParameters && vulkan12Features.bufferDeviceAddress &&
                                     vulkan12Features.scalarBlockLayout && vulkan13Features.dynamicRendering &&
-                                    vulkan13Features.synchronization2 && features2.features.multiDrawIndirect;
+                                    vulkan13Features.synchronization2 && features2.features.multiDrawIndirect &&
+                                    features2.features.samplerAnisotropy;
 
     // this features are a must to continue using this device
     if (!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain &&
@@ -304,6 +305,7 @@ void Renderer::createLogicalDevice() {
   deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
   deviceFeatures.pNext = &vulkan11Features; // Start of the chain
   deviceFeatures.features.multiDrawIndirect = VK_TRUE;
+  deviceFeatures.features.samplerAnisotropy = VK_TRUE;
   VkDeviceCreateInfo deviceCreateInfo{};
   deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
   deviceCreateInfo.pNext = &deviceFeatures;

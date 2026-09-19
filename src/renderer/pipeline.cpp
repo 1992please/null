@@ -32,10 +32,10 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
 
   VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo{};
   vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-  vertexInputStateCreateInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(iConfig.vertexBindingDescriptions.size());
-  vertexInputStateCreateInfo.pVertexBindingDescriptions = iConfig.vertexBindingDescriptions.data();
-  vertexInputStateCreateInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(iConfig.vertexAttributeDescriptions.size());
-  vertexInputStateCreateInfo.pVertexAttributeDescriptions = iConfig.vertexAttributeDescriptions.data();
+  vertexInputStateCreateInfo.vertexBindingDescriptionCount = 0;
+  vertexInputStateCreateInfo.pVertexBindingDescriptions = nullptr;
+  vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 0;
+  vertexInputStateCreateInfo.pVertexAttributeDescriptions = nullptr;
 
   VkPipelineInputAssemblyStateCreateInfo inputAssemplyStateCreateInfo{};
   inputAssemplyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -132,7 +132,6 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   renderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
   renderingCreateInfo.colorAttachmentCount = 1;
   renderingCreateInfo.pColorAttachmentFormats = &iRenderer->getSwapChainSurfaceFormat().format;
-
   renderingCreateInfo.depthAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
   renderingCreateInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
 
