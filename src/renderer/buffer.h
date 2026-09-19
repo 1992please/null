@@ -5,8 +5,6 @@
 
 namespace ne {
 
-class Renderer;
-
 class Buffer {
 public:
   static constexpr VkDeviceSize DEFAULT_ALIGNMENT = 16;
@@ -19,7 +17,7 @@ public:
     VkDeviceSize alignment = DEFAULT_ALIGNMENT;
   };
 
-  Buffer(Renderer* iRenderer, const Config& iConfig);
+  Buffer(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& iConfig);
   ~Buffer();
 
   // Non-copyable and non-moveable (pinned Vulkan RAII resource)
@@ -50,8 +48,8 @@ public:
   VkMemoryPropertyFlags getMemoryProperties() const { return mMemoryProperties; }
 
 private:
-  uint32_t findBufferMemoryType(Renderer* iRenderer, uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties,
-                                VkBufferUsageFlags iUsage);
+  static uint32_t findBufferMemoryType(VkPhysicalDevice iPhysicalDevice, uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties,
+                                       VkBufferUsageFlags iUsage);
 
   VkDevice mDevice = VK_NULL_HANDLE;
 

@@ -7,7 +7,6 @@
 
 namespace ne {
 
-class Renderer;
 struct ImageData;
 
 /**
@@ -29,7 +28,7 @@ public:
     std::string debugName = "";
   };
 
-  Image(Renderer* iRenderer, const Config& iConfig);
+  Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& iConfig);
   ~Image();
 
   // Non-copyable and non-moveable (pinned Vulkan RAII resource)

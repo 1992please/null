@@ -1,7 +1,6 @@
 #include "renderer/image.h"
 #include "core/assert.h"
 #include "core/logger.h"
-#include "renderer/renderer.h"
 #include "renderer/utils.h"
 
 namespace ne {
@@ -22,7 +21,10 @@ VkImageAspectFlags Image::deduceAspectFlags(VkFormat format) {
   }
 }
 
-Image::Image(Renderer* iRenderer, const Config& iConfig) : mDevice(iRenderer->getDevice()), mConfig(iConfig) {
+Image::Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& iConfig)
+    : mDevice(iDevice), mConfig(iConfig) {
+  NE_ASSERT(mDevice != VK_NULL_HANDLE, "Device must not be null");
+  NE_ASSERT(iPhysicalDevice != VK_NULL_HANDLE, "Physical device must not be null");
   NE_ASSERT(mConfig.width > 0 && mConfig.height > 0, "Image dimensions must be greater than 0");
 
   VkImageCreateInfo imageInfo{};
@@ -54,7 +56,7 @@ Image::Image(Renderer* iRenderer, const Config& iConfig) : mDevice(iRenderer->ge
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memReqs2.memoryRequirements.size;
   allocInfo.memoryTypeIndex =
-      iRenderer->findMemoryType(memReqs2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      vk_utils::findMemoryType(iPhysicalDevice, memReqs2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   NE_ASSERT(allocInfo.memoryTypeIndex != ~0U, "Failed to find suitable memory type for Image!");
 
   VK_CHECK(vkAllocateMemory(mDevice, &allocInfo, nullptr, &mImageMemory));

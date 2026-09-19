@@ -441,7 +441,7 @@ std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::str
       .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
       .debugName = std::move(iDebugName),
   };
-  auto uploadBuffer = std::make_unique<Buffer>(this, config);
+  auto uploadBuffer = std::make_unique<Buffer>(mDevice, mPhysicalDevice, config);
   uploadBuffer->mapMemory();
   return uploadBuffer;
 }
@@ -665,47 +665,6 @@ Renderer::SwapChainSupportDetails Renderer::querySwapChainSupport(VkPhysicalDevi
   return oSwapChainSupportDetails;
 }
 
-void Renderer::transitionImageLayout(VkCommandBuffer iCommandBuffer, VkImage iImage, VkImageAspectFlags iAspectMask,
-                                     VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
-                                     VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
-                                     VkPipelineStageFlags2 iDstStageMask) {
-  VkImageMemoryBarrier2 imageMemoryBarrier{};
-  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-  imageMemoryBarrier.srcStageMask = iSrcStageMask;
-  imageMemoryBarrier.srcAccessMask = iSrcAccessMask;
-  imageMemoryBarrier.dstStageMask = iDstStageMask;
-  imageMemoryBarrier.dstAccessMask = iDstAccessMask;
-  imageMemoryBarrier.oldLayout = iOldLayout;
-  imageMemoryBarrier.newLayout = iNewLayout;
-  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-  imageMemoryBarrier.image = iImage;
-  imageMemoryBarrier.subresourceRange = {
-      .aspectMask = iAspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
-
-  VkDependencyInfo dependencyInfo{};
-  dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-  dependencyInfo.dependencyFlags = 0;
-  dependencyInfo.imageMemoryBarrierCount = 1;
-  dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
-
-  vkCmdPipelineBarrier2(iCommandBuffer, &dependencyInfo);
-}
-
-uint32_t Renderer::findMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties) const {
-  VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &memProperties);
-
-  for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-    if ((iTypeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & iProperties) == iProperties) {
-      return i;
-    }
-  }
-
-  NE_ASSERT(false, "Failed to find suitable memory type!");
-  return ~0U;
-}
-
 // NOTE: Modern industry standards prioritize 32-bit floating-point depth with stencil (D32_SFLOAT_S8_UINT)
 // for maximum Z-precision, Reverse-Z compatibility, and stencil passes (outlining, selection, shadows).
 VkFormat Renderer::findDepthFormat() {
@@ -739,7 +698,7 @@ void Renderer::createDepthImage() {
       .debugName = "Depth_Image",
   };
 
-  mDepthImage = std::make_unique<Image>(this, depthConfig);
+  mDepthImage = std::make_unique<Image>(mDevice, mPhysicalDevice, depthConfig);
 
   NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(depthFormat), mSwapChainExtent.width,
          mSwapChainExtent.height);

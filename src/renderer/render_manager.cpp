@@ -43,8 +43,8 @@ RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, co
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
   mSamplerManager = std::make_unique<SamplerManager>(mRenderer.get());
   mStagingManager = std::make_unique<StagingManager>(mRenderer.get());
-  mGeometryAllocator =
-      std::make_unique<GeometryAllocator>(mRenderer.get(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
+  mGeometryAllocator = std::make_unique<GeometryAllocator>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(),
+                                                           vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
 }
 
 RenderManager::~RenderManager() {
@@ -92,7 +92,7 @@ std::unique_ptr<Image> RenderManager::createImage(const ImageData& iImageData, b
       .mipLevels = 1,
       .debugName = std::move(iDebugName),
   };
-  auto image = std::make_unique<Image>(mRenderer.get(), config);
+  auto image = std::make_unique<Image>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(), config);
   if (iImageData.mPixels && iImageData.getSizeInBytes() > 0) {
     mStagingManager->stageImageUpload(*image, iImageData.mPixels, iImageData.getSizeInBytes());
   }
@@ -127,16 +127,16 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   NE_ASSERT(depthImage, "Depth image must not be null");
 
   // 1. Begin Swapchain Render Pass
-  mRenderer->transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
-                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
+  vk_utils::transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
+                                  VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                  VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-  mRenderer->transitionImageLayout(commandBuffer, depthImage->getImage(), VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
-                                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
-                                   VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-                                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT);
+  vk_utils::transitionImageLayout(commandBuffer, depthImage->getImage(), VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+                                  VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
+                                  VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                                  VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+                                  VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT);
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -206,9 +206,9 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   // 5. End Swapchain Render Pass
   vkCmdEndRendering(commandBuffer);
 
-  mRenderer->transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                   VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
-                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
+  vk_utils::transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                                  VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
+                                  VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
 
   mRenderer->endFrame();
 }

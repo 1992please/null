@@ -55,13 +55,6 @@ public:
 
   Image* getDepthImage() const { return mDepthImage.get(); }
 
-  void transitionImageLayout(VkCommandBuffer iCommandBuffer, VkImage iImage, VkImageAspectFlags iAspectMask,
-                             VkImageLayout iOldLayout, VkImageLayout iNewLayout, VkAccessFlags2 iSrcAccessMask,
-                             VkAccessFlags2 iDstAccessMask, VkPipelineStageFlags2 iSrcStageMask,
-                             VkPipelineStageFlags2 iDstStageMask);
-
-  uint32_t findMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties) const;
-
 private:
   std::unique_ptr<Buffer> createUploadBuffer(VkDeviceSize size, std::string iDebugName = "");
 

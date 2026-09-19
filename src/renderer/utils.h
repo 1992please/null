@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/assert.h"
 #include "core/defines.h"
 #include "core/logger.h"
 
@@ -83,6 +84,8 @@ inline void setDebugObjectName(VkDevice device, T handle, const char* name) {
     type = VK_OBJECT_TYPE_PIPELINE;
   else if constexpr (std::is_same_v<T, VkPipelineLayout>)
     type = VK_OBJECT_TYPE_PIPELINE_LAYOUT;
+  else if constexpr (std::is_same_v<T, VkSampler>)
+    type = VK_OBJECT_TYPE_SAMPLER;
   else if constexpr (std::is_same_v<T, VkCommandPool>)
     type = VK_OBJECT_TYPE_COMMAND_POOL;
   else if constexpr (std::is_same_v<T, VkCommandBuffer>)
@@ -97,6 +100,9 @@ inline void setDebugObjectName(VkDevice device, T handle, const char* name) {
     type = VK_OBJECT_TYPE_SHADER_MODULE;
   else if constexpr (std::is_same_v<T, VkSwapchainKHR>)
     type = VK_OBJECT_TYPE_SWAPCHAIN_KHR;
+  else {
+    static_assert(!sizeof(T), "Unsupported Vulkan object type passed to setDebugObjectName!");
+  }
 
   setDebugUtilsObjectName(device, type, static_cast<uint64_t>(reinterpret_cast<uintptr_t>(handle)), name);
 }
@@ -130,6 +136,48 @@ inline std::string formatBytes(VkDeviceSize bytes) {
   } else {
     return std::format("{} B", bytes);
   }
+}
+
+inline uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
+                               VkMemoryPropertyFlags properties) {
+  VkPhysicalDeviceMemoryProperties memProperties;
+  vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+  for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
+    if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+      return i;
+    }
+  }
+
+  NE_ASSERT(false, "Failed to find suitable memory type!");
+  return ~0U;
+}
+
+inline void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectMask,
+                                  VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags2 srcAccessMask,
+                                  VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 srcStageMask,
+                                  VkPipelineStageFlags2 dstStageMask) {
+  VkImageMemoryBarrier2 imageMemoryBarrier{};
+  imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+  imageMemoryBarrier.srcStageMask = srcStageMask;
+  imageMemoryBarrier.srcAccessMask = srcAccessMask;
+  imageMemoryBarrier.dstStageMask = dstStageMask;
+  imageMemoryBarrier.dstAccessMask = dstAccessMask;
+  imageMemoryBarrier.oldLayout = oldLayout;
+  imageMemoryBarrier.newLayout = newLayout;
+  imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  imageMemoryBarrier.image = image;
+  imageMemoryBarrier.subresourceRange = {
+      .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
+
+  VkDependencyInfo dependencyInfo{};
+  dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+  dependencyInfo.dependencyFlags = 0;
+  dependencyInfo.imageMemoryBarrierCount = 1;
+  dependencyInfo.pImageMemoryBarriers = &imageMemoryBarrier;
+
+  vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
 }
 
 } // namespace ne::vk_utils

@@ -1,7 +1,6 @@
 #include "renderer/buffer.h"
 #include "core/assert.h"
 #include "core/logger.h"
-#include "renderer/renderer.h"
 #include "renderer/utils.h"
 
 // std
@@ -73,9 +72,10 @@ namespace {
 
 } // namespace
 
-Buffer::Buffer(Renderer* iRenderer, const Config& iConfig)
-    : mDevice(iRenderer->getDevice()), mConfig(iConfig) {
+Buffer::Buffer(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& iConfig) : mDevice(iDevice), mConfig(iConfig) {
   NE_ASSERT(mConfig.size > 0, "Buffer size must be greater than 0");
+  NE_ASSERT(mDevice != VK_NULL_HANDLE, "Device must not be null");
+  NE_ASSERT(iPhysicalDevice != VK_NULL_HANDLE, "Physical device must not be null");
 
   VkBufferCreateInfo bufferInfo{};
   bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -101,7 +101,7 @@ Buffer::Buffer(Renderer* iRenderer, const Config& iConfig)
   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   memoryAllocateInfo.allocationSize = memReqs2.memoryRequirements.size;
   memoryAllocateInfo.memoryTypeIndex =
-      findBufferMemoryType(iRenderer, memReqs2.memoryRequirements.memoryTypeBits, mConfig.properties, mConfig.usage);
+      findBufferMemoryType(iPhysicalDevice, memReqs2.memoryRequirements.memoryTypeBits, mConfig.properties, mConfig.usage);
   memoryAllocateInfo.pNext = (mConfig.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? &allocateFlagsInfo : nullptr;
 
   VK_CHECK(vkAllocateMemory(mDevice, &memoryAllocateInfo, nullptr, &mMemory));
@@ -126,7 +126,7 @@ Buffer::Buffer(Renderer* iRenderer, const Config& iConfig)
   }
 
   VkPhysicalDeviceMemoryProperties memProperties;
-  vkGetPhysicalDeviceMemoryProperties(iRenderer->getPhysicalDevice(), &memProperties);
+  vkGetPhysicalDeviceMemoryProperties(iPhysicalDevice, &memProperties);
   mMemoryProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
 
   NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Memory Type: [Index: {}, Properties: {}]",
@@ -180,14 +180,15 @@ VkDeviceSize Buffer::upload(const void* iData, VkDeviceSize iSize) {
   return allocatedOffset;
 }
 
-uint32_t Buffer::findBufferMemoryType(Renderer* iRenderer, uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties,
+uint32_t Buffer::findBufferMemoryType(VkPhysicalDevice iPhysicalDevice, uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties,
                                       VkBufferUsageFlags iUsage) {
-  uint32_t memoryTypeIndex = iRenderer->findMemoryType(iTypeFilter, iProperties);
+  uint32_t memoryTypeIndex = vk_utils::findMemoryType(iPhysicalDevice, iTypeFilter, iProperties);
   // If host-visible and coherent memory is requested, try to find a heap that is ALSO device-local (Resizable BAR)
   // Pure staging buffers (usage = TRANSFER_SRC_BIT only) should NOT be allocated in Resizable BAR VRAM.
   if ((iUsage != VK_BUFFER_USAGE_TRANSFER_SRC_BIT) && (iProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
       (iProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-    uint32_t barMemoryTypeIndex = iRenderer->findMemoryType(iTypeFilter, iProperties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    uint32_t barMemoryTypeIndex =
+        vk_utils::findMemoryType(iPhysicalDevice, iTypeFilter, iProperties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     if (barMemoryTypeIndex != ~0U) {
       memoryTypeIndex = barMemoryTypeIndex;
     }

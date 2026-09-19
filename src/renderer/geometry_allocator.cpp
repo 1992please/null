@@ -2,14 +2,14 @@
 #include "core/assert.h"
 #include "core/mesh_data.h"
 #include "renderer/mesh.h"
-#include "renderer/renderer.h"
 #include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
 namespace ne {
 
-GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize) {
-  NE_ASSERT(iRenderer);
+GeometryAllocator::GeometryAllocator(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize) {
+  NE_ASSERT(iDevice != VK_NULL_HANDLE, "Device must not be null");
+  NE_ASSERT(iPhysicalDevice != VK_NULL_HANDLE, "Physical device must not be null");
 
   Buffer::Config vertexConfig{
       .size = iVertexPoolSize,
@@ -18,7 +18,7 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
       .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       .debugName = "GeometryAllocator_VertexBuffer",
   };
-  mVertexBuffer = std::make_unique<Buffer>(iRenderer, vertexConfig);
+  mVertexBuffer = std::make_unique<Buffer>(iDevice, iPhysicalDevice, vertexConfig);
 
   Buffer::Config indexConfig{
       .size = iIndexPoolSize,
@@ -26,7 +26,7 @@ GeometryAllocator::GeometryAllocator(Renderer* iRenderer, VkDeviceSize iVertexPo
       .properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
       .debugName = "GeometryAllocator_IndexBuffer",
   };
-  mIndexBuffer = std::make_unique<Buffer>(iRenderer, indexConfig);
+  mIndexBuffer = std::make_unique<Buffer>(iDevice, iPhysicalDevice, indexConfig);
 
   NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", vk_utils::formatBytes(iVertexPoolSize),
          vk_utils::formatBytes(iIndexPoolSize));
