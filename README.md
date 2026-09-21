@@ -33,8 +33,8 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **Transient Per-Draw Data Core**: Zero-overhead 64-bit Buffer Device Address (BDA) pointers and per-draw metadata dispatched via `vkCmdPushConstants` directly into Multi-Draw Indirect (MDI).
 - [x] **Vertex Attribute Modernization**: Expand vertex attributes (`Position`, `Normal`, `TexCoord`, `Color/Tangent`) for BDA vertex pulling in Slang shaders.
 - [x] **RHI Texture & Sampler Core**: Vulkan 1.4 image allocation, `Synchronization2` layout transitions, staging buffer uploads (`vkCmdCopyBufferToImage2`), and sampler states.
-- [ ] **Vulkan Feature Enablement**: Enable `samplerAnisotropy` and descriptor indexing features on `VkDeviceCreateInfo` with hardware limit validation.
-- [ ] **Bindless Texture Architecture**: Unsized texture arrays (`Texture2D gTextures[]` in Slang) with Vulkan 1.4 descriptor indexing (`partiallyBound`, `updateAfterBind`).
+- [x] **Vulkan Feature Enablement**: Enable `samplerAnisotropy` and descriptor indexing features on `VkDeviceCreateInfo` with hardware limit validation.
+- [x] **Bindless Texture Architecture**: Unsized texture arrays (`Texture2D gTextures[]` in Slang) with Vulkan 1.4 descriptor indexing (`partiallyBound`, `updateAfterBind`).
 - [ ] **glTF PBR Material Pipeline**: Material parameter representation (factors, textures), `stb_image` decoding, and glTF 2.0 metallic-roughness PBR lighting.
 - [ ] **Mipmap Generation & Subresource Ranges**: GPU blit mip generation (`vkCmdBlitImage2`) and subresource range handling (`VK_REMAINING_MIP_LEVELS`) in view and transition helpers.
 - [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.

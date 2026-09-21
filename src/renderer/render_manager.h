@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ne {
@@ -20,6 +21,7 @@ class Image;
 class Pipeline;
 class Material;
 class SamplerManager;
+class BindlessManager;
 class Registry;
 class ImGuiManager;
 struct MeshData;
@@ -39,12 +41,13 @@ public:
 
   void draw(Registry* iRegistry, ImGuiManager* iGuiManager = nullptr);
 
-  // Material & Pipeline Creation
-  std::shared_ptr<Material> createMaterial(const std::string& iShaderName);
+  // Pipeline & Material Creation
+  std::shared_ptr<Pipeline> getOrCreatePipeline(const std::string& iShaderName = "");
+  std::shared_ptr<Material> createMaterial(const std::string& iShaderName = "");
 
   // Asset Creation & Staging Facades
   std::shared_ptr<Mesh> createMesh(const MeshData& iMeshData);
-  std::unique_ptr<Image> createImage(const ImageData& iImageData, bool iSrgb = true, std::string iDebugName = "");
+  uint32_t createTexture(const ImageData& iImageData, bool iSrgb = true, const std::string& iDebugName = "");
 
   // Flush pending uploads
   void flushUploads();
@@ -54,6 +57,7 @@ public:
   StagingManager* getStagingManager() const { return mStagingManager.get(); }
   GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
   SamplerManager* getSamplerManager() const { return mSamplerManager.get(); }
+  BindlessManager* getBindlessManager() const { return mBindlessManager.get(); }
 
 private:
   void submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj);
@@ -62,6 +66,8 @@ private:
     Mat4 modelMatrix;
     Mat4 normalMatrix;
     Vec4 color;
+    uint32_t textureIndex;
+    uint32_t samplerIndex;
   };
 
   struct DrawCall {
@@ -69,12 +75,17 @@ private:
     Mesh* mesh;
     Mat4 transform;
     Vec4 color;
+    uint32_t textureIndex;
+    uint32_t samplerIndex;
   };
 
   std::unique_ptr<Renderer> mRenderer;
   std::unique_ptr<StagingManager> mStagingManager;
   std::unique_ptr<GeometryAllocator> mGeometryAllocator;
   std::unique_ptr<SamplerManager> mSamplerManager;
+  std::unique_ptr<BindlessManager> mBindlessManager;
+  std::unordered_map<std::string, std::shared_ptr<Pipeline>> mPipelines;
+  std::vector<std::unique_ptr<Image>> mTextures;
   std::vector<DrawCall> mDrawCalls;
 };
 

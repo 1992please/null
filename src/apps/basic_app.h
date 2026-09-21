@@ -54,7 +54,9 @@ private:
 
   // Showcase assets
   std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;
-  std::shared_ptr<Material> mMaterial;
+  std::shared_ptr<Material> mCube1Material;
+  std::shared_ptr<Material> mCube2Material;
+  std::shared_ptr<Material> mHelmetMaterial;
   float mCurrentRotationAngle{0.0f};
 
   // Modular UI

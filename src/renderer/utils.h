@@ -47,6 +47,13 @@
 
 namespace ne::vk_utils {
 
+constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;    // 64 MB
+constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;     // 32 MB
+constexpr VkDeviceSize UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;  // 16 MB
+constexpr VkDeviceSize STAGING_BUFFER_SIZE = 64 * 1024 * 1024; // 64 MB
+constexpr uint32_t MAX_SAMPLED_IMAGES = 4096;
+constexpr const char* DEFAULT_SHADER = "base_shader";
+
 inline void setDebugUtilsObjectName(VkDevice device, VkObjectType objectType, uint64_t objectHandle, const char* name) {
 #ifndef NE_BUILD_SHIPPING
   if (vkSetDebugUtilsObjectNameEXT && device != VK_NULL_HANDLE && objectHandle != 0 && name != nullptr) {
@@ -100,6 +107,12 @@ inline void setDebugObjectName(VkDevice device, T handle, const char* name) {
     type = VK_OBJECT_TYPE_SHADER_MODULE;
   else if constexpr (std::is_same_v<T, VkSwapchainKHR>)
     type = VK_OBJECT_TYPE_SWAPCHAIN_KHR;
+  else if constexpr (std::is_same_v<T, VkDescriptorSetLayout>)
+    type = VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT;
+  else if constexpr (std::is_same_v<T, VkDescriptorPool>)
+    type = VK_OBJECT_TYPE_DESCRIPTOR_POOL;
+  else if constexpr (std::is_same_v<T, VkDescriptorSet>)
+    type = VK_OBJECT_TYPE_DESCRIPTOR_SET;
   else {
     static_assert(!sizeof(T), "Unsupported Vulkan object type passed to setDebugObjectName!");
   }
@@ -111,11 +124,6 @@ template <typename T>
 inline void setDebugObjectName(VkDevice device, T handle, const std::string& name) {
   setDebugObjectName(device, handle, name.c_str());
 }
-
-constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;    // 64 MB
-constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;     // 32 MB
-constexpr VkDeviceSize UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;  // 16 MB
-constexpr VkDeviceSize STAGING_BUFFER_SIZE = 64 * 1024 * 1024; // 64 MB
 
 template <typename T>
 constexpr T alignUp(T value, T alignment) {
@@ -138,8 +146,7 @@ inline std::string formatBytes(VkDeviceSize bytes) {
   }
 }
 
-inline uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter,
-                               VkMemoryPropertyFlags properties) {
+inline uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
   VkPhysicalDeviceMemoryProperties memProperties;
   vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 

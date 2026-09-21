@@ -68,7 +68,9 @@ ModelData GltfImporter::importModel(const std::string& iPath) {
       if (texcoord_accessor) {
         meshData.mTexCoords.resize(pos_accessor->count);
       }
-      meshData.mColors.resize(pos_accessor->count);
+      if (color_accessor) {
+        meshData.mColors.resize(pos_accessor->count);
+      }
 
       for (cgltf_size v = 0; v < pos_accessor->count; ++v) {
         cgltf_bool pos_success = cgltf_accessor_read_float(pos_accessor, v, &meshData.mPositions[v].x, 3);
@@ -87,8 +89,6 @@ ModelData GltfImporter::importModel(const std::string& iPath) {
         if (color_accessor) {
           cgltf_bool color_success = cgltf_accessor_read_float(color_accessor, v, &meshData.mColors[v].x, 3);
           NE_ASSERT(color_success, "Failed to read vertex color");
-        } else {
-          meshData.mColors[v] = Vec3(1.0f);
         }
       }
 

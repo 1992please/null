@@ -1,5 +1,11 @@
 #language slang latest
 
+[vk::binding(0, 0)]
+SamplerState gSamplers[];
+
+[vk::binding(1, 0)]
+Texture2D gTextures[];
+
 struct Vertex {
   float3 pos;
   float3 normal;
@@ -14,13 +20,14 @@ struct GlobalUniforms {
 struct DrawInfo {
   Vertex* vertices;
   uint instanceBaseOffset;
-  uint padding;
 };
 
 struct InstanceData {
   float4x4 modelMatrix;
   float4x4 normalMatrix;
   float4 color;
+  uint textureIndex;
+  uint samplerIndex;
 };
 
 struct PushConstants {
@@ -43,6 +50,8 @@ struct VSOutput {
   float3 normal;
   float2 uv;
   float4 color;
+  nointerpolation uint textureIndex;
+  nointerpolation uint samplerIndex;
 };
 
 [shader("vertex")]
@@ -58,6 +67,8 @@ VSOutput vertMain(VSInput input) {
   output.normal = normalize(mul((float3x3)inst.normalMatrix, v.normal));
   output.uv = v.uv;
   output.color = v.color * inst.color;
+  output.textureIndex = inst.textureIndex;
+  output.samplerIndex = inst.samplerIndex;
   return output;
 }
 
@@ -67,5 +78,7 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
   float3 ambient = float3(0.18, 0.18, 0.18);
   float NdotL = max(dot(normalize(vertIn.normal), lightDir), 0.0);
   float3 lighting = ambient + float3(0.85, 0.85, 0.85) * NdotL;
-  return float4(vertIn.color.rgb * lighting, vertIn.color.a);
+
+  float4 texColor = gTextures[vertIn.textureIndex].Sample(gSamplers[vertIn.samplerIndex], vertIn.uv);
+  return float4(vertIn.color.rgb * lighting * texColor.rgb, vertIn.color.a * texColor.a);
 }

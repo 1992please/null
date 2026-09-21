@@ -6,6 +6,7 @@
 #include "core/ecs.h"
 #include "core/image_data.h"
 #include "core/mesh_data.h"
+#include "renderer/bindless_manager.h"
 #include "renderer/buffer.h"
 #include "renderer/geometry_allocator.h"
 #include "renderer/image.h"
@@ -26,7 +27,6 @@ namespace ne {
 struct DrawInfo {
   VkDeviceAddress vertices;
   uint32_t instanceBaseOffset;
-  uint32_t padding;
 };
 
 struct PushConstants {
@@ -45,9 +45,18 @@ RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, co
   mStagingManager = std::make_unique<StagingManager>(mRenderer.get());
   mGeometryAllocator = std::make_unique<GeometryAllocator>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(),
                                                            vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
+  mBindlessManager = std::make_unique<BindlessManager>(mRenderer->getDevice(), mSamplerManager.get());
+
+  // Create and register default fallback 1x1 white texture (index 0)
+  ImageData whiteData = ImageData::createWhite1x1();
+  uint32_t defaultTexIdx = createTexture(whiteData, true, "Default_White_Texture");
+  NE_ASSERT(defaultTexIdx == 0, "Fallback white texture must occupy bindless texture index 0");
 }
 
 RenderManager::~RenderManager() {
+  mTextures.clear();
+  mPipelines.clear();
+  mBindlessManager.reset();
   mGeometryAllocator.reset();
   mStagingManager.reset();
   mSamplerManager.reset();
@@ -56,9 +65,17 @@ RenderManager::~RenderManager() {
 
 void RenderManager::waitIdle() { mRenderer->waitIdle(); }
 
-std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShaderName) {
+std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& iShaderName) {
+  const std::string& shaderName = iShaderName.empty() ? vk_utils::DEFAULT_SHADER : iShaderName;
+
+  auto it = mPipelines.find(shaderName);
+  if (it != mPipelines.end()) {
+    return it->second;
+  }
+
   Pipeline::Config config{};
-  config.shaderName = iShaderName;
+  config.shaderName = shaderName;
+  config.descriptorSetLayouts = {mBindlessManager->getDescriptorSetLayout()};
 
   // Configure push constants range using RenderManager's local PushConstants struct
   VkPushConstantRange pushConstantRange{};
@@ -69,7 +86,12 @@ std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShad
 
   // Pipeline is created in RenderManager, passing mRenderer.get()
   auto pipeline = std::make_shared<Pipeline>(mRenderer.get(), config);
-  return std::make_shared<Material>(pipeline);
+  mPipelines[shaderName] = pipeline;
+  return pipeline;
+}
+
+std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShaderName) {
+  return std::make_shared<Material>(getOrCreatePipeline(iShaderName));
 }
 
 std::shared_ptr<Mesh> RenderManager::createMesh(const MeshData& iMeshData) {
@@ -80,7 +102,7 @@ std::shared_ptr<Mesh> RenderManager::createMesh(const MeshData& iMeshData) {
   return std::make_shared<Mesh>(alloc, static_cast<uint32_t>(iMeshData.mIndices.size()));
 }
 
-std::unique_ptr<Image> RenderManager::createImage(const ImageData& iImageData, bool iSrgb, std::string iDebugName) {
+uint32_t RenderManager::createTexture(const ImageData& iImageData, bool iSrgb, const std::string& iDebugName) {
   if (!mStagingManager->isBatching()) {
     mStagingManager->beginBatch();
   }
@@ -90,13 +112,16 @@ std::unique_ptr<Image> RenderManager::createImage(const ImageData& iImageData, b
       .format = iSrgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
       .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
       .mipLevels = 1,
-      .debugName = std::move(iDebugName),
+      .debugName = iDebugName.empty() ? "Texture" : iDebugName,
   };
   auto image = std::make_unique<Image>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(), config);
   if (iImageData.mPixels && iImageData.getSizeInBytes() > 0) {
     mStagingManager->stageImageUpload(*image, iImageData.mPixels, iImageData.getSizeInBytes());
   }
-  return image;
+
+  uint32_t textureId = mBindlessManager->registerSampledImage(image->getImageView());
+  mTextures.push_back(std::move(image));
+  return textureId;
 }
 
 void RenderManager::flushUploads() {
@@ -192,7 +217,9 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
           mDrawCalls.push_back(DrawCall{.pipeline = mesh.mMaterial->getPipeline(),
                                         .mesh = mesh.mMesh.get(),
                                         .transform = transform.getLocalMatrix(),
-                                        .color = mesh.mColorTint});
+                                        .color = mesh.mColorTint,
+                                        .textureIndex = mesh.mMaterial->getTextureIndex(),
+                                        .samplerIndex = static_cast<uint32_t>(mesh.mMaterial->getSamplerType())});
         }
       });
 
@@ -261,6 +288,7 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
     if (currentPipeline != mDrawCalls[i].pipeline) {
       currentPipeline = mDrawCalls[i].pipeline;
       currentPipeline->bind(iCommandBuffer);
+      mBindlessManager->bind(iCommandBuffer, currentPipeline->getPipelineLayout());
     }
 
     std::vector<DrawInfo> drawInfos;
@@ -276,8 +304,11 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
       // Collect all instances for this mesh
       while (i < mDrawCalls.size() && mDrawCalls[i].pipeline == currentPipeline && mDrawCalls[i].mesh == currentMesh) {
         Mat4 normalMatrix = mDrawCalls[i].transform.inversed().transposed();
-        instanceData.push_back(
-            InstanceData{.modelMatrix = mDrawCalls[i].transform, .normalMatrix = normalMatrix, .color = mDrawCalls[i].color});
+        instanceData.push_back(InstanceData{.modelMatrix = mDrawCalls[i].transform,
+                                            .normalMatrix = normalMatrix,
+                                            .color = mDrawCalls[i].color,
+                                            .textureIndex = mDrawCalls[i].textureIndex,
+                                            .samplerIndex = mDrawCalls[i].samplerIndex});
         instanceCount++;
         i++;
       }

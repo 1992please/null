@@ -18,6 +18,7 @@ public:
 
   struct Config {
     std::string shaderName;
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
     std::vector<VkPushConstantRange> pushConstantRanges;
     DepthMode depthMode = DM_ReadWrite;
     StencilMode stencilMode = SM_Disabled;

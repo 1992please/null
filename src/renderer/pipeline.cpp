@@ -114,8 +114,8 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   // specify the uniforms and push values referenced by the shaders
   VkPipelineLayoutCreateInfo layoutCreateInfo{};
   layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  layoutCreateInfo.setLayoutCount = 0;
-  layoutCreateInfo.pSetLayouts = nullptr;
+  layoutCreateInfo.setLayoutCount = static_cast<uint32_t>(iConfig.descriptorSetLayouts.size());
+  layoutCreateInfo.pSetLayouts = iConfig.descriptorSetLayouts.empty() ? nullptr : iConfig.descriptorSetLayouts.data();
   layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iConfig.pushConstantRanges.size());
   layoutCreateInfo.pPushConstantRanges = iConfig.pushConstantRanges.empty() ? nullptr : iConfig.pushConstantRanges.data();
   VK_CHECK(vkCreatePipelineLayout(mDevice, &layoutCreateInfo, nullptr, &mPipelineLayout));

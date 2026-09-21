@@ -6,28 +6,20 @@
 #include "core/logger.h"
 #include "core/math/math.h"
 #include "core/time.h"
+#include "core/image_data.h"
 #include "importers/gltf_importer.h"
+#include "importers/image_importer.h"
 #include "platform/window.h"
 #include "platform/input.h"
 #include "renderer/imgui_manager.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
+#include "renderer/mesh_utils.h"
 #include "renderer/render_manager.h"
+#include "renderer/sampler_manager.h"
 #include <format>
 
 namespace ne {
-
-void colorizeModel(ModelData& ioModel) {
-  // Map normals to colors in the app layer for visualization
-  for (auto& submesh : ioModel.mSubmeshes) {
-    if (!submesh.mNormals.empty()) {
-      submesh.mColors.resize(submesh.mPositions.size());
-      for (size_t v = 0; v < submesh.mPositions.size(); ++v) {
-        submesh.mColors[v] = submesh.mNormals[v].getSafeNormal() * 0.5f + 0.5f;
-      }
-    }
-  }
-}
 
 BasicApp::BasicApp() {
   Time::init();
@@ -38,26 +30,36 @@ BasicApp::BasicApp() {
   mImGuiManager = std::make_unique<ImGuiManager>(mWindow.get(), mRenderManager->getRenderer());
   mRegistry = std::make_unique<Registry>();
 
-  // 1. CPU import phase (relative to content folder)
-  ModelData cubeModel = GltfImporter::importModel("models/Box.gltf");
+  // 1. Mesh generation & import phase
+  // Generate procedural cube with authentic [0, 1] UVs per face
+  MeshData cubeMeshData = MeshUtils::createBoxMeshData(Vec3(1.0f));
+  std::shared_ptr<Mesh> cubeMesh = mRenderManager->createMesh(cubeMeshData);
+  mLoadedMeshes.push_back(cubeMesh);
+
+  // Import DamagedHelmet model faithfully as authored
   ModelData helmetModel = GltfImporter::importModel("models/DamagedHelmet.glb");
-
-  colorizeModel(cubeModel);
-  colorizeModel(helmetModel);
-
-  // 2. GPU upload phase (batched via RenderManager facade with 0 redundant stalls)
-  for (const auto& submesh : cubeModel.mSubmeshes) {
-    mLoadedMeshes.push_back(mRenderManager->createMesh(submesh));
-  }
-
   for (const auto& submesh : helmetModel.mSubmeshes) {
     mLoadedMeshes.push_back(mRenderManager->createMesh(submesh));
   }
 
-  // Material setup - uses shader "base_shader" with modern Vertex Pulling + MDI
-  mMaterial = mRenderManager->createMaterial("base_shader");
+  // 2. Texture creation
+  std::unique_ptr<ImageData> checkerImageData = ImageImporter::importFromFile("textures/uv_checker.png");
+  uint32_t checkerTextureId = 0;
+  if (checkerImageData) {
+    checkerTextureId = mRenderManager->createTexture(*checkerImageData, true, "UV_Checker_Texture");
+  }
 
-  // 3. Create Scene Entities
+  // 3. Material setup - distinct materials per entity demonstration
+  mCube1Material = mRenderManager->createMaterial();
+  mCube1Material->setTexture(checkerTextureId, SamplerManager::ST_LinearRepeat);
+
+  mCube2Material = mRenderManager->createMaterial();
+  mCube2Material->setTexture(checkerTextureId, SamplerManager::ST_NearestRepeat);
+
+  mHelmetMaterial = mRenderManager->createMaterial();
+  mHelmetMaterial->setTexture(0, SamplerManager::ST_LinearRepeat); // Fallback white texture
+
+  // 4. Create Scene Entities
   int32_t width, height;
   mWindow->getFrameBufferSize(&width, &height);
   float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : (16.0f / 9.0f);
@@ -67,25 +69,25 @@ BasicApp::BasicApp() {
   mRegistry->addComponent<TransformComponent>(mCameraEntity, Vec3(-4.0f, 0.0f, 0.0f));
   mRegistry->addComponent<CameraComponent>(mCameraEntity, 45.0f, aspect, 0.1f, 100.0f);
 
-  // Cube Entity 1 (Right: +Y axis)
+  // Cube Entity 1 (Right: +Y axis) - Textured with LinearRepeat (anisotropic trilinear)
   if (!mLoadedMeshes.empty()) {
     mCubeEntity1 = mRegistry->createEntity();
     mRegistry->addComponent<TransformComponent>(mCubeEntity1, Vec3(0.0f, 1.5f, -0.5f));
-    mRegistry->addComponent<MeshComponent>(mCubeEntity1, mLoadedMeshes[0], mMaterial, Vec4(0.4f, 0.8f, 1.0f, 1.0f));
+    mRegistry->addComponent<MeshComponent>(mCubeEntity1, mLoadedMeshes[0], mCube1Material);
   }
 
-  // Cube Entity 2 (Center: +Z axis)
+  // Cube Entity 2 (Center: +Z axis) - Textured with NearestRepeat (point sampling)
   if (!mLoadedMeshes.empty()) {
     mCubeEntity2 = mRegistry->createEntity();
     mRegistry->addComponent<TransformComponent>(mCubeEntity2, Vec3(0.0f, 0.0f, 0.5f));
-    mRegistry->addComponent<MeshComponent>(mCubeEntity2, mLoadedMeshes[0], mMaterial, Vec4(0.4f, 0.8f, 1.0f, 1.0f));
+    mRegistry->addComponent<MeshComponent>(mCubeEntity2, mLoadedMeshes[0], mCube2Material);
   }
 
-  // Helmet Entity (Left: -Y axis)
+  // Helmet Entity (Left: -Y axis) - Untextured, using fallback white texture (index 0)
   if (mLoadedMeshes.size() > 1) {
     mHelmetEntity = mRegistry->createEntity();
     mRegistry->addComponent<TransformComponent>(mHelmetEntity, Vec3(0.0f, -1.5f, -0.5f));
-    mRegistry->addComponent<MeshComponent>(mHelmetEntity, mLoadedMeshes[1], mMaterial, Vec4(1.0f, 1.0f, 1.0f, 1.0f));
+    mRegistry->addComponent<MeshComponent>(mHelmetEntity, mLoadedMeshes[1], mHelmetMaterial);
   }
 }
 
