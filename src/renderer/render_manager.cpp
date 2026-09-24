@@ -8,6 +8,7 @@
 #include "core/mesh_data.h"
 #include "renderer/bindless_manager.h"
 #include "renderer/buffer.h"
+#include "renderer/device.h"
 #include "renderer/geometry_allocator.h"
 #include "renderer/image.h"
 #include "renderer/imgui_manager.h"
@@ -41,11 +42,11 @@ struct GlobalUniforms {
 
 RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
   mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
-  mSamplerManager = std::make_unique<SamplerManager>(mRenderer.get());
-  mStagingManager = std::make_unique<StagingManager>(mRenderer.get());
-  mGeometryAllocator = std::make_unique<GeometryAllocator>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(),
-                                                           vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
-  mBindlessManager = std::make_unique<BindlessManager>(mRenderer->getDevice(), mSamplerManager.get());
+  mSamplerManager = std::make_unique<SamplerManager>(mRenderer->getDevice());
+  mStagingManager = std::make_unique<StagingManager>(mRenderer->getDevice());
+  mGeometryAllocator =
+      std::make_unique<GeometryAllocator>(mRenderer->getDevice(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
+  mBindlessManager = std::make_unique<BindlessManager>(mRenderer->getDevice()->getDevice(), mSamplerManager.get());
 
   // Create and register default fallback 1x1 white texture (index 0)
   ImageData whiteData = ImageData::createWhite1x1();
@@ -63,7 +64,7 @@ RenderManager::~RenderManager() {
   mRenderer.reset();
 }
 
-void RenderManager::waitIdle() { mRenderer->waitIdle(); }
+void RenderManager::waitIdle() { mRenderer->getDevice()->waitIdle(); }
 
 std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& iShaderName) {
   const std::string& shaderName = iShaderName.empty() ? vk_utils::DEFAULT_SHADER : iShaderName;
@@ -76,6 +77,8 @@ std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& 
   Pipeline::Config config{};
   config.shaderName = shaderName;
   config.descriptorSetLayouts = {mBindlessManager->getDescriptorSetLayout()};
+  config.colorAttachmentFormat = mRenderer->getSwapChainSurfaceFormat().format;
+  config.depthAttachmentFormat = mRenderer->getDepthImage()->getConfig().format;
 
   // Configure push constants range using RenderManager's local PushConstants struct
   VkPushConstantRange pushConstantRange{};
@@ -84,8 +87,8 @@ std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& 
   pushConstantRange.size = sizeof(PushConstants);
   config.pushConstantRanges = {pushConstantRange};
 
-  // Pipeline is created in RenderManager, passing mRenderer.get()
-  auto pipeline = std::make_shared<Pipeline>(mRenderer.get(), config);
+  // Pipeline is created in RenderManager, passing mRenderer->getDevice()->getDevice()
+  auto pipeline = std::make_shared<Pipeline>(mRenderer->getDevice()->getDevice(), config);
   mPipelines[shaderName] = pipeline;
   return pipeline;
 }
@@ -114,7 +117,7 @@ uint32_t RenderManager::createTexture(const ImageData& iImageData, bool iSrgb, c
       .mipLevels = 1,
       .debugName = iDebugName.empty() ? "Texture" : iDebugName,
   };
-  auto image = std::make_unique<Image>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(), config);
+  auto image = std::make_unique<Image>(mRenderer->getDevice(), config);
   if (iImageData.mPixels && iImageData.getSizeInBytes() > 0) {
     mStagingManager->stageImageUpload(*image, iImageData.mPixels, iImageData.getSizeInBytes());
   }

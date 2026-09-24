@@ -2,16 +2,16 @@
 #include "core/assert.h"
 #include "core/logger.h"
 #include "renderer/buffer.h"
+#include "renderer/device.h"
 #include "renderer/image.h"
-#include "renderer/renderer.h"
 #include "renderer/utils.h"
 
 #include <cstring>
 
 namespace ne {
 
-StagingManager::StagingManager(Renderer* iRenderer) : mRenderer(iRenderer) {
-  NE_ASSERT(mRenderer, "Renderer must not be null");
+StagingManager::StagingManager(Device* iDevice) : mDevice(iDevice) {
+  NE_ASSERT(mDevice, "Device must not be null");
 
   Buffer::Config stagingConfig{
       .size = vk_utils::STAGING_BUFFER_SIZE,
@@ -19,7 +19,7 @@ StagingManager::StagingManager(Renderer* iRenderer) : mRenderer(iRenderer) {
       .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
       .debugName = "StagingManager_StagingBuffer",
   };
-  mStagingBuffer = std::make_unique<Buffer>(mRenderer->getDevice(), mRenderer->getPhysicalDevice(), stagingConfig);
+  mStagingBuffer = std::make_unique<Buffer>(mDevice, stagingConfig);
   mStagingBuffer->mapMemory();
 
   NE_LOG("Initialized StagingManager: Staging Arena Size: {}", vk_utils::formatBytes(mStagingBuffer->getConfig().size));
@@ -73,13 +73,13 @@ void StagingManager::stageBufferCopy(VkBuffer dstBuffer, const void* data, VkDev
         .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         .debugName = "StagingManager_OutlierBufferStaging",
     };
-    Buffer tempStaging(mRenderer->getDevice(), mRenderer->getPhysicalDevice(), outlierConfig);
+    Buffer tempStaging(mDevice, outlierConfig);
     tempStaging.mapMemory();
     tempStaging.writeToBuffer(data, size, 0);
 
-    VkCommandBuffer cmd = mRenderer->beginOneTimeCommand();
+    VkCommandBuffer cmd = mDevice->beginOneTimeCommand();
     recordBufferCopy(cmd, tempStaging.getBuffer(), dstBuffer, size, 0, dstOffset);
-    mRenderer->endOneTimeCommand(cmd);
+    mDevice->endOneTimeCommand(cmd);
     return;
   }
 
@@ -112,16 +112,15 @@ void StagingManager::stageImageUpload(Image& dstImage, const void* pixelData, Vk
         .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         .debugName = "StagingManager_OutlierImageStaging",
     };
-    Buffer tempStaging(mRenderer->getDevice(), mRenderer->getPhysicalDevice(), outlierConfig);
+    Buffer tempStaging(mDevice, outlierConfig);
     tempStaging.mapMemory();
     tempStaging.writeToBuffer(pixelData, size, 0);
 
-    VkCommandBuffer cmd = mRenderer->beginOneTimeCommand();
+    VkCommandBuffer cmd = mDevice->beginOneTimeCommand();
 
     vk_utils::transitionImageLayout(cmd, dstImage.getImage(), VK_IMAGE_ASPECT_COLOR_BIT, dstImage.getCurrentLayout(),
                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dstImage.getCurrentAccessMask(),
-                                    VK_ACCESS_2_TRANSFER_WRITE_BIT, dstImage.getCurrentStageMask(),
-                                    VK_PIPELINE_STAGE_2_COPY_BIT);
+                                    VK_ACCESS_2_TRANSFER_WRITE_BIT, dstImage.getCurrentStageMask(), VK_PIPELINE_STAGE_2_COPY_BIT);
 
     recordImageCopy(cmd, tempStaging.getBuffer(), dstImage.getImage(), dstImage.getConfig().width, dstImage.getConfig().height);
 
@@ -130,7 +129,7 @@ void StagingManager::stageImageUpload(Image& dstImage, const void* pixelData, Vk
                                     VK_ACCESS_2_SHADER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
                                     VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
 
-    mRenderer->endOneTimeCommand(cmd);
+    mDevice->endOneTimeCommand(cmd);
 
     dstImage.setLayoutState(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_2_SHADER_READ_BIT,
                             VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
@@ -151,7 +150,7 @@ void StagingManager::flushBatch() {
     return;
   }
 
-  VkCommandBuffer cmd = mRenderer->beginOneTimeCommand();
+  VkCommandBuffer cmd = mDevice->beginOneTimeCommand();
 
   // 1. Batched Pre-Copy Barriers: Transition all images to TRANSFER_DST_OPTIMAL
   if (!mPendingImageUploads.empty()) {
@@ -231,7 +230,7 @@ void StagingManager::flushBatch() {
     vkCmdPipelineBarrier2(cmd, &postDepInfo);
   }
 
-  mRenderer->endOneTimeCommand(cmd);
+  mDevice->endOneTimeCommand(cmd);
 
   // Update layout tracking on all affected Image instances
   for (const auto& item : mPendingImageUploads) {

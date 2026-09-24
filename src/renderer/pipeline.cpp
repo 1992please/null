@@ -2,9 +2,7 @@
 #include "core/assert.h"
 #include "core/filesystem.h"
 #include "core/platform.h"
-#include "renderer/image.h"
 #include "renderer/mesh.h"
-#include "renderer/renderer.h"
 #include "renderer/utils.h"
 
 // std
@@ -13,7 +11,8 @@
 
 namespace ne {
 
-Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRenderer->getDevice()) {
+Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
+  NE_ASSERT(mDevice != VK_NULL_HANDLE, "Device must not be VK_NULL_HANDLE");
   VkShaderModule shaderModule = createShaderModule(iConfig.shaderName);
 
   VkPipelineShaderStageCreateInfo vertShaderStageCreateInfo{};
@@ -127,13 +126,15 @@ Pipeline::Pipeline(Renderer* iRenderer, const Config& iConfig) : mDevice(iRender
   dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
   dynamicStateCreateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicState.size());
   dynamicStateCreateInfo.pDynamicStates = dynamicState.data();
-  // Also we need to specify the formats of the attachments that will be used during renderring
+  // Also we need to specify the formats of the attachments that will be used during rendering
   VkPipelineRenderingCreateInfo renderingCreateInfo{};
   renderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-  renderingCreateInfo.colorAttachmentCount = 1;
-  renderingCreateInfo.pColorAttachmentFormats = &iRenderer->getSwapChainSurfaceFormat().format;
-  renderingCreateInfo.depthAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
-  renderingCreateInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
+  renderingCreateInfo.colorAttachmentCount = (iConfig.colorAttachmentFormat != VK_FORMAT_UNDEFINED) ? 1 : 0;
+  renderingCreateInfo.pColorAttachmentFormats =
+      (iConfig.colorAttachmentFormat != VK_FORMAT_UNDEFINED) ? &iConfig.colorAttachmentFormat : nullptr;
+  renderingCreateInfo.depthAttachmentFormat = iConfig.depthAttachmentFormat;
+  renderingCreateInfo.stencilAttachmentFormat =
+      (iConfig.stencilMode != SM_Disabled) ? iConfig.depthAttachmentFormat : VK_FORMAT_UNDEFINED;
 
   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
   graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

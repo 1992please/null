@@ -1,24 +1,22 @@
 #include "renderer/sampler_manager.h"
 #include "core/assert.h"
 #include "core/logger.h"
-#include "renderer/renderer.h"
+#include "renderer/device.h"
 #include "renderer/utils.h"
 
 namespace ne {
 
-SamplerManager::SamplerManager(Renderer* iRenderer) : mDevice(iRenderer->getDevice()) {
-  float deviceLimit = iRenderer->getPhysicalDeviceProperties().limits.maxSamplerAnisotropy;
+SamplerManager::SamplerManager(Device* iDevice) : mDevice(iDevice->getDevice()) {
+  float deviceLimit = iDevice->getPhysicalDeviceProperties().limits.maxSamplerAnisotropy;
   float maxAniso = (deviceLimit < 16.0f) ? deviceLimit : 16.0f;
 
   // 1. LinearRepeat: Trilinear + Aniso 16x, Repeat (Default PBR textures)
-  mSamplers[ST_LinearRepeat] =
-      createSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT, true, maxAniso, false,
-                    "Sampler_LinearRepeat");
+  mSamplers[ST_LinearRepeat] = createSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                             true, maxAniso, false, "Sampler_LinearRepeat");
 
   // 2. LinearClamp: Trilinear + Aniso 16x, ClampToEdge (Decals, skybox, viewport blits)
-  mSamplers[ST_LinearClamp] =
-      createSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, true, maxAniso, false,
-                    "Sampler_LinearClamp");
+  mSamplers[ST_LinearClamp] = createSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                                            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, true, maxAniso, false, "Sampler_LinearClamp");
 
   // 3. LinearMirror: Trilinear + Aniso 16x, MirroredRepeat
   mSamplers[ST_LinearMirror] =
@@ -26,19 +24,16 @@ SamplerManager::SamplerManager(Renderer* iRenderer) : mDevice(iRenderer->getDevi
                     false, "Sampler_LinearMirror");
 
   // 4. NearestClamp: Point, ClampToEdge, Mip 0 only (UI, LUTs, G-Buffer depth)
-  mSamplers[ST_NearestClamp] =
-      createSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, false, 1.0f, false,
-                    "Sampler_NearestClamp");
+  mSamplers[ST_NearestClamp] = createSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST,
+                                             VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, false, 1.0f, false, "Sampler_NearestClamp");
 
   // 5. NearestRepeat: Point, Repeat, Mip 0 only (Pixel art, procedural noise)
-  mSamplers[ST_NearestRepeat] =
-      createSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT, false, 1.0f, false,
-                    "Sampler_NearestRepeat");
+  mSamplers[ST_NearestRepeat] = createSampler(VK_FILTER_NEAREST, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_REPEAT,
+                                              false, 1.0f, false, "Sampler_NearestRepeat");
 
   // 6. Shadow: Linear, ClampToBorder, Reverse-Z GreaterOrEqual
-  mSamplers[ST_Shadow] =
-      createSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, false, 1.0f, true,
-                    "Sampler_ShadowReverseZ");
+  mSamplers[ST_Shadow] = createSampler(VK_FILTER_LINEAR, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+                                       false, 1.0f, true, "Sampler_ShadowReverseZ");
 
   NE_LOG("Initialized SamplerManager: {} standard samplers created", mSamplers.size());
 }

@@ -10,7 +10,7 @@
 
 namespace ne {
 
-class Renderer;
+class Device;
 class Buffer;
 class Image;
 
@@ -21,7 +21,7 @@ class Image;
  */
 class StagingManager {
 public:
-  explicit StagingManager(Renderer* iRenderer);
+  explicit StagingManager(Device* iDevice);
   ~StagingManager();
 
   StagingManager(const StagingManager&) = delete;
@@ -61,7 +61,7 @@ private:
   void recordImageCopy(VkCommandBuffer cmd, VkBuffer srcBuffer, VkImage dstImage, uint32_t width, uint32_t height,
                        VkDeviceSize srcOffset = 0, uint32_t mipLevel = 0);
 
-  Renderer* mRenderer = nullptr;
+  Device* mDevice = nullptr;
   std::unique_ptr<Buffer> mStagingBuffer;
 
   bool mIsBatching = false;

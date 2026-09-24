@@ -13,6 +13,8 @@ namespace ne {
 class Window;
 class Buffer;
 class Image;
+class Instance;
+class Device;
 
 class Renderer {
 public:
@@ -28,21 +30,10 @@ public:
   VkCommandBuffer beginFrame();
   void endFrame();
 
-  void waitIdle();
   uint32_t getCurrentFrameIndex() const { return mFrameIndex; }
 
-  VkCommandBuffer beginOneTimeCommand();
-  void endOneTimeCommand(VkCommandBuffer iCommandBuffer);
-
-  uint32_t getApiVersion() const { return API_VERSION; }
-
-  VkDevice getDevice() const { return mDevice; }
-  VkInstance getInstance() const { return mInstance; }
-  VkQueue getQueue() const { return mQueue; }
-  uint32_t getQueueFamilyIndex() const { return mPhysicalDeviceQueueIndex; }
+  VkSurfaceKHR getSurface() const { return mSurface; }
   const VkSurfaceFormatKHR& getSwapChainSurfaceFormat() const { return mSwapChainSurfaceFormat; }
-  VkPhysicalDevice getPhysicalDevice() const { return mPhysicalDevice; }
-  const VkPhysicalDeviceProperties& getPhysicalDeviceProperties() const { return mPhysicalDeviceProperties; }
   size_t getSwapChainImageCount() const { return mSwapChainImages.size(); }
 
   Buffer* getUploadBuffer() const { return mFrames[mFrameIndex].mUploadBuffer.get(); }
@@ -55,65 +46,34 @@ public:
 
   Image* getDepthImage() const { return mDepthImage.get(); }
 
+  Instance* getInstance() const { return mInstance.get(); }
+  Device* getDevice() const { return mDevice.get(); }
+
 private:
   std::unique_ptr<Buffer> createUploadBuffer(VkDeviceSize size, std::string iDebugName = "");
 
-  void createInstance();
-  void setupDebugMessenger();
-  void createSurface();
-  void pickPhysicalDevice();
-  void createLogicalDevice();
   void createSwapChain(VkSwapchainKHR iOldSwapchain = VK_NULL_HANDLE);
   void createDepthImage();
   void destroySwapchainResources();
   void createFramesResources();
 
-  // utility functions
-  struct SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR mCapabilities;
-    std::vector<VkSurfaceFormatKHR> mFormats;
-    std::vector<VkPresentModeKHR> mPresentModes;
-  };
-  SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice iDevice);
   void recreateSwapChain(bool iForceRecreate = false);
 
-  VkFormat findDepthFormat();
-  VkFormat findSupportedFormat(const std::vector<VkFormat>& iCandidates, VkImageTiling iTiling, VkFormatFeatureFlags iFeatures);
-
-  static constexpr uint32_t API_VERSION = VK_API_VERSION_1_4;
-
   const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
-  const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
-  const std::vector<const char*> mRequiredDeviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-
-  // Member variables
-#if defined(NE_BUILD_DEBUG)
-  const bool enableValidationLayers = true;
-#else
-  const bool enableValidationLayers = false;
-#endif
 
   Window* mWindow;
   std::string mEngineName;
   std::string mAppName;
 
-  VkInstance mInstance = VK_NULL_HANDLE;
-  VkDebugUtilsMessengerEXT mDebugMessenger = VK_NULL_HANDLE;
+  std::unique_ptr<Instance> mInstance;
   VkSurfaceKHR mSurface = VK_NULL_HANDLE;
-  VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
-  VkPhysicalDeviceProperties mPhysicalDeviceProperties = {};
-  uint32_t mPhysicalDeviceQueueIndex = ~0U;
-  VkDevice mDevice = VK_NULL_HANDLE;
-  VkQueue mQueue = VK_NULL_HANDLE;
+  std::unique_ptr<Device> mDevice;
 
   VkSwapchainKHR mSwapChain = VK_NULL_HANDLE;
   VkSurfaceFormatKHR mSwapChainSurfaceFormat = {};
   VkExtent2D mSwapChainExtent = {};
 
   std::unique_ptr<Image> mDepthImage;
-
-  VkCommandPool mOneTimeCommandPool = VK_NULL_HANDLE;
-  VkCommandBuffer mOneTimeCommandBuffer = VK_NULL_HANDLE;
 
   struct SwapchainImageResources {
     VkImage mImage = VK_NULL_HANDLE;

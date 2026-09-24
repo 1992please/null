@@ -8,6 +8,7 @@
 
 namespace ne {
 
+class Device;
 class StagingManager;
 struct MeshData;
 
@@ -18,7 +19,7 @@ struct GeometryAllocation {
 
 class GeometryAllocator {
 public:
-  GeometryAllocator(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize);
+  GeometryAllocator(Device* iDevice, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize);
   ~GeometryAllocator() = default;
 
   // Prevent copying

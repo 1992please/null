@@ -1,6 +1,7 @@
 #include "renderer/image.h"
 #include "core/assert.h"
 #include "core/logger.h"
+#include "renderer/device.h"
 #include "renderer/utils.h"
 
 namespace ne {
@@ -21,10 +22,7 @@ VkImageAspectFlags Image::deduceAspectFlags(VkFormat format) {
   }
 }
 
-Image::Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& iConfig)
-    : mDevice(iDevice), mConfig(iConfig) {
-  NE_ASSERT(mDevice != VK_NULL_HANDLE, "Device must not be null");
-  NE_ASSERT(iPhysicalDevice != VK_NULL_HANDLE, "Physical device must not be null");
+Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig(iConfig) {
   NE_ASSERT(mConfig.width > 0 && mConfig.height > 0, "Image dimensions must be greater than 0");
 
   VkImageCreateInfo imageInfo{};
@@ -42,7 +40,7 @@ Image::Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& i
   imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
   imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  VK_CHECK(vkCreateImage(mDevice, &imageInfo, nullptr, &mImage));
+  VK_CHECK(vkCreateImage(mDevice->getDevice(), &imageInfo, nullptr, &mImage));
 
   VkImageMemoryRequirementsInfo2 memReqsInfo2{};
   memReqsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
@@ -50,23 +48,23 @@ Image::Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& i
 
   VkMemoryRequirements2 memReqs2{};
   memReqs2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-  vkGetImageMemoryRequirements2(mDevice, &memReqsInfo2, &memReqs2);
+  vkGetImageMemoryRequirements2(mDevice->getDevice(), &memReqsInfo2, &memReqs2);
 
   VkMemoryAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
   allocInfo.allocationSize = memReqs2.memoryRequirements.size;
   allocInfo.memoryTypeIndex =
-      vk_utils::findMemoryType(iPhysicalDevice, memReqs2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      mDevice->findMemoryType(memReqs2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   NE_ASSERT(allocInfo.memoryTypeIndex != ~0U, "Failed to find suitable memory type for Image!");
 
-  VK_CHECK(vkAllocateMemory(mDevice, &allocInfo, nullptr, &mImageMemory));
+  VK_CHECK(vkAllocateMemory(mDevice->getDevice(), &allocInfo, nullptr, &mImageMemory));
 
   VkBindImageMemoryInfo bindImageInfo{};
   bindImageInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
   bindImageInfo.image = mImage;
   bindImageInfo.memory = mImageMemory;
   bindImageInfo.memoryOffset = 0;
-  VK_CHECK(vkBindImageMemory2(mDevice, 1, &bindImageInfo));
+  VK_CHECK(vkBindImageMemory2(mDevice->getDevice(), 1, &bindImageInfo));
 
   VkImageAspectFlags aspectMask = mConfig.aspectMask != 0 ? mConfig.aspectMask : deduceAspectFlags(mConfig.format);
 
@@ -81,16 +79,16 @@ Image::Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& i
   viewInfo.subresourceRange.baseArrayLayer = 0;
   viewInfo.subresourceRange.layerCount = 1;
 
-  VK_CHECK(vkCreateImageView(mDevice, &viewInfo, nullptr, &mImageView));
+  VK_CHECK(vkCreateImageView(mDevice->getDevice(), &viewInfo, nullptr, &mImageView));
 
   mCurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   mCurrentAccessMask = VK_ACCESS_2_NONE;
   mCurrentStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   if (!mConfig.debugName.empty()) {
-    vk_utils::setDebugObjectName(mDevice, mImage, mConfig.debugName);
-    vk_utils::setDebugObjectName(mDevice, mImageMemory, mConfig.debugName + "_Memory");
-    vk_utils::setDebugObjectName(mDevice, mImageView, mConfig.debugName + "_View");
+    vk_utils::setDebugObjectName(mDevice->getDevice(), mImage, mConfig.debugName);
+    vk_utils::setDebugObjectName(mDevice->getDevice(), mImageMemory, mConfig.debugName + "_Memory");
+    vk_utils::setDebugObjectName(mDevice->getDevice(), mImageView, mConfig.debugName + "_View");
   }
 
   NE_LOG("Allocated Image{}: Extent {}x{} | Format: {}", mConfig.debugName.empty() ? "" : std::format(" '{}'", mConfig.debugName),
@@ -100,17 +98,17 @@ Image::Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& i
 Image::~Image() { releaseResources(); }
 
 void Image::releaseResources() {
-  if (mDevice != VK_NULL_HANDLE) {
+  if (mDevice && mDevice->getDevice() != VK_NULL_HANDLE) {
     if (mImageView != VK_NULL_HANDLE) {
-      vkDestroyImageView(mDevice, mImageView, nullptr);
+      vkDestroyImageView(mDevice->getDevice(), mImageView, nullptr);
       mImageView = VK_NULL_HANDLE;
     }
     if (mImage != VK_NULL_HANDLE) {
-      vkDestroyImage(mDevice, mImage, nullptr);
+      vkDestroyImage(mDevice->getDevice(), mImage, nullptr);
       mImage = VK_NULL_HANDLE;
     }
     if (mImageMemory != VK_NULL_HANDLE) {
-      vkFreeMemory(mDevice, mImageMemory, nullptr);
+      vkFreeMemory(mDevice->getDevice(), mImageMemory, nullptr);
       mImageMemory = VK_NULL_HANDLE;
     }
   }

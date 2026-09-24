@@ -1,5 +1,4 @@
 #include "renderer/bindless_manager.h"
-#include "renderer/renderer.h"
 #include "renderer/sampler_manager.h"
 #include "renderer/utils.h"
 #include <array>
@@ -116,8 +115,7 @@ uint32_t BindlessManager::registerSampledImage(VkImageView iImageView) {
 }
 
 void BindlessManager::bind(VkCommandBuffer iCommandBuffer, VkPipelineLayout iPipelineLayout) {
-  vkCmdBindDescriptorSets(iCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, iPipelineLayout, 0, 1, &mDescriptorSet, 0,
-                          nullptr);
+  vkCmdBindDescriptorSets(iCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, iPipelineLayout, 0, 1, &mDescriptorSet, 0, nullptr);
 }
 
 } // namespace ne

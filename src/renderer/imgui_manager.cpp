@@ -3,7 +3,9 @@
 #include "core/filesystem.h"
 #include "core/logger.h"
 #include "platform/window.h"
+#include "renderer/device.h"
 #include "renderer/image.h"
+#include "renderer/instance.h"
 #include "renderer/renderer.h"
 
 #include <imgui.h>
@@ -32,12 +34,12 @@ ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWind
   renderingInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
 
   ImGui_ImplVulkan_InitInfo initInfo{};
-  initInfo.ApiVersion = iRenderer->getApiVersion();
-  initInfo.Instance = iRenderer->getInstance();
-  initInfo.PhysicalDevice = iRenderer->getPhysicalDevice();
-  initInfo.Device = iRenderer->getDevice();
-  initInfo.QueueFamily = iRenderer->getQueueFamilyIndex();
-  initInfo.Queue = iRenderer->getQueue();
+  initInfo.ApiVersion = iRenderer->getInstance()->getApiVersion();
+  initInfo.Instance = iRenderer->getInstance()->getInstance();
+  initInfo.PhysicalDevice = iRenderer->getDevice()->getPhysicalDevice();
+  initInfo.Device = iRenderer->getDevice()->getDevice();
+  initInfo.QueueFamily = iRenderer->getDevice()->getQueueFamilyIndex();
+  initInfo.Queue = iRenderer->getDevice()->getQueue();
   initInfo.PipelineCache = VK_NULL_HANDLE;
   initInfo.DescriptorPool = VK_NULL_HANDLE;
   initInfo.DescriptorPoolSize = 128;

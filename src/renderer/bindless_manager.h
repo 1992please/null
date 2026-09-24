@@ -6,7 +6,6 @@
 
 namespace ne {
 
-class Renderer;
 class SamplerManager;
 
 class BindlessManager {

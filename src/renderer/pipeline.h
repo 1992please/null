@@ -6,8 +6,6 @@
 
 namespace ne {
 
-class Renderer;
-
 class Pipeline {
 public:
   // DM_Disabled (for UI / 2D overlays)
@@ -22,8 +20,10 @@ public:
     std::vector<VkPushConstantRange> pushConstantRanges;
     DepthMode depthMode = DM_ReadWrite;
     StencilMode stencilMode = SM_Disabled;
+    VkFormat colorAttachmentFormat = VK_FORMAT_UNDEFINED;
+    VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
   };
-  Pipeline(Renderer* iRenderer, const Config& iConfig);
+  Pipeline(VkDevice iDevice, const Config& iConfig);
   ~Pipeline();
 
   // Prevent copying

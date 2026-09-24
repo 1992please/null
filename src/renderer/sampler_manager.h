@@ -6,7 +6,7 @@
 
 namespace ne {
 
-class Renderer;
+class Device;
 
 /**
  * @class SamplerManager
@@ -29,7 +29,7 @@ public:
     ST_Count
   };
 
-  SamplerManager(Renderer* iRenderer);
+  SamplerManager(Device* iDevice);
   ~SamplerManager();
 
   // Non-copyable and non-moveable (pinned Vulkan RAII resource)

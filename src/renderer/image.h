@@ -7,6 +7,7 @@
 
 namespace ne {
 
+class Device;
 struct ImageData;
 
 /**
@@ -28,7 +29,7 @@ public:
     std::string debugName = "";
   };
 
-  Image(VkDevice iDevice, VkPhysicalDevice iPhysicalDevice, const Config& iConfig);
+  Image(Device* iDevice, const Config& iConfig);
   ~Image();
 
   // Non-copyable and non-moveable (pinned Vulkan RAII resource)
@@ -61,7 +62,7 @@ public:
 private:
   void releaseResources();
 
-  VkDevice mDevice = VK_NULL_HANDLE;
+  Device* mDevice = nullptr;
   Config mConfig;
 
   VkImage mImage = VK_NULL_HANDLE;
