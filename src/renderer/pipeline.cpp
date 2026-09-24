@@ -134,7 +134,8 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
       (iConfig.colorAttachmentFormat != VK_FORMAT_UNDEFINED) ? &iConfig.colorAttachmentFormat : nullptr;
   renderingCreateInfo.depthAttachmentFormat = iConfig.depthAttachmentFormat;
   renderingCreateInfo.stencilAttachmentFormat =
-      (iConfig.stencilMode != SM_Disabled) ? iConfig.depthAttachmentFormat : VK_FORMAT_UNDEFINED;
+      (vk_utils::deduceAspectFlags(iConfig.depthAttachmentFormat) & VK_IMAGE_ASPECT_STENCIL_BIT) ? iConfig.depthAttachmentFormat
+                                                                                                  : VK_FORMAT_UNDEFINED;
 
   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{};
   graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;

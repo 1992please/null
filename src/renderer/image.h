@@ -49,9 +49,6 @@ public:
     mCurrentStageMask = iStageMask;
   }
 
-  // Static helpers
-  static VkImageAspectFlags deduceAspectFlags(VkFormat format);
-
   // Getters
   bool isValid() const { return mImage != VK_NULL_HANDLE; }
   VkImage getImage() const { return mImage; }

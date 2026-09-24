@@ -6,22 +6,6 @@
 
 namespace ne {
 
-VkImageAspectFlags Image::deduceAspectFlags(VkFormat format) {
-  switch (format) {
-    case VK_FORMAT_D16_UNORM:
-    case VK_FORMAT_D32_SFLOAT:
-      return VK_IMAGE_ASPECT_DEPTH_BIT;
-    case VK_FORMAT_D16_UNORM_S8_UINT:
-    case VK_FORMAT_D24_UNORM_S8_UINT:
-    case VK_FORMAT_D32_SFLOAT_S8_UINT:
-      return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    case VK_FORMAT_S8_UINT:
-      return VK_IMAGE_ASPECT_STENCIL_BIT;
-    default:
-      return VK_IMAGE_ASPECT_COLOR_BIT;
-  }
-}
-
 Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig(iConfig) {
   NE_ASSERT(mConfig.width > 0 && mConfig.height > 0, "Image dimensions must be greater than 0");
 
@@ -66,7 +50,7 @@ Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig
   bindImageInfo.memoryOffset = 0;
   VK_CHECK(vkBindImageMemory2(mDevice->getDevice(), 1, &bindImageInfo));
 
-  VkImageAspectFlags aspectMask = mConfig.aspectMask != 0 ? mConfig.aspectMask : deduceAspectFlags(mConfig.format);
+  VkImageAspectFlags aspectMask = mConfig.aspectMask != 0 ? mConfig.aspectMask : vk_utils::deduceAspectFlags(mConfig.format);
 
   VkImageViewCreateInfo viewInfo{};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
