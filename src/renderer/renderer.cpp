@@ -7,11 +7,13 @@
 #include "renderer/device.h"
 #include "renderer/image.h"
 #include "renderer/instance.h"
+#include "renderer/swapchain.h"
 #include "renderer/utils.h"
 
 // std
 #include <algorithm>
 #include <cstring>
+#include <format>
 
 namespace ne {
 
@@ -41,7 +43,17 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
   };
   mDevice = std::make_unique<Device>(mInstance.get(), deviceConfig);
 
-  createSwapChain();
+  // 4. Initialize WSI Swapchain
+  int32_t width = 0, height = 0;
+  mWindow->getFrameBufferSize(&width, &height);
+
+  Swapchain::Config swapchainConfig{
+      .surface = mSurface,
+      .width = static_cast<uint32_t>(width),
+      .height = static_cast<uint32_t>(height),
+  };
+  mSwapchain = std::make_unique<Swapchain>(mDevice.get(), swapchainConfig);
+
   createDepthImage();
   createFramesResources();
 }
@@ -61,13 +73,7 @@ Renderer::~Renderer() {
 
   mDepthImage.reset();
 
-  for (SwapchainImageResources& image : mSwapChainImages) {
-    vkDestroyImageView(mDevice->getDevice(), image.mImageView, nullptr);
-    vkDestroySemaphore(mDevice->getDevice(), image.mRenderFinishedSemaphore, nullptr);
-  }
-  mSwapChainImages.clear();
-
-  vkDestroySwapchainKHR(mDevice->getDevice(), mSwapChain, nullptr);
+  mSwapchain.reset();
 
   mDevice.reset();
 
@@ -79,118 +85,6 @@ Renderer::~Renderer() {
   mInstance.reset();
 
   NE_LOG("Vulkan Renderer destroyed successfully.");
-}
-
-void Renderer::createSwapChain(VkSwapchainKHR iOldSwapchain) {
-  Device::SwapChainSupportDetails swapChainSupport = mDevice->querySwapChainSupport(mSurface);
-  VkSurfaceCapabilitiesKHR surfaceCapabilities = swapChainSupport.mCapabilities;
-
-  // Surface format
-  NE_ASSERT(!swapChainSupport.mFormats.empty());
-  VkSurfaceFormatKHR selectedSurfaceFormat = swapChainSupport.mFormats[0];
-  for (const auto& surfaceFormat : swapChainSupport.mFormats) {
-    if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-      selectedSurfaceFormat = surfaceFormat;
-      break;
-    }
-  }
-  // Present Mode
-  NE_ASSERT(!swapChainSupport.mPresentModes.empty());
-  VkPresentModeKHR selectedPresentMode = swapChainSupport.mPresentModes[0];
-  for (const auto& presentMode : swapChainSupport.mPresentModes) {
-    if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      selectedPresentMode = presentMode;
-      break;
-    }
-
-    if (presentMode == VK_PRESENT_MODE_FIFO_KHR) {
-      selectedPresentMode = presentMode;
-    }
-  }
-  NE_ASSERT(selectedPresentMode == VK_PRESENT_MODE_MAILBOX_KHR || selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR);
-
-  VkExtent2D selectedSwapExtent = surfaceCapabilities.currentExtent;
-  if (surfaceCapabilities.currentExtent.width == UINT32_MAX) // are we allow to differ?
-  {
-    int32_t frameBufferWidth, frameBufferHeight;
-    mWindow->getFrameBufferSize(&frameBufferWidth, &frameBufferHeight);
-    selectedSwapExtent = {.width = std::clamp<uint32_t>(frameBufferWidth, surfaceCapabilities.minImageExtent.width,
-                                                        surfaceCapabilities.maxImageExtent.width),
-                          .height = std::clamp<uint32_t>(frameBufferHeight, surfaceCapabilities.minImageExtent.height,
-                                                         surfaceCapabilities.maxImageExtent.height)};
-  }
-  // Minimum image count
-  uint32_t minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
-  if ((0 < surfaceCapabilities.maxImageCount) && (surfaceCapabilities.maxImageCount < minImageCount)) {
-    minImageCount = surfaceCapabilities.maxImageCount;
-  }
-  VkSwapchainCreateInfoKHR swapchainCreateInfo{};
-  swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-  swapchainCreateInfo.surface = mSurface;
-  swapchainCreateInfo.minImageCount = minImageCount;
-  swapchainCreateInfo.imageFormat = selectedSurfaceFormat.format;
-  swapchainCreateInfo.imageColorSpace = selectedSurfaceFormat.colorSpace;
-  swapchainCreateInfo.imageExtent = selectedSwapExtent;
-  swapchainCreateInfo.imageArrayLayers = 1;
-  swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-  swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  swapchainCreateInfo.preTransform = surfaceCapabilities.currentTransform;
-  swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-  swapchainCreateInfo.presentMode = selectedPresentMode;
-  swapchainCreateInfo.clipped = VK_TRUE;
-  swapchainCreateInfo.oldSwapchain = iOldSwapchain;
-
-  VK_CHECK(vkCreateSwapchainKHR(mDevice->getDevice(), &swapchainCreateInfo, nullptr, &mSwapChain));
-  vk_utils::setDebugObjectName(mDevice->getDevice(), mSwapChain, "Main_Swapchain");
-
-  mSwapChainSurfaceFormat = selectedSurfaceFormat;
-  mSwapChainExtent = selectedSwapExtent;
-
-  // Clear old SwapChainResources if it exists
-  for (SwapchainImageResources& image : mSwapChainImages) {
-    vkDestroyImageView(mDevice->getDevice(), image.mImageView, nullptr);
-    vkDestroySemaphore(mDevice->getDevice(), image.mRenderFinishedSemaphore, nullptr);
-  }
-  mSwapChainImages.clear();
-
-  // SwapChain images
-  uint32_t swapchainImagesCount = 0;
-  vkGetSwapchainImagesKHR(mDevice->getDevice(), mSwapChain, &swapchainImagesCount, nullptr);
-  std::vector<VkImage> swapChainImages(swapchainImagesCount);
-  vkGetSwapchainImagesKHR(mDevice->getDevice(), mSwapChain, &swapchainImagesCount, swapChainImages.data());
-
-  mSwapChainImages.resize(swapChainImages.size());
-  for (size_t i = 0; i < swapChainImages.size(); i++) {
-    mSwapChainImages[i].mImage = swapChainImages[i];
-
-    VkImageViewCreateInfo viewInfo{};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = swapChainImages[i];
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = mSwapChainSurfaceFormat.format;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-
-    VK_CHECK(vkCreateImageView(mDevice->getDevice(), &viewInfo, nullptr, &mSwapChainImages[i].mImageView));
-    // Create Semaphore for starting display to the image
-    VkSemaphoreCreateInfo semaphoreCreateInfo{};
-    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    VK_CHECK(
-        vkCreateSemaphore(mDevice->getDevice(), &semaphoreCreateInfo, nullptr, &mSwapChainImages[i].mRenderFinishedSemaphore));
-
-    vk_utils::setDebugObjectName(mDevice->getDevice(), mSwapChainImages[i].mImage, std::format("Swapchain_Image_{}", i).c_str());
-    vk_utils::setDebugObjectName(mDevice->getDevice(), mSwapChainImages[i].mImageView,
-                                 std::format("Swapchain_ImageView_{}", i).c_str());
-    vk_utils::setDebugObjectName(mDevice->getDevice(), mSwapChainImages[i].mRenderFinishedSemaphore,
-                                 std::format("RenderFinished_Semaphore_{}", i).c_str());
-  }
-
-  NE_LOG("Created new swapChain, Present mode: {}, Image count: {}, Image size: {} x {}",
-         selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR ? "V-Sync" : "Mailbox", swapChainImages.size(), selectedSwapExtent.width,
-         selectedSwapExtent.height);
 }
 
 std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::string iDebugName) {
@@ -210,8 +104,8 @@ void Renderer::createFramesResources() {
   NE_ASSERT(mFrames.empty());
   mFrames.resize(MAX_FRAMES_IN_FLIGHT);
   for (size_t i = 0; i < mFrames.size(); i++) {
-    // We create a command Pool per frame because reseting it
-    // Reclaims all command memory in one bulk operation, eliminating fragmentation
+    // We create a command Pool per frame because resetting it
+    // reclaims all command memory in one bulk operation, eliminating fragmentation
     VkCommandPoolCreateInfo commandPoolCreateInfo{};
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.queueFamilyIndex = mDevice->getQueueFamilyIndex();
@@ -249,8 +143,8 @@ VkCommandBuffer Renderer::beginFrame() {
 
   VK_CHECK(vkWaitForFences(mDevice->getDevice(), 1, &currentFrame.mDrawFence, VK_TRUE, UINT64_MAX));
 
-  VkResult result = vkAcquireNextImageKHR(mDevice->getDevice(), mSwapChain, UINT64_MAX, currentFrame.mPresentCompleteSemaphore,
-                                          VK_NULL_HANDLE, &mSwapChainImageIndex);
+  VkResult result = mSwapchain->acquireNextImage(currentFrame.mPresentCompleteSemaphore, &mActiveImageIndex);
+
   if (result == VK_ERROR_OUT_OF_DATE_KHR) {
     recreateSwapChain(true);
     return VK_NULL_HANDLE;
@@ -285,6 +179,8 @@ void Renderer::endFrame() {
   auto& currentFrame = mFrames[mFrameIndex];
   VK_CHECK(vkEndCommandBuffer(currentFrame.mCommandBuffer));
 
+  VkSemaphore renderFinishedSemaphore = getActiveSwapChainImage().renderFinishedSemaphore;
+
   VkSemaphoreSubmitInfo waitSemaphoreInfo{};
   waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
   waitSemaphoreInfo.semaphore = currentFrame.mPresentCompleteSemaphore;
@@ -296,7 +192,7 @@ void Renderer::endFrame() {
 
   VkSemaphoreSubmitInfo signalSemaphoreInfo{};
   signalSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
-  signalSemaphoreInfo.semaphore = mSwapChainImages[mSwapChainImageIndex].mRenderFinishedSemaphore;
+  signalSemaphoreInfo.semaphore = renderFinishedSemaphore;
   signalSemaphoreInfo.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
   VkSubmitInfo2 submitInfo2{};
@@ -311,17 +207,11 @@ void Renderer::endFrame() {
   submitInfo2.pSignalSemaphoreInfos = &signalSemaphoreInfo;
   VK_CHECK(vkQueueSubmit2(mDevice->getQueue(), 1, &submitInfo2, currentFrame.mDrawFence));
 
-  VkPresentInfoKHR presentInfo{};
-  presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-  presentInfo.waitSemaphoreCount = 1;
-  presentInfo.pWaitSemaphores = &mSwapChainImages[mSwapChainImageIndex].mRenderFinishedSemaphore;
-  presentInfo.swapchainCount = 1;
-  presentInfo.pSwapchains = &mSwapChain;
-  presentInfo.pImageIndices = &mSwapChainImageIndex;
-  VkResult result = vkQueuePresentKHR(mDevice->getQueue(), &presentInfo);
-  if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+  VkResult result = mSwapchain->present(mDevice->getQueue(), mActiveImageIndex, renderFinishedSemaphore);
+
+  if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
     recreateSwapChain(true);
-  } else if (result == VK_SUBOPTIMAL_KHR || mFrameBufferResized) {
+  } else if (mFrameBufferResized) {
     mFrameBufferResized = false;
     recreateSwapChain(false);
   } else if (result != VK_SUCCESS) {
@@ -331,7 +221,7 @@ void Renderer::endFrame() {
   mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Renderer::recreateSwapChain(bool iForceRecreate) {
+void Renderer::recreateSwapChain(bool iForce) {
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
   while (width == 0 || height == 0) {
@@ -339,33 +229,22 @@ void Renderer::recreateSwapChain(bool iForceRecreate) {
     mWindow->getFrameBufferSize(&width, &height);
   }
 
-  if (!iForceRecreate && width == static_cast<int32_t>(mSwapChainExtent.width) &&
-      height == static_cast<int32_t>(mSwapChainExtent.height)) {
+  if (!iForce && static_cast<uint32_t>(width) == mSwapchain->getExtent().width &&
+      static_cast<uint32_t>(height) == mSwapchain->getExtent().height) {
     return;
   }
 
-  mDevice->waitIdle();
-  NE_LOG("Recreating SwapChain... New resolution: {}x{}", width, height);
-
-  VkSwapchainKHR oldSwapChain = mSwapChain;
-  mSwapChain = VK_NULL_HANDLE;
-
-  // Create the new swapchain, passing the old swapchain for resource recycling
-  createSwapChain(oldSwapChain);
+  mSwapchain->recreate(static_cast<uint32_t>(width), static_cast<uint32_t>(height));
   createDepthImage();
-
-  // Safely destroy the old swapchain now that the new one is created
-  if (oldSwapChain != VK_NULL_HANDLE) {
-    vkDestroySwapchainKHR(mDevice->getDevice(), oldSwapChain, nullptr);
-  }
 }
 
 void Renderer::createDepthImage() {
   VkFormat depthFormat = mDevice->findDepthFormat();
+  VkExtent2D swapExtent = mSwapchain->getExtent();
 
   Image::Config depthConfig{
-      .width = mSwapChainExtent.width,
-      .height = mSwapChainExtent.height,
+      .width = swapExtent.width,
+      .height = swapExtent.height,
       .format = depthFormat,
       .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
       .mipLevels = 1,
@@ -375,8 +254,8 @@ void Renderer::createDepthImage() {
 
   mDepthImage = std::make_unique<Image>(mDevice.get(), depthConfig);
 
-  NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(depthFormat), mSwapChainExtent.width,
-         mSwapChainExtent.height);
+  NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(depthFormat), swapExtent.width,
+         swapExtent.height);
 }
 
 } // namespace ne

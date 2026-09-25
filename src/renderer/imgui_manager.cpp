@@ -29,7 +29,7 @@ ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWind
   renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
   renderingInfo.pNext = nullptr;
   renderingInfo.colorAttachmentCount = 1;
-  renderingInfo.pColorAttachmentFormats = &(iRenderer->getSwapChainSurfaceFormat().format);
+  renderingInfo.pColorAttachmentFormats = &(iRenderer->getSwapchain()->getSurfaceFormat().format);
   renderingInfo.depthAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
   renderingInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
 
@@ -44,7 +44,7 @@ ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWind
   initInfo.DescriptorPool = VK_NULL_HANDLE;
   initInfo.DescriptorPoolSize = 128;
   initInfo.MinImageCount = 2;
-  initInfo.ImageCount = static_cast<uint32_t>(iRenderer->getSwapChainImageCount());
+  initInfo.ImageCount = static_cast<uint32_t>(iRenderer->getSwapchain()->getImages().size());
   initInfo.UseDynamicRendering = true;
   initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = renderingInfo;
   initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;

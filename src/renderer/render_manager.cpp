@@ -77,7 +77,7 @@ std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& 
   Pipeline::Config config{};
   config.shaderName = shaderName;
   config.descriptorSetLayouts = {mBindlessManager->getDescriptorSetLayout()};
-  config.colorAttachmentFormat = mRenderer->getSwapChainSurfaceFormat().format;
+  config.colorAttachmentFormat = mRenderer->getSwapchain()->getSurfaceFormat().format;
   config.depthAttachmentFormat = mRenderer->getDepthImage()->getConfig().format;
 
   // Configure push constants range using RenderManager's local PushConstants struct
@@ -149,13 +149,13 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
 
   mDrawCalls.clear();
 
-  VkExtent2D extent = mRenderer->getSwapChainExtent();
-  VkImage colorImage = mRenderer->getActiveSwapChainImage();
+  VkExtent2D extent = mRenderer->getSwapchain()->getExtent();
+  const auto& activeSwapchainImage = mRenderer->getActiveSwapChainImage();
   Image* depthImage = mRenderer->getDepthImage();
   NE_ASSERT(depthImage, "Depth image must not be null");
 
   // 1. Begin Swapchain Render Pass
-  vk_utils::transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+  vk_utils::transitionImageLayout(commandBuffer, activeSwapchainImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
@@ -168,7 +168,7 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-  colorAttachmentInfo.imageView = mRenderer->getActiveSwapChainImageView();
+  colorAttachmentInfo.imageView = activeSwapchainImage.view;
   colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -236,8 +236,9 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   // 5. End Swapchain Render Pass
   vkCmdEndRendering(commandBuffer);
 
-  vk_utils::transitionImageLayout(commandBuffer, colorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                  VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
+  vk_utils::transitionImageLayout(commandBuffer, activeSwapchainImage.image, VK_IMAGE_ASPECT_COLOR_BIT,
+                                  VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                  VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
 
   mRenderer->endFrame();
