@@ -1,6 +1,6 @@
 #pragma once
 
-#include "renderer/sampler_manager.h"
+#include "renderer/sampler_type.h"
 #include <cstdint>
 #include <memory>
 
@@ -15,20 +15,20 @@ public:
 
   Pipeline* getPipeline() const { return mPipeline.get(); }
 
-  void setTexture(uint32_t iTextureId, SamplerManager::SamplerType iSampler = SamplerManager::ST_LinearRepeat) {
+  void setTexture(uint32_t iTextureId, SamplerType iSampler = SamplerType::LinearRepeat) {
     mTextureIndex = iTextureId;
     mSamplerType = iSampler;
   }
 
-  void setSampler(SamplerManager::SamplerType iSampler) { mSamplerType = iSampler; }
+  void setSampler(SamplerType iSampler) { mSamplerType = iSampler; }
 
   uint32_t getTextureIndex() const { return mTextureIndex; }
-  SamplerManager::SamplerType getSamplerType() const { return mSamplerType; }
+  SamplerType getSamplerType() const { return mSamplerType; }
 
 private:
   std::shared_ptr<Pipeline> mPipeline;
   uint32_t mTextureIndex = 0; // 0 = default 1x1 fallback white texture
-  SamplerManager::SamplerType mSamplerType = SamplerManager::ST_LinearRepeat;
+  SamplerType mSamplerType = SamplerType::LinearRepeat;
 };
 
 } // namespace ne

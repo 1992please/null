@@ -39,8 +39,6 @@ public:
   Image* getDepthImage() const { return mDepthImage.get(); }
 
   // Frame lifecycle state
-  uint32_t getCurrentFrameIndex() const { return mFrameIndex; }
-  uint32_t getActiveSwapChainImageIndex() const { return mActiveImageIndex; }
   const Swapchain::ImageResource& getActiveSwapChainImage() const { return mSwapchain->getImages()[mActiveImageIndex]; }
 
   // Frame upload buffers
@@ -55,11 +53,9 @@ private:
 
   void recreateSwapChain(bool iForce = false);
 
-  const int MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
+  static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
 
   Window* mWindow;
-  std::string mEngineName;
-  std::string mAppName;
 
   std::unique_ptr<Instance> mInstance;
   VkSurfaceKHR mSurface = VK_NULL_HANDLE;

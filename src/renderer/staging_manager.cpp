@@ -16,7 +16,7 @@ StagingManager::StagingManager(Device* iDevice) : mDevice(iDevice) {
   Buffer::Config stagingConfig{
       .size = vk_utils::STAGING_BUFFER_SIZE,
       .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-      .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .storage = Buffer::Storage::Upload,
       .debugName = "StagingManager_StagingBuffer",
   };
   mStagingBuffer = std::make_unique<Buffer>(mDevice, stagingConfig);
@@ -70,7 +70,7 @@ void StagingManager::stageBufferCopy(VkBuffer dstBuffer, const void* data, VkDev
     Buffer::Config outlierConfig{
         .size = size,
         .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .storage = Buffer::Storage::Upload,
         .debugName = "StagingManager_OutlierBufferStaging",
     };
     Buffer tempStaging(mDevice, outlierConfig);
@@ -109,7 +109,7 @@ void StagingManager::stageImageUpload(Image& dstImage, const void* pixelData, Vk
     Buffer::Config outlierConfig{
         .size = size,
         .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        .storage = Buffer::Storage::Upload,
         .debugName = "StagingManager_OutlierImageStaging",
     };
     Buffer tempStaging(mDevice, outlierConfig);

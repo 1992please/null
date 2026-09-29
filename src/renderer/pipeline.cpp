@@ -73,14 +73,14 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
   // Depth And Stencil
   VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo{};
   depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-  depthStencilStateCreateInfo.depthTestEnable = iConfig.depthMode != Pipeline::DM_Disabled ? VK_TRUE : VK_FALSE;
-  depthStencilStateCreateInfo.depthWriteEnable = iConfig.depthMode == Pipeline::DM_ReadWrite ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.depthTestEnable = iConfig.depthMode != DepthMode::Disabled ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.depthWriteEnable = iConfig.depthMode == DepthMode::ReadWrite ? VK_TRUE : VK_FALSE;
   depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
   depthStencilStateCreateInfo.minDepthBounds = 0.0f;
   depthStencilStateCreateInfo.maxDepthBounds = 1.0f;
-  depthStencilStateCreateInfo.stencilTestEnable = iConfig.stencilMode != Pipeline::SM_Disabled ? VK_TRUE : VK_FALSE;
+  depthStencilStateCreateInfo.stencilTestEnable = iConfig.stencilMode != StencilMode::Disabled ? VK_TRUE : VK_FALSE;
   depthStencilStateCreateInfo.depthCompareOp =
-      iConfig.depthMode != Pipeline::DM_Disabled ? VK_COMPARE_OP_GREATER_OR_EQUAL : VK_COMPARE_OP_ALWAYS;
+      iConfig.depthMode != DepthMode::Disabled ? VK_COMPARE_OP_GREATER_OR_EQUAL : VK_COMPARE_OP_ALWAYS;
 
   // Color blending (blends new color to the old color already in the frame buffer)
   /*

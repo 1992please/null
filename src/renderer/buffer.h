@@ -3,6 +3,8 @@
 #include <string>
 #include <volk/volk.h>
 
+VK_DEFINE_HANDLE(VmaAllocation)
+
 namespace ne {
 
 class Device;
@@ -11,10 +13,16 @@ class Buffer {
 public:
   static constexpr VkDeviceSize DEFAULT_ALIGNMENT = 16;
 
+  enum class Storage : uint8_t {
+    DeviceLocal, // Device-local VRAM (vertex, index, storage)
+    Upload,      // Host-visible upload / staging / uniform (writes to ReBAR VRAM or RAM)
+    Readback     // Readback / profiling
+  };
+
   struct Config {
     VkDeviceSize size = 0;
     VkBufferUsageFlags usage = 0;
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    Storage storage = Storage::DeviceLocal;
     std::string debugName = "";
     VkDeviceSize alignment = DEFAULT_ALIGNMENT;
   };
@@ -45,22 +53,15 @@ public:
   const Config& getConfig() const { return mConfig; }
   VkBuffer getBuffer() const { return mBuffer; }
 
-  bool isHostVisible() const { return (mMemoryProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0; }
-  bool isHostCoherent() const { return (mMemoryProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0; }
-  VkMemoryPropertyFlags getMemoryProperties() const { return mMemoryProperties; }
-
 private:
-  uint32_t findBufferMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties, VkBufferUsageFlags iUsage) const;
-
   Device* mDevice = nullptr;
 
   Config mConfig;
   VkBuffer mBuffer = VK_NULL_HANDLE;
-  VkDeviceMemory mMemory = VK_NULL_HANDLE;
+  VmaAllocation mAllocation = VK_NULL_HANDLE;
   VkDeviceAddress mDeviceAddress = 0;
-  VkMemoryPropertyFlags mMemoryProperties = 0;
   void* mMapped = nullptr;
-  VkDeviceSize mUploadOffset = 0; // Added for linear allocation
+  VkDeviceSize mUploadOffset = 0;
 };
 
 } // namespace ne

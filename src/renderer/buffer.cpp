@@ -2,7 +2,10 @@
 #include "core/assert.h"
 #include "core/logger.h"
 #include "renderer/device.h"
+#include "renderer/memory_allocator.h"
 #include "renderer/utils.h"
+
+#include <vma/vk_mem_alloc.h>
 
 // std
 #include <cstring>
@@ -12,6 +15,18 @@
 namespace ne {
 
 namespace {
+
+[[maybe_unused]] std::string_view storageToString(Buffer::Storage storage) {
+  switch (storage) {
+  case Buffer::Storage::DeviceLocal:
+    return "DeviceLocal";
+  case Buffer::Storage::Upload:
+    return "Upload";
+  case Buffer::Storage::Readback:
+    return "Readback";
+  }
+  return "Unknown";
+}
 
 [[maybe_unused]] std::string bufferUsageToString(VkBufferUsageFlags usage) {
   std::vector<std::string> flags;
@@ -82,35 +97,19 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
   bufferInfo.usage = mConfig.usage;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  VK_CHECK(vkCreateBuffer(mDevice->getDevice(), &bufferInfo, nullptr, &mBuffer));
+  VmaAllocationCreateInfo allocInfo{};
+  if (mConfig.storage == Storage::DeviceLocal) {
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+  } else if (mConfig.storage == Storage::Upload) {
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+  } else if (mConfig.storage == Storage::Readback) {
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+  }
 
-  VkBufferMemoryRequirementsInfo2 memReqsInfo2{};
-  memReqsInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2;
-  memReqsInfo2.buffer = mBuffer;
-
-  VkMemoryRequirements2 memReqs2{};
-  memReqs2.sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2;
-  vkGetBufferMemoryRequirements2(mDevice->getDevice(), &memReqsInfo2, &memReqs2);
-
-  VkMemoryAllocateFlagsInfo allocateFlagsInfo{};
-  allocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
-  allocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT;
-
-  VkMemoryAllocateInfo memoryAllocateInfo{};
-  memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-  memoryAllocateInfo.allocationSize = memReqs2.memoryRequirements.size;
-  memoryAllocateInfo.memoryTypeIndex =
-      findBufferMemoryType(memReqs2.memoryRequirements.memoryTypeBits, mConfig.properties, mConfig.usage);
-  memoryAllocateInfo.pNext = (mConfig.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? &allocateFlagsInfo : nullptr;
-
-  VK_CHECK(vkAllocateMemory(mDevice->getDevice(), &memoryAllocateInfo, nullptr, &mMemory));
-
-  VkBindBufferMemoryInfo bindInfo{};
-  bindInfo.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO;
-  bindInfo.buffer = mBuffer;
-  bindInfo.memory = mMemory;
-  bindInfo.memoryOffset = 0;
-  VK_CHECK(vkBindBufferMemory2(mDevice->getDevice(), 1, &bindInfo));
+  VmaAllocationInfo allocationInfo{};
+  VK_CHECK(vmaCreateBuffer(mDevice->getMemoryAllocator()->getHandle(), &bufferInfo, &allocInfo, &mBuffer, &mAllocation, &allocationInfo));
 
   if (mConfig.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
     VkBufferDeviceAddressInfo addressInfo{};
@@ -121,45 +120,48 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
 
   if (!mConfig.debugName.empty()) {
     vk_utils::setDebugObjectName(mDevice->getDevice(), mBuffer, mConfig.debugName);
-    vk_utils::setDebugObjectName(mDevice->getDevice(), mMemory, mConfig.debugName + "_Memory");
+    vmaSetAllocationName(mDevice->getMemoryAllocator()->getHandle(), mAllocation, mConfig.debugName.c_str());
   }
 
-  const auto& memProperties = mDevice->getPhysicalDeviceMemoryProperties();
-  mMemoryProperties = memProperties.memoryTypes[memoryAllocateInfo.memoryTypeIndex].propertyFlags;
+  VkMemoryPropertyFlags effectiveMemProps = 0;
+  vmaGetAllocationMemoryProperties(mDevice->getMemoryAllocator()->getHandle(), mAllocation, &effectiveMemProps);
 
-  NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Memory Type: [Index: {}, Properties: {}]",
-         mConfig.debugName.empty() ? "" : std::format(" '{}'", mConfig.debugName), vk_utils::formatBytes(mConfig.size),
-         vk_utils::formatBytes(memoryAllocateInfo.allocationSize), bufferUsageToString(mConfig.usage),
-         memoryAllocateInfo.memoryTypeIndex, memoryPropertiesToString(mMemoryProperties));
+  NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Storage: [{}] | Type: [{}]",
+         mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
+         vk_utils::formatBytes(mConfig.size),
+         vk_utils::formatBytes(allocationInfo.size),
+         bufferUsageToString(mConfig.usage),
+         storageToString(mConfig.storage),
+         memoryPropertiesToString(effectiveMemProps));
 }
 
 Buffer::~Buffer() {
   if (mMapped) {
     unmapMemory();
   }
-  NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mConfig.debugName.empty() ? "" : std::format(" '{}'", mConfig.debugName),
+  NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]",
+         mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
          vk_utils::formatBytes(mConfig.size), bufferUsageToString(mConfig.usage));
-  vkDestroyBuffer(mDevice->getDevice(), mBuffer, nullptr);
-  vkFreeMemory(mDevice->getDevice(), mMemory, nullptr);
+  vmaDestroyBuffer(mDevice->getMemoryAllocator()->getHandle(), mBuffer, mAllocation);
 }
 
-void Buffer::mapMemory(VkDeviceSize iSize, VkDeviceSize iOffset) {
-  NE_ASSERT(isHostVisible(), "Cannot map a buffer that is not host-visible!");
+void Buffer::mapMemory(VkDeviceSize /*iSize*/, VkDeviceSize /*iOffset*/) {
+  NE_ASSERT(mConfig.storage != Storage::DeviceLocal, "Cannot map a buffer with DeviceLocal storage!");
   NE_ASSERT(!mMapped, "Buffer is already mapped!");
-  VK_CHECK(vkMapMemory(mDevice->getDevice(), mMemory, iOffset, iSize, 0, &mMapped));
+  VK_CHECK(vmaMapMemory(mDevice->getMemoryAllocator()->getHandle(), mAllocation, &mMapped));
 }
 
 void Buffer::writeToBuffer(const void* iData, VkDeviceSize iSize, VkDeviceSize iOffset) {
   NE_ASSERT(mMapped, "Buffer must be mapped before writing!");
-  NE_ASSERT(isHostCoherent(), "Buffer::writeToBuffer requires HOST_COHERENT memory!");
   VkDeviceSize writeSize = (iSize == VK_WHOLE_SIZE) ? mConfig.size - iOffset : iSize;
   NE_ASSERT(iOffset + writeSize <= mConfig.size, "Buffer write exceeds buffer size!");
   std::memcpy(static_cast<char*>(mMapped) + iOffset, iData, writeSize);
+  vmaFlushAllocation(mDevice->getMemoryAllocator()->getHandle(), mAllocation, iOffset, writeSize);
 }
 
 void Buffer::unmapMemory() {
   NE_ASSERT(mMapped, "Buffer is not mapped!");
-  vkUnmapMemory(mDevice->getDevice(), mMemory);
+  vmaUnmapMemory(mDevice->getMemoryAllocator()->getHandle(), mAllocation);
   mMapped = nullptr;
 }
 
@@ -176,21 +178,6 @@ VkDeviceSize Buffer::upload(const void* iData, VkDeviceSize iSize) {
   VkDeviceSize allocatedOffset = suballocate(iSize);
   writeToBuffer(iData, iSize, allocatedOffset);
   return allocatedOffset;
-}
-
-uint32_t Buffer::findBufferMemoryType(uint32_t iTypeFilter, VkMemoryPropertyFlags iProperties, VkBufferUsageFlags iUsage) const {
-  uint32_t memoryTypeIndex = mDevice->findMemoryType(iTypeFilter, iProperties);
-  // If host-visible and coherent memory is requested, try to find a heap that is ALSO device-local (Resizable BAR)
-  // Pure staging buffers (usage = TRANSFER_SRC_BIT only) should NOT be allocated in Resizable BAR VRAM.
-  if ((iUsage != VK_BUFFER_USAGE_TRANSFER_SRC_BIT) && (iProperties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) &&
-      (iProperties & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
-    uint32_t barMemoryTypeIndex = mDevice->findMemoryType(iTypeFilter, iProperties | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    if (barMemoryTypeIndex != ~0U) {
-      memoryTypeIndex = barMemoryTypeIndex;
-    }
-  }
-  NE_ASSERT(memoryTypeIndex != ~0U, "Failed to find suitable memory type for Buffer!");
-  return memoryTypeIndex;
 }
 
 } // namespace ne

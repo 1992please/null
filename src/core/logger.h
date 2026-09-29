@@ -12,7 +12,7 @@ namespace ne {
 
 class Logger {
 public:
-  enum LogType { LogType_Log, LogType_Warn, LogType_Error, LogType_Fatal };
+  enum class LogType : uint8_t { Info, Warn, Error, Fatal };
 
   static Logger& get();
 
@@ -32,10 +32,10 @@ private:
 } // namespace ne
 
 #ifndef NE_BUILD_SHIPPING
-#define NE_LOG(...) ne::Logger::get().log(ne::Logger::LogType_Log, __VA_ARGS__)
-#define NE_WARN(...) ne::Logger::get().log(ne::Logger::LogType_Warn, __VA_ARGS__)
-#define NE_ERROR(...) ne::Logger::get().log(ne::Logger::LogType_Error, __VA_ARGS__)
-#define NE_FATAL(...) ne::Logger::get().log(ne::Logger::LogType_Fatal, __VA_ARGS__)
+#define NE_LOG(...) ne::Logger::get().log(ne::Logger::LogType::Info, __VA_ARGS__)
+#define NE_WARN(...) ne::Logger::get().log(ne::Logger::LogType::Warn, __VA_ARGS__)
+#define NE_ERROR(...) ne::Logger::get().log(ne::Logger::LogType::Error, __VA_ARGS__)
+#define NE_FATAL(...) ne::Logger::get().log(ne::Logger::LogType::Fatal, __VA_ARGS__)
 #else
 // Stripped clean out of production builds
 #define NE_LOG(...)

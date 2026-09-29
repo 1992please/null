@@ -35,6 +35,7 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [x] **RHI Texture & Sampler Core**: Vulkan 1.4 image allocation, `Synchronization2` layout transitions, staging buffer uploads (`vkCmdCopyBufferToImage2`), and sampler states.
 - [x] **Vulkan Feature Enablement**: Enable `samplerAnisotropy` and descriptor indexing features on `VkDeviceCreateInfo` with hardware limit validation.
 - [x] **Bindless Texture Architecture**: Unsized texture arrays (`Texture2D gTextures[]` in Slang) with Vulkan 1.4 descriptor indexing (`partiallyBound`, `updateAfterBind`).
+- [x] **Vulkan Memory Allocator (VMA) Integration**: Sub-allocate all buffers and images from unified device-local and host-visible memory pools to eliminate discrete `vkAllocateMemory` calls and prevent `maxMemoryAllocationCount` exhaustion.
 - [ ] **glTF PBR Material Pipeline**: Material parameter representation (factors, textures), `stb_image` decoding, and glTF 2.0 metallic-roughness PBR lighting.
 - [ ] **Mipmap Generation & Subresource Ranges**: GPU blit mip generation (`vkCmdBlitImage2`) and subresource range handling (`VK_REMAINING_MIP_LEVELS`) in view and transition helpers.
 - [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
@@ -45,23 +46,14 @@ A high-performance, cross-platform 3D model viewer and rendering engine built wi
 - [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
 - [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
 - [ ] **Context-Driven Encoder Pattern & RHI Decoupling**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability, formalizing the boundary between low-level hardware abstraction (`RHI` / `Device` / resources) and high-level scene passes.
-- [ ] **Vulkan Memory Allocator (VMA) Integration**: Sub-allocate all buffers and images from unified device-local and host-visible memory pools to eliminate discrete `vkAllocateMemory` calls and prevent `maxMemoryAllocationCount` exhaustion.
-
-### Misc
-- [ ] Look at the matrix inverse algorithm if we need it be faster
-- [ ] Look at [Render Graph](https://themaister.net/blog/2017/08/15/render-graphs-and-vulkan-a-deep-dive/) maybe read this article.
 
 ---
 
-## ⚡ Core Technical Architecture
+## 📐 Engine Conventions
 
-* **Graphics API**: Vulkan 1.4 (via `volk` meta-loader) with Dynamic Rendering (no legacy Render Passes/Framebuffers) and `Synchronization2`.
-* **Geometry & Rendering**: Programmable Vertex Pulling via Buffer Device Address (BDA) and Multi-Draw Indirect (`vkCmdDrawIndexedIndirect`).
-* **Shader Pipeline**: Written in Slang (`.slang`, `.comp`) and compiled directly to SPIR-V at build time via `slangc`.
-* **Memory & Concurrency**: Double-buffered frames-in-flight (`MAX_FRAMES_IN_FLIGHT = 2`) with dedicated per-frame command pools, pre-allocated geometry pools (64MB vertex / 32MB index), and dynamic host-mapped upload ring buffers.
-* **Coordinate System (Unreal Convention)**:
-  * **Axes**: `+X` Forward, `+Y` Right, `+Z` Up (Left-handed coordinate convention).
-  * **Depth**: Reverse-Z floating-point depth (`VK_FORMAT_D32_SFLOAT`, `0.0` far clear, `VK_COMPARE_OP_GREATER_OR_EQUAL`) when camera integration is active.
+* **Coordinates (Unreal Convention)**: Left-handed (`+X` Forward, `+Y` Right, `+Z` Up).
+* **Reverse-Z Depth**: Floating-point depth (`VK_FORMAT_D32_SFLOAT_S8_UINT`, `0.0` far clear, `VK_COMPARE_OP_GREATER_OR_EQUAL`).
+* **Memory & Shaders**: Unified sub-allocation via Vulkan Memory Allocator (VMA), Buffer Device Address (BDA) vertex pulling, and Slang shaders compiled to SPIR-V.
 
 ---
 

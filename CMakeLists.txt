@@ -19,7 +19,7 @@ set(BinShaderDir "${BinDir}/${CompiledShaderRelDir}")
 # Thirdparty
 # ----------------------------------------------------------------------
 # Vulkan
-find_package(Vulkan REQUIRED COMPONENTS volk)
+find_package(Vulkan 1.4 REQUIRED COMPONENTS volk)
 find_program(Vulkan_SLANGC_EXECUTABLE slangc HINTS $ENV{VULKAN_SDK}/bin REQUIRED)
 message(STATUS "slang: ${Vulkan_SLANGC_EXECUTABLE}")
 
@@ -93,6 +93,8 @@ target_compile_definitions(${EngineTarget} PRIVATE
   $<$<CXX_COMPILER_ID:MSVC>:_HAS_EXCEPTIONS=0>
 
   VK_NO_PROTOTYPES
+  VMA_STATIC_VULKAN_FUNCTIONS=0
+  VMA_DYNAMIC_VULKAN_FUNCTIONS=0
 )
 
 target_compile_options(${EngineTarget} PRIVATE

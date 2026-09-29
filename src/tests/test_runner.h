@@ -67,7 +67,7 @@ int runAllTests();
       ctx.mFailures++;                                                                                                                \
       std::string user_msg;                                                                                                           \
       __VA_OPT__(user_msg = std::format(__VA_ARGS__);)                                                                                \
-      ne::Logger::get().log(ne::Logger::LogType_Error, "[TEST FAIL] {}\n  Condition: {}\n  File: {}\n  Line: {}", user_msg,           \
+      ne::Logger::get().log(ne::Logger::LogType::Error, "[TEST FAIL] {}\n  Condition: {}\n  File: {}\n  Line: {}", user_msg, \
                             #condition, __FILE__, __LINE__);                                                                          \
     }                                                                                                                                 \
   } while (false)

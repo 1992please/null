@@ -3,6 +3,7 @@
 #include "core/defines.h"
 #include "core/logger.h"
 #include "renderer/instance.h"
+#include "renderer/memory_allocator.h"
 #include "renderer/utils.h"
 
 // std
@@ -34,6 +35,7 @@ Device::Device(Instance* iInstance, const Config& iConfig) {
 
   pickPhysicalDevice(iInstance->getInstance(), iConfig);
   createLogicalDevice(iConfig);
+  mMemoryAllocator = std::make_unique<MemoryAllocator>(iInstance, this);
   createOneTimeCommandResources();
 }
 
@@ -43,6 +45,8 @@ Device::~Device() {
   if (mOneTimeCommandPool != VK_NULL_HANDLE) {
     vkDestroyCommandPool(mDevice, mOneTimeCommandPool, nullptr);
   }
+
+  mMemoryAllocator.reset();
 
   vkDestroyDevice(mDevice, nullptr);
   NE_LOG("Vulkan Device destroyed successfully.");
@@ -285,8 +289,14 @@ Device::SwapChainSupportDetails Device::querySwapChainSupport(VkSurfaceKHR iSurf
 }
 
 VkFormat Device::findDepthFormat() const {
-  return findSupportedFormat({VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT},
-                             VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+  VkFormat depthFormat =
+      findSupportedFormat({VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT},
+                          VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+  if (depthFormat != VK_FORMAT_D32_SFLOAT_S8_UINT) {
+    NE_WARN("Preferred depth format D32_SFLOAT_S8_UINT unsupported; falling back to {}, which loses Reverse-Z precision",
+            string_VkFormat(depthFormat));
+  }
+  return depthFormat;
 }
 
 VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& iCandidates, VkImageTiling iTiling,

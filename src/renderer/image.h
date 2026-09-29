@@ -5,6 +5,8 @@
 #include <string>
 #include <volk/volk.h>
 
+VK_DEFINE_HANDLE(VmaAllocation)
+
 namespace ne {
 
 class Device;
@@ -12,7 +14,7 @@ struct ImageData;
 
 /**
  * @class Image
- * @brief RAII management of a 2D Vulkan Image, Device Memory, and Image View.
+ * @brief RAII management of a 2D Vulkan Image, VMA Allocation, and Image View.
  *
  * Serves as the Vulkan RHI wrapper for sampled images, render targets, depth attachments,
  * and storage images. Pinned GPU resource (non-copyable, non-moveable).
@@ -53,17 +55,14 @@ public:
   bool isValid() const { return mImage != VK_NULL_HANDLE; }
   VkImage getImage() const { return mImage; }
   VkImageView getImageView() const { return mImageView; }
-  VkDeviceMemory getMemory() const { return mImageMemory; }
   const Config& getConfig() const { return mConfig; }
 
 private:
-  void releaseResources();
-
   Device* mDevice = nullptr;
   Config mConfig;
 
   VkImage mImage = VK_NULL_HANDLE;
-  VkDeviceMemory mImageMemory = VK_NULL_HANDLE;
+  VmaAllocation mAllocation = VK_NULL_HANDLE;
   VkImageView mImageView = VK_NULL_HANDLE;
 
   VkImageLayout mCurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;

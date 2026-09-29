@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderer/sampler_type.h"
 #include <array>
 #include <cstdint>
 #include <volk/volk.h>
@@ -15,20 +16,6 @@ class Device;
  */
 class SamplerManager {
 public:
-  /**
-   * @enum SamplerType
-   * @brief Pre-allocated immutable standard samplers covering all 3D engine patterns.
-   */
-  enum SamplerType : uint8_t {
-    ST_LinearRepeat = 0,  // Trilinear + Anisotropy 16x, Repeat (Default 3D PBR textures)
-    ST_LinearClamp = 1,   // Trilinear + Anisotropy 16x, ClampToEdge (Decals, skybox, viewport blits)
-    ST_LinearMirror = 2,  // Trilinear + Anisotropy 16x, MirroredRepeat
-    ST_NearestClamp = 3,  // Point, ClampToEdge (UI, LUTs, G-Buffer depth)
-    ST_NearestRepeat = 4, // Point, Repeat (Pixel art, procedural noise)
-    ST_Shadow = 5,        // Linear, ClampToBorder, Reverse-Z GreaterOrEqual
-    ST_Count
-  };
-
   SamplerManager(Device* iDevice);
   ~SamplerManager();
 
@@ -42,7 +29,7 @@ public:
   VkSampler get(SamplerType iType) const;
 
   // Array access for bindless descriptor set updates
-  const std::array<VkSampler, ST_Count>& getSamplers() const { return mSamplers; }
+  const std::array<VkSampler, static_cast<size_t>(SamplerType::Count)>& getSamplers() const { return mSamplers; }
 
 private:
   VkSampler createSampler(VkFilter iFilter, VkSamplerMipmapMode iMipMode, VkSamplerAddressMode iAddressMode, bool iAniso,
@@ -51,7 +38,7 @@ private:
   VkDevice mDevice = VK_NULL_HANDLE;
 
   // Pre-allocated immutable samplers
-  std::array<VkSampler, ST_Count> mSamplers{};
+  std::array<VkSampler, static_cast<size_t>(SamplerType::Count)> mSamplers{};
 };
 
 } // namespace ne

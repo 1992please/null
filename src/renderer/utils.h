@@ -20,7 +20,7 @@
   do {                                                                                                                           \
     VkResult vkCheckResult = (fn);                                                                                               \
     if (vkCheckResult != VK_SUCCESS) {                                                                                           \
-      ne::Logger::get().log(ne::Logger::LogType_Fatal,                                                                           \
+      ne::Logger::get().log(ne::Logger::LogType::Fatal,                                                                           \
                             "VULKAN ERROR\n"                                                                                     \
                             "  Function: {}\n"                                                                                   \
                             "  Result: {} ({})\n"                                                                                \

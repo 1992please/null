@@ -16,7 +16,7 @@
 #include "renderer/mesh.h"
 #include "renderer/mesh_utils.h"
 #include "renderer/render_manager.h"
-#include "renderer/sampler_manager.h"
+#include "renderer/sampler_type.h"
 #include <format>
 
 namespace ne {
@@ -51,13 +51,13 @@ BasicApp::BasicApp() {
 
   // 3. Material setup - distinct materials per entity demonstration
   mCube1Material = mRenderManager->createMaterial();
-  mCube1Material->setTexture(checkerTextureId, SamplerManager::ST_LinearRepeat);
+  mCube1Material->setTexture(checkerTextureId, SamplerType::LinearRepeat);
 
   mCube2Material = mRenderManager->createMaterial();
-  mCube2Material->setTexture(checkerTextureId, SamplerManager::ST_NearestRepeat);
+  mCube2Material->setTexture(checkerTextureId, SamplerType::NearestRepeat);
 
   mHelmetMaterial = mRenderManager->createMaterial();
-  mHelmetMaterial->setTexture(0, SamplerManager::ST_LinearRepeat); // Fallback white texture
+  mHelmetMaterial->setTexture(0, SamplerType::LinearRepeat); // Fallback white texture
 
   // 4. Create Scene Entities
   int32_t width, height;

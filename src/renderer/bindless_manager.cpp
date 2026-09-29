@@ -13,7 +13,7 @@ BindlessManager::BindlessManager(VkDevice iDevice, SamplerManager* iSamplerManag
   const uint32_t samplerCount = static_cast<uint32_t>(iSamplerManager->getSamplers().size());
 
   // 1. Create Bindless Descriptor Set Layout (Set 0)
-  // Binding 0: Immutable standard samplers (ST_Count)
+  // Binding 0: Immutable standard samplers (SamplerType::Count)
   // Binding 1: Sampled image descriptor array (mMaxSampledImages)
   std::array<VkDescriptorSetLayoutBinding, 2> bindings{};
 

@@ -9,6 +9,7 @@
 namespace ne {
 
 class Instance;
+class MemoryAllocator;
 
 /**
  * @class Device
@@ -58,10 +59,14 @@ public:
                                VkFormatFeatureFlags iFeatures) const;
   VkFormat findDepthFormat() const;
 
+  MemoryAllocator* getMemoryAllocator() const { return mMemoryAllocator.get(); }
+
 private:
   void pickPhysicalDevice(VkInstance iInstance, const Config& iConfig);
   void createLogicalDevice(const Config& iConfig);
   void createOneTimeCommandResources();
+
+  std::unique_ptr<MemoryAllocator> mMemoryAllocator;
 
   VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
   VkPhysicalDeviceProperties mPhysicalDeviceProperties = {};

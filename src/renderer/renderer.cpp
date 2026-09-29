@@ -17,8 +17,7 @@
 
 namespace ne {
 
-Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName)
-    : mWindow(iWindow), mEngineName(iEngineName), mAppName(iAppName) {
+Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) : mWindow(iWindow) {
   NE_ASSERT(mWindow);
   mFrameBufferResizeCallbackId = mWindow->addFrameBufferResizeCallback([this](int32_t width, int32_t height) {
     NE_UNUSED(width);
@@ -28,8 +27,8 @@ Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::s
 
   // 1. Initialize Vulkan Instance runtime
   Instance::Config instanceConfig{
-      .engineName = mEngineName,
-      .appName = mAppName,
+      .engineName = iEngineName,
+      .appName = iAppName,
       .requiredExtensions = mWindow->getRequiredInstanceExtensions(),
   };
   mInstance = std::make_unique<Instance>(instanceConfig);
@@ -92,7 +91,7 @@ std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::str
       .size = size,
       .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-      .properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+      .storage = Buffer::Storage::Upload,
       .debugName = std::move(iDebugName),
   };
   auto uploadBuffer = std::make_unique<Buffer>(mDevice.get(), config);

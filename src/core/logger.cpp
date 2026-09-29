@@ -33,19 +33,19 @@ Logger::~Logger() { mLogger->flush(); }
 
 void Logger::logExec(LogType iLogType, std::string iLog) {
   switch (iLogType) {
-  case LogType_Log: {
+  case LogType::Info: {
     mLogger->info(std::move(iLog));
     break;
   }
-  case LogType_Warn: {
+  case LogType::Warn: {
     mLogger->warn(std::move(iLog));
     break;
   }
-  case LogType_Error: {
+  case LogType::Error: {
     mLogger->error(std::move(iLog));
     break;
   }
-  case LogType_Fatal: {
+  case LogType::Fatal: {
     mLogger->critical(std::move(iLog));
     mLogger->flush();
     break;
