@@ -18,12 +18,12 @@ namespace {
 
 [[maybe_unused]] std::string_view storageToString(Buffer::Storage storage) {
   switch (storage) {
-  case Buffer::Storage::DeviceLocal:
-    return "DeviceLocal";
-  case Buffer::Storage::Upload:
-    return "Upload";
-  case Buffer::Storage::Readback:
-    return "Readback";
+    case Buffer::Storage::DeviceLocal:
+      return "DeviceLocal";
+    case Buffer::Storage::Upload:
+      return "Upload";
+    case Buffer::Storage::Readback:
+      return "Readback";
   }
   return "Unknown";
 }
@@ -109,7 +109,8 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
   }
 
   VmaAllocationInfo allocationInfo{};
-  VK_CHECK(vmaCreateBuffer(mDevice->getMemoryAllocator()->getHandle(), &bufferInfo, &allocInfo, &mBuffer, &mAllocation, &allocationInfo));
+  VK_CHECK(vmaCreateBuffer(mDevice->getMemoryAllocator()->getHandle(), &bufferInfo, &allocInfo, &mBuffer, &mAllocation,
+                           &allocationInfo));
 
   if (mConfig.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
     VkBufferDeviceAddressInfo addressInfo{};
@@ -127,11 +128,8 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
   vmaGetAllocationMemoryProperties(mDevice->getMemoryAllocator()->getHandle(), mAllocation, &effectiveMemProps);
 
   NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Storage: [{}] | Type: [{}]",
-         mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
-         vk_utils::formatBytes(mConfig.size),
-         vk_utils::formatBytes(allocationInfo.size),
-         bufferUsageToString(mConfig.usage),
-         storageToString(mConfig.storage),
+         mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'", vk_utils::formatBytes(mConfig.size),
+         vk_utils::formatBytes(allocationInfo.size), bufferUsageToString(mConfig.usage), storageToString(mConfig.storage),
          memoryPropertiesToString(effectiveMemProps));
 }
 
@@ -139,8 +137,7 @@ Buffer::~Buffer() {
   if (mMapped) {
     unmapMemory();
   }
-  NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]",
-         mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
+  NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
          vk_utils::formatBytes(mConfig.size), bufferUsageToString(mConfig.usage));
   vmaDestroyBuffer(mDevice->getMemoryAllocator()->getHandle(), mBuffer, mAllocation);
 }

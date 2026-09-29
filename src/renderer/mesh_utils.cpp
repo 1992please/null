@@ -22,23 +22,17 @@ MeshData createBoxMeshData(const Vec3& size) {
 
   const std::array<Face, 6> faces = {{
       // +X Face (Front)
-      {Vec3(1.0f, 0.0f, 0.0f),
-       {Vec3(+hx, -hy, -hz), Vec3(+hx, +hy, -hz), Vec3(+hx, +hy, +hz), Vec3(+hx, -hy, +hz)}},
+      {Vec3(1.0f, 0.0f, 0.0f), {Vec3(+hx, -hy, -hz), Vec3(+hx, +hy, -hz), Vec3(+hx, +hy, +hz), Vec3(+hx, -hy, +hz)}},
       // -X Face (Back)
-      {Vec3(-1.0f, 0.0f, 0.0f),
-       {Vec3(-hx, +hy, -hz), Vec3(-hx, -hy, -hz), Vec3(-hx, -hy, +hz), Vec3(-hx, +hy, +hz)}},
+      {Vec3(-1.0f, 0.0f, 0.0f), {Vec3(-hx, +hy, -hz), Vec3(-hx, -hy, -hz), Vec3(-hx, -hy, +hz), Vec3(-hx, +hy, +hz)}},
       // +Y Face (Right)
-      {Vec3(0.0f, 1.0f, 0.0f),
-       {Vec3(+hx, +hy, -hz), Vec3(-hx, +hy, -hz), Vec3(-hx, +hy, +hz), Vec3(+hx, +hy, +hz)}},
+      {Vec3(0.0f, 1.0f, 0.0f), {Vec3(+hx, +hy, -hz), Vec3(-hx, +hy, -hz), Vec3(-hx, +hy, +hz), Vec3(+hx, +hy, +hz)}},
       // -Y Face (Left)
-      {Vec3(0.0f, -1.0f, 0.0f),
-       {Vec3(-hx, -hy, -hz), Vec3(+hx, -hy, -hz), Vec3(+hx, -hy, +hz), Vec3(-hx, -hy, +hz)}},
+      {Vec3(0.0f, -1.0f, 0.0f), {Vec3(-hx, -hy, -hz), Vec3(+hx, -hy, -hz), Vec3(+hx, -hy, +hz), Vec3(-hx, -hy, +hz)}},
       // +Z Face (Top)
-      {Vec3(0.0f, 0.0f, 1.0f),
-       {Vec3(-hx, -hy, +hz), Vec3(+hx, -hy, +hz), Vec3(+hx, +hy, +hz), Vec3(-hx, +hy, +hz)}},
+      {Vec3(0.0f, 0.0f, 1.0f), {Vec3(-hx, -hy, +hz), Vec3(+hx, -hy, +hz), Vec3(+hx, +hy, +hz), Vec3(-hx, +hy, +hz)}},
       // -Z Face (Bottom)
-      {Vec3(0.0f, 0.0f, -1.0f),
-       {Vec3(-hx, +hy, -hz), Vec3(+hx, +hy, -hz), Vec3(+hx, -hy, -hz), Vec3(-hx, -hy, -hz)}},
+      {Vec3(0.0f, 0.0f, -1.0f), {Vec3(-hx, +hy, -hz), Vec3(+hx, +hy, -hz), Vec3(+hx, -hy, -hz), Vec3(-hx, -hy, -hz)}},
   }};
 
   const std::array<Vec2, 4> uvs = {

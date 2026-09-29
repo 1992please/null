@@ -14,10 +14,7 @@ public:
     ReadOnly   // Post-passes, transparents, or decals
   };
 
-  enum class StencilMode : uint8_t {
-    Disabled,
-    Enabled
-  };
+  enum class StencilMode : uint8_t { Disabled, Enabled };
 
   struct Config {
     std::string shaderName;

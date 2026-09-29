@@ -31,7 +31,8 @@ Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig
   allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
   VmaAllocationInfo allocationInfo{};
-  VK_CHECK(vmaCreateImage(mDevice->getMemoryAllocator()->getHandle(), &imageInfo, &allocInfo, &mImage, &mAllocation, &allocationInfo));
+  VK_CHECK(
+      vmaCreateImage(mDevice->getMemoryAllocator()->getHandle(), &imageInfo, &allocInfo, &mImage, &mAllocation, &allocationInfo));
 
   VkImageAspectFlags aspectMask = mConfig.aspectMask != 0 ? mConfig.aspectMask : vk_utils::deduceAspectFlags(mConfig.format);
 
