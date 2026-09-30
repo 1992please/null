@@ -1,6 +1,6 @@
-# Null Engine (3D Model Viewer)
+# Null Engine
 
-A high-performance, cross-platform 3D model viewer and rendering engine built with C++20 and modern Vulkan.
+A high-performance, modular 3D rendering engine built with modern C++20 and Vulkan 1.4.
 
 <p align="center">
   <a href="https://en.cppreference.com/w/cpp/20"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg?logo=cplusplus&logoColor=white&style=flat-square" alt="C++ Standard"></a>
