@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/event.h"
-#include "renderer/swapchain.h"
 #include <volk/volk.h>
 
 // std lib headers
@@ -15,28 +14,33 @@ class Window;
 class Buffer;
 class Image;
 class Device;
+class Swapchain;
 
-class Renderer {
+class FrameRenderer {
 public:
-  Renderer(Device* iDevice, Window* iWindow);
-  ~Renderer();
+  FrameRenderer(Device* iDevice, Window* iWindow);
+  ~FrameRenderer();
 
   // Not copyable or movable
-  Renderer(const Renderer&) = delete;
-  Renderer& operator=(const Renderer&) = delete;
-  Renderer(Renderer&&) = delete;
-  Renderer& operator=(Renderer&&) = delete;
+  FrameRenderer(const FrameRenderer&) = delete;
+  FrameRenderer& operator=(const FrameRenderer&) = delete;
+  FrameRenderer(FrameRenderer&&) = delete;
+  FrameRenderer& operator=(FrameRenderer&&) = delete;
 
   // Frame execution
   VkCommandBuffer beginFrame();
   void endFrame();
 
   // Core subsystems & resources
-  Swapchain* getSwapchain() const { return mSwapchain.get(); }
   Image* getDepthImage() const { return mDepthImage.get(); }
+  VkFormat getColorFormat() const;
+  VkFormat getDepthFormat() const;
+  uint32_t getImageCount() const;
+  VkExtent2D getExtent() const;
 
   // Frame lifecycle state
-  const Swapchain::ImageResource& getActiveSwapChainImage() const { return mSwapchain->getImages()[mActiveImageIndex]; }
+  VkImage getActiveImage() const;
+  VkImageView getActiveImageView() const;
 
   // Frame upload buffers
   Buffer* getUploadBuffer() const { return mFrames[mFrameIndex].mUploadBuffer.get(); }

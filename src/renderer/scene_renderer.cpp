@@ -1,23 +1,20 @@
-#include "renderer/render_manager.h"
+#include "renderer/scene_renderer.h"
 #include "components/camera_component.h"
 #include "components/mesh_component.h"
 #include "components/transform_component.h"
 #include "core/assert.h"
 #include "core/ecs.h"
-#include "core/image_data.h"
-#include "core/mesh_data.h"
 #include "renderer/bindless_manager.h"
 #include "renderer/buffer.h"
 #include "renderer/device.h"
+#include "renderer/frame_renderer.h"
 #include "renderer/geometry_allocator.h"
 #include "renderer/image.h"
 #include "renderer/imgui_manager.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
-#include "renderer/renderer.h"
-#include "renderer/sampler_manager.h"
-#include "renderer/staging_manager.h"
+#include "renderer/resource_manager.h"
 #include "renderer/utils.h"
 
 // std
@@ -30,135 +27,39 @@ struct DrawInfo {
   uint32_t instanceBaseOffset;
 };
 
-struct PushConstants {
-  VkDeviceAddress drawInfos;
-  VkDeviceAddress globalUniforms;
-  VkDeviceAddress instances;
-};
-
 struct GlobalUniforms {
   Mat4 viewProj;
 };
 
-RenderManager::RenderManager(Device* iDevice, Renderer* iRenderer) : mDevice(iDevice), mRenderer(iRenderer) {
-  NE_ASSERT(mDevice && mRenderer);
-  mSamplerManager = std::make_unique<SamplerManager>(mDevice);
-  mStagingManager = std::make_unique<StagingManager>(mDevice);
-  mGeometryAllocator = std::make_unique<GeometryAllocator>(mDevice, vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
-  mBindlessManager = std::make_unique<BindlessManager>(mDevice->getDevice(), mSamplerManager.get());
-
-  // Create and register default fallback 1x1 white texture (index 0)
-  ImageData whiteData = ImageData::createWhite1x1();
-  uint32_t defaultTexIdx = createTexture(whiteData, true, "Default_White_Texture");
-  NE_ASSERT(defaultTexIdx == 0, "Fallback white texture must occupy bindless texture index 0");
+SceneRenderer::SceneRenderer(Device* iDevice, ResourceManager* iResourceManager, FrameRenderer* iFrameRenderer)
+    : mDevice(iDevice), mResourceManager(iResourceManager), mFrameRenderer(iFrameRenderer) {
+  NE_ASSERT(mDevice && mResourceManager && mFrameRenderer);
 }
 
-RenderManager::~RenderManager() {
-  mTextures.clear();
-  mPipelines.clear();
-  mBindlessManager.reset();
-  mGeometryAllocator.reset();
-  mStagingManager.reset();
-  mSamplerManager.reset();
-}
+SceneRenderer::~SceneRenderer() = default;
 
-void RenderManager::waitIdle() { mDevice->waitIdle(); }
+void SceneRenderer::waitIdle() { mDevice->waitIdle(); }
 
-std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& iShaderName) {
-  const std::string& shaderName = iShaderName.empty() ? vk_utils::DEFAULT_SHADER : iShaderName;
-
-  auto it = mPipelines.find(shaderName);
-  if (it != mPipelines.end()) {
-    return it->second;
-  }
-
-  Pipeline::Config config{};
-  config.shaderName = shaderName;
-  config.descriptorSetLayouts = {mBindlessManager->getDescriptorSetLayout()};
-  config.colorAttachmentFormat = mRenderer->getSwapchain()->getSurfaceFormat().format;
-  config.depthAttachmentFormat = mRenderer->getDepthImage()->getConfig().format;
-
-  // Configure push constants range using RenderManager's local PushConstants struct
-  VkPushConstantRange pushConstantRange{};
-  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  pushConstantRange.offset = 0;
-  pushConstantRange.size = sizeof(PushConstants);
-  config.pushConstantRanges = {pushConstantRange};
-
-  // Pipeline is created in RenderManager, passing mDevice->getDevice()
-  auto pipeline = std::make_shared<Pipeline>(mDevice->getDevice(), config);
-  mPipelines[shaderName] = pipeline;
-  return pipeline;
-}
-
-std::shared_ptr<Material> RenderManager::createMaterial(const std::string& iShaderName) {
-  return std::make_shared<Material>(getOrCreatePipeline(iShaderName));
-}
-
-std::shared_ptr<Mesh> RenderManager::createMesh(const MeshData& iMeshData) {
-  if (!mStagingManager->isBatching()) {
-    mStagingManager->beginBatch();
-  }
-  GeometryAllocation alloc = mGeometryAllocator->stageGeometry(*mStagingManager, iMeshData);
-  return std::make_shared<Mesh>(alloc, static_cast<uint32_t>(iMeshData.mIndices.size()));
-}
-
-uint32_t RenderManager::createTexture(const ImageData& iImageData, bool iSrgb, const std::string& iDebugName) {
-  if (!mStagingManager->isBatching()) {
-    mStagingManager->beginBatch();
-  }
-  Image::Config config{
-      .width = iImageData.mWidth,
-      .height = iImageData.mHeight,
-      .format = iSrgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
-      .usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-      .mipLevels = 1,
-      .debugName = iDebugName.empty() ? "Texture" : iDebugName,
-  };
-  auto image = std::make_unique<Image>(mDevice, config);
-  if (iImageData.mPixels && iImageData.getSizeInBytes() > 0) {
-    mStagingManager->stageImageUpload(*image, iImageData.mPixels, iImageData.getSizeInBytes());
-  }
-
-  uint32_t textureId = mBindlessManager->registerSampledImage(image->getImageView());
-  mTextures.push_back(std::move(image));
-  return textureId;
-}
-
-void RenderManager::flushUploads() {
-  if (mStagingManager && mStagingManager->hasPendingUploads()) {
-    mStagingManager->endBatch();
-  }
-}
-
-void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
+void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, ImGuiManager* iGuiManager) {
   if (!iRegistry) {
-    return;
-  }
-
-  if (mStagingManager && mStagingManager->hasPendingUploads()) {
-    flushUploads();
-  }
-
-  VkCommandBuffer commandBuffer = mRenderer->beginFrame();
-  if (commandBuffer == VK_NULL_HANDLE) {
     return;
   }
 
   mDrawCalls.clear();
 
-  VkExtent2D extent = mRenderer->getSwapchain()->getExtent();
-  const auto& activeSwapchainImage = mRenderer->getActiveSwapChainImage();
-  Image* depthImage = mRenderer->getDepthImage();
+  VkExtent2D extent = mFrameRenderer->getExtent();
+  VkImage activeColorImage = mFrameRenderer->getActiveImage();
+  VkImageView activeColorImageView = mFrameRenderer->getActiveImageView();
+  Image* depthImage = mFrameRenderer->getDepthImage();
   NE_ASSERT(depthImage, "Depth image must not be null");
 
   // 1. Begin Swapchain Render Pass
-  vk_utils::transitionImageLayout(commandBuffer, activeSwapchainImage.image, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+  vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-  vk_utils::transitionImageLayout(commandBuffer, depthImage->getImage(), VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+  vk_utils::transitionImageLayout(iCommandBuffer, depthImage->getImage(), VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
                                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
                                   VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
@@ -166,7 +67,7 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
 
   VkRenderingAttachmentInfo colorAttachmentInfo{};
   colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-  colorAttachmentInfo.imageView = activeSwapchainImage.view;
+  colorAttachmentInfo.imageView = activeColorImageView;
   colorAttachmentInfo.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   colorAttachmentInfo.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   colorAttachmentInfo.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -189,16 +90,16 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   renderingInfo.pDepthAttachment = &depthAttachmentInfo;
   renderingInfo.pStencilAttachment = &depthAttachmentInfo;
 
-  vkCmdBeginRendering(commandBuffer, &renderingInfo);
+  vkCmdBeginRendering(iCommandBuffer, &renderingInfo);
 
   VkViewport viewport = {
       .x = 0.0f, .y = 0.0f, .width = (float)extent.width, .height = (float)extent.height, .minDepth = 0.0f, .maxDepth = 1.0f};
   VkRect2D scissor = {.offset = {0, 0}, .extent = extent};
-  vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-  vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+  vkCmdSetViewport(iCommandBuffer, 0, 1, &viewport);
+  vkCmdSetScissor(iCommandBuffer, 0, 1, &scissor);
 
   // Bind global index buffer
-  vkCmdBindIndexBuffer(commandBuffer, mGeometryAllocator->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+  vkCmdBindIndexBuffer(iCommandBuffer, mResourceManager->getGeometryAllocator()->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
   // 2. Resolve Primary Camera ViewProjection Matrix
   Mat4 viewProj{1.0f};
@@ -224,25 +125,40 @@ void RenderManager::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
         }
       });
 
-  submit(commandBuffer, viewProj);
+  submit(iCommandBuffer, viewProj);
 
   // 4. Render ImGui Overlay
   if (iGuiManager) {
-    iGuiManager->draw(commandBuffer);
+    iGuiManager->draw(iCommandBuffer);
   }
 
   // 5. End Swapchain Render Pass
-  vkCmdEndRendering(commandBuffer);
+  vkCmdEndRendering(iCommandBuffer);
 
-  vk_utils::transitionImageLayout(commandBuffer, activeSwapchainImage.image, VK_IMAGE_ASPECT_COLOR_BIT,
+  vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, VK_IMAGE_ASPECT_COLOR_BIT,
                                   VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
-
-  mRenderer->endFrame();
 }
 
-void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj) {
+void SceneRenderer::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
+  if (!iRegistry) {
+    return;
+  }
+
+  mResourceManager->flushUploads();
+
+  VkCommandBuffer commandBuffer = mFrameRenderer->beginFrame();
+  if (commandBuffer == VK_NULL_HANDLE) {
+    return;
+  }
+
+  render(commandBuffer, iRegistry, iGuiManager);
+
+  mFrameRenderer->endFrame();
+}
+
+void SceneRenderer::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj) {
   if (mDrawCalls.empty())
     return;
 
@@ -261,7 +177,11 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
   Pipeline* lastPipeline = nullptr;
   Mesh* lastMesh = nullptr;
   for (const auto& call : mDrawCalls) {
-    if (call.pipeline != lastPipeline || call.mesh != lastMesh) {
+    if (call.pipeline != lastPipeline) {
+      lastPipeline = call.pipeline;
+      lastMesh = nullptr;
+    }
+    if (call.mesh != lastMesh) {
       lastMesh = call.mesh;
       totalRequiredSize += sizeof(DrawInfo) + 16;
       totalRequiredSize += sizeof(VkDrawIndexedIndirectCommand) + 16;
@@ -270,11 +190,11 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
   }
 
   // 3. Check and dynamically resize the upload buffer if needed
-  Buffer* uploadBuffer = mRenderer->getUploadBuffer();
+  Buffer* uploadBuffer = mFrameRenderer->getUploadBuffer();
   if (uploadBuffer->getConfig().size < totalRequiredSize) {
     VkDeviceSize newSize = std::max(totalRequiredSize, uploadBuffer->getConfig().size * 2);
-    mRenderer->recreateUploadBuffer(newSize);
-    uploadBuffer = mRenderer->getUploadBuffer();
+    mFrameRenderer->recreateUploadBuffer(newSize);
+    uploadBuffer = mFrameRenderer->getUploadBuffer();
   }
 
   // 4. Upload scene-wide uniforms
@@ -290,7 +210,7 @@ void RenderManager::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
     if (currentPipeline != mDrawCalls[i].pipeline) {
       currentPipeline = mDrawCalls[i].pipeline;
       currentPipeline->bind(iCommandBuffer);
-      mBindlessManager->bind(iCommandBuffer, currentPipeline->getPipelineLayout());
+      mResourceManager->getBindlessManager()->bind(iCommandBuffer, currentPipeline->getPipelineLayout());
     }
 
     std::vector<DrawInfo> drawInfos;

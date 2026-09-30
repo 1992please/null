@@ -8,8 +8,9 @@ namespace ne {
 class Window;
 class Instance;
 class Device;
-class Renderer;
-class RenderManager;
+class FrameRenderer;
+class ResourceManager;
+class SceneRenderer;
 class ImGuiManager;
 class Registry;
 
@@ -32,8 +33,7 @@ public:
 
   // High-Level Accessors for Client Applications (Zero RHI Exposure)
   Window* getWindow() const { return mWindow.get(); }
-  RenderManager* getRenderManager() const { return mRenderManager.get(); }
-  ImGuiManager* getImGuiManager() const { return mImGuiManager.get(); }
+  ResourceManager* getResourceManager() const { return mResourceManager.get(); }
   Registry* getRegistry() const { return mRegistry.get(); }
 
 protected:
@@ -53,10 +53,11 @@ private:
 
   // Tier 2: Platform & Presentation (Quarantined)
   std::unique_ptr<Window> mWindow;
-  std::unique_ptr<Renderer> mRenderer;
+  std::unique_ptr<FrameRenderer> mFrameRenderer;
 
   // Tier 3: Scene & Assets
-  std::unique_ptr<RenderManager> mRenderManager;
+  std::unique_ptr<ResourceManager> mResourceManager;
+  std::unique_ptr<SceneRenderer> mSceneRenderer;
 
   // UI & ECS
   std::unique_ptr<ImGuiManager> mImGuiManager;

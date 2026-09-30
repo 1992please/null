@@ -1,4 +1,4 @@
-#include "renderer/renderer.h"
+#include "renderer/frame_renderer.h"
 #include "core/assert.h"
 #include "core/defines.h"
 #include "core/logger.h"
@@ -16,7 +16,7 @@
 
 namespace ne {
 
-Renderer::Renderer(Device* iDevice, Window* iWindow) : mDevice(iDevice), mWindow(iWindow) {
+FrameRenderer::FrameRenderer(Device* iDevice, Window* iWindow) : mDevice(iDevice), mWindow(iWindow) {
   NE_ASSERT(mDevice && mWindow && mWindow->getSurface() != VK_NULL_HANDLE);
   mFrameBufferResizeCallbackId = mWindow->addFrameBufferResizeCallback([this](int32_t width, int32_t height) {
     NE_UNUSED(width);
@@ -39,8 +39,8 @@ Renderer::Renderer(Device* iDevice, Window* iWindow) : mDevice(iDevice), mWindow
   createFramesResources();
 }
 
-Renderer::~Renderer() {
-  NE_LOG("Destroying Vulkan Renderer and deallocating resources...");
+FrameRenderer::~FrameRenderer() {
+  NE_LOG("Destroying Vulkan FrameRenderer and deallocating resources...");
 
   if (mWindow && mFrameBufferResizeCallbackId != 0)
     mWindow->removeFrameBufferResizeCallback(mFrameBufferResizeCallbackId);
@@ -56,10 +56,10 @@ Renderer::~Renderer() {
 
   mSwapchain.reset();
 
-  NE_LOG("Vulkan Renderer destroyed successfully.");
+  NE_LOG("Vulkan FrameRenderer destroyed successfully.");
 }
 
-std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::string iDebugName) {
+std::unique_ptr<Buffer> FrameRenderer::createUploadBuffer(VkDeviceSize size, std::string iDebugName) {
   Buffer::Config config{
       .size = size,
       .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
@@ -72,7 +72,7 @@ std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::str
   return uploadBuffer;
 }
 
-void Renderer::createFramesResources() {
+void FrameRenderer::createFramesResources() {
   NE_ASSERT(mFrames.empty());
   mFrames.resize(MAX_FRAMES_IN_FLIGHT);
   for (size_t i = 0; i < mFrames.size(); i++) {
@@ -110,7 +110,7 @@ void Renderer::createFramesResources() {
   }
 }
 
-VkCommandBuffer Renderer::beginFrame() {
+VkCommandBuffer FrameRenderer::beginFrame() {
   auto& currentFrame = mFrames[mFrameIndex];
 
   VK_CHECK(vkWaitForFences(mDevice->getDevice(), 1, &currentFrame.mDrawFence, VK_TRUE, UINT64_MAX));
@@ -139,7 +139,7 @@ VkCommandBuffer Renderer::beginFrame() {
   return currentFrame.mCommandBuffer;
 }
 
-void Renderer::recreateUploadBuffer(VkDeviceSize newSize) {
+void FrameRenderer::recreateUploadBuffer(VkDeviceSize newSize) {
   auto& currentFrame = mFrames[mFrameIndex];
 
   NE_LOG("Upload buffer resizing from {} to {} bytes", currentFrame.mUploadBuffer->getConfig().size, newSize);
@@ -147,11 +147,11 @@ void Renderer::recreateUploadBuffer(VkDeviceSize newSize) {
   currentFrame.mUploadBuffer = createUploadBuffer(newSize, std::format("UploadBuffer_Frame_{}", mFrameIndex));
 }
 
-void Renderer::endFrame() {
+void FrameRenderer::endFrame() {
   auto& currentFrame = mFrames[mFrameIndex];
   VK_CHECK(vkEndCommandBuffer(currentFrame.mCommandBuffer));
 
-  VkSemaphore renderFinishedSemaphore = getActiveSwapChainImage().renderFinishedSemaphore;
+  VkSemaphore renderFinishedSemaphore = mSwapchain->getImages()[mActiveImageIndex].renderFinishedSemaphore;
 
   VkSemaphoreSubmitInfo waitSemaphoreInfo{};
   waitSemaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -193,7 +193,7 @@ void Renderer::endFrame() {
   mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void Renderer::recreateSwapChain(bool iForce) {
+void FrameRenderer::recreateSwapChain(bool iForce) {
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
   while (width == 0 || height == 0) {
@@ -210,7 +210,7 @@ void Renderer::recreateSwapChain(bool iForce) {
   createDepthImage();
 }
 
-void Renderer::createDepthImage() {
+void FrameRenderer::createDepthImage() {
   VkFormat depthFormat = mDevice->findDepthFormat();
   VkExtent2D swapExtent = mSwapchain->getExtent();
 
@@ -228,6 +228,30 @@ void Renderer::createDepthImage() {
 
   NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(depthFormat), swapExtent.width,
          swapExtent.height);
+}
+
+VkFormat FrameRenderer::getColorFormat() const {
+  return mSwapchain->getSurfaceFormat().format;
+}
+
+VkFormat FrameRenderer::getDepthFormat() const {
+  return mDepthImage ? mDepthImage->getConfig().format : VK_FORMAT_UNDEFINED;
+}
+
+uint32_t FrameRenderer::getImageCount() const {
+  return static_cast<uint32_t>(mSwapchain->getImages().size());
+}
+
+VkExtent2D FrameRenderer::getExtent() const {
+  return mSwapchain->getExtent();
+}
+
+VkImage FrameRenderer::getActiveImage() const {
+  return mSwapchain->getImages()[mActiveImageIndex].image;
+}
+
+VkImageView FrameRenderer::getActiveImageView() const {
+  return mSwapchain->getImages()[mActiveImageIndex].view;
 }
 
 } // namespace ne

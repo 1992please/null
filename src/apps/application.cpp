@@ -7,11 +7,11 @@
 #include "platform/input.h"
 #include "platform/window.h"
 #include "renderer/device.h"
-#include "renderer/image.h"
+#include "renderer/frame_renderer.h"
 #include "renderer/imgui_manager.h"
 #include "renderer/instance.h"
-#include "renderer/render_manager.h"
-#include "renderer/renderer.h"
+#include "renderer/resource_manager.h"
+#include "renderer/scene_renderer.h"
 #include "renderer/utils.h"
 
 namespace ne {
@@ -41,19 +41,23 @@ Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t 
   mDevice = std::make_unique<Device>(mInstance.get(), deviceConfig);
 
   // 5. Initialize Presentation / Frame Renderer
-  mRenderer = std::make_unique<Renderer>(mDevice.get(), mWindow.get());
+  mFrameRenderer = std::make_unique<FrameRenderer>(mDevice.get(), mWindow.get());
 
-  // 6. Initialize Input Subsystem
+  // 6. Initialize Resource Manager
+  mResourceManager = std::make_unique<ResourceManager>(mDevice.get(), mFrameRenderer->getColorFormat(),
+                                                       mFrameRenderer->getDepthFormat());
+
+  // 7. Initialize Input Subsystem
   Input::init(mWindow.get());
 
-  // 7. Initialize Scene & Asset Manager
-  mRenderManager = std::make_unique<RenderManager>(mDevice.get(), mRenderer.get());
+  // 8. Initialize Scene Renderer
+  mSceneRenderer = std::make_unique<SceneRenderer>(mDevice.get(), mResourceManager.get(), mFrameRenderer.get());
 
-  // 8. Initialize ImGui Manager
-  mImGuiManager = std::make_unique<ImGuiManager>(mWindow.get(), mInstance.get(), mDevice.get(), mRenderer->getSwapchain(),
-                                                 mRenderer->getDepthImage());
+  // 9. Initialize ImGui Manager
+  mImGuiManager =
+      std::make_unique<ImGuiManager>(mWindow.get(), mInstance.get(), mDevice.get(), mFrameRenderer.get());
 
-  // 9. Initialize ECS Registry
+  // 10. Initialize ECS Registry
   mRegistry = std::make_unique<Registry>();
 
   NE_LOG("Engine Application '{}' initialized successfully.", mAppName);
@@ -65,8 +69,9 @@ Application::~Application() {
   // Teardown in strict reverse order of dependency
   mRegistry.reset();
   mImGuiManager.reset();
-  mRenderManager.reset();
-  mRenderer.reset();
+  mSceneRenderer.reset();
+  mResourceManager.reset();
+  mFrameRenderer.reset();
   mDevice.reset();
 
   mWindow->destroySurface(mInstance->getInstance());
@@ -79,7 +84,7 @@ Application::~Application() {
 
 void Application::update(float iDeltaTime) { NE_UNUSED(iDeltaTime); }
 
-void Application::render() { mRenderManager->draw(mRegistry.get(), mImGuiManager.get()); }
+void Application::render() { mSceneRenderer->draw(mRegistry.get(), mImGuiManager.get()); }
 
 void Application::stepFrame() {
   Time::tick();
@@ -98,7 +103,7 @@ void Application::runForFrames(size_t iFrameCount) {
   for (size_t i = 0; i < iFrameCount && !mWindow->shouldClose(); ++i) {
     stepFrame();
   }
-  mRenderManager->waitIdle();
+  mSceneRenderer->waitIdle();
 }
 
 void Application::run() {
@@ -108,7 +113,7 @@ void Application::run() {
     stepFrame();
   }
 
-  mRenderManager->waitIdle();
+  mSceneRenderer->waitIdle();
   NE_LOG("{} Done!", mAppName);
 }
 

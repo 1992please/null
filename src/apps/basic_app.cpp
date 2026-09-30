@@ -13,7 +13,7 @@
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/mesh_utils.h"
-#include "renderer/render_manager.h"
+#include "renderer/resource_manager.h"
 #include "renderer/sampler_type.h"
 #include <format>
 
@@ -23,30 +23,30 @@ BasicApp::BasicApp() : Application("Basic App (MDI Showcase)", 1200, 1000) {
   // 1. Mesh generation & import phase
   // Generate procedural cube with authentic [0, 1] UVs per face
   MeshData cubeMeshData = MeshUtils::createBoxMeshData(Vec3(1.0f));
-  std::shared_ptr<Mesh> cubeMesh = getRenderManager()->createMesh(cubeMeshData);
+  std::shared_ptr<Mesh> cubeMesh = getResourceManager()->createMesh(cubeMeshData);
   mLoadedMeshes.push_back(cubeMesh);
 
   // Import DamagedHelmet model faithfully as authored
   ModelData helmetModel = GltfImporter::importModel("models/DamagedHelmet.glb");
   for (const auto& submesh : helmetModel.mSubmeshes) {
-    mLoadedMeshes.push_back(getRenderManager()->createMesh(submesh));
+    mLoadedMeshes.push_back(getResourceManager()->createMesh(submesh));
   }
 
   // 2. Texture creation
   std::unique_ptr<ImageData> checkerImageData = ImageImporter::importFromFile("textures/uv_checker.png");
   uint32_t checkerTextureId = 0;
   if (checkerImageData) {
-    checkerTextureId = getRenderManager()->createTexture(*checkerImageData, true, "UV_Checker_Texture");
+    checkerTextureId = getResourceManager()->createTexture(*checkerImageData, true, "UV_Checker_Texture");
   }
 
   // 3. Material setup - distinct materials per entity demonstration
-  mCube1Material = getRenderManager()->createMaterial();
+  mCube1Material = getResourceManager()->createMaterial();
   mCube1Material->setTexture(checkerTextureId, SamplerType::LinearRepeat);
 
-  mCube2Material = getRenderManager()->createMaterial();
+  mCube2Material = getResourceManager()->createMaterial();
   mCube2Material->setTexture(checkerTextureId, SamplerType::NearestRepeat);
 
-  mHelmetMaterial = getRenderManager()->createMaterial();
+  mHelmetMaterial = getResourceManager()->createMaterial();
   mHelmetMaterial->setTexture(0, SamplerType::LinearRepeat); // Fallback white texture
 
   // 4. Create Scene Entities

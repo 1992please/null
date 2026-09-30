@@ -1,6 +1,7 @@
 #include "renderer/geometry_allocator.h"
 #include "core/assert.h"
 #include "core/mesh_data.h"
+#include "renderer/buffer.h"
 #include "renderer/device.h"
 #include "renderer/mesh.h"
 #include "renderer/staging_manager.h"
@@ -30,6 +31,8 @@ GeometryAllocator::GeometryAllocator(Device* iDevice, VkDeviceSize iVertexPoolSi
   NE_LOG("Initialized GeometryAllocator: Vertex pool size: {}, Index pool size: {}", vk_utils::formatBytes(iVertexPoolSize),
          vk_utils::formatBytes(iIndexPoolSize));
 }
+
+GeometryAllocator::~GeometryAllocator() = default;
 
 GeometryAllocation GeometryAllocator::stageGeometry(StagingManager& iStagingManager, const MeshData& iMeshData) {
   NE_ASSERT(!iMeshData.mPositions.empty(), "Mesh positions cannot be empty");

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "core/defines.h"
-#include "renderer/utils.h"
 
 #include <memory>
 #include <string>
