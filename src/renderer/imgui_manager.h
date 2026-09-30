@@ -6,11 +6,15 @@
 namespace ne {
 
 class Window;
-class Renderer;
+class Instance;
+class Device;
+class Swapchain;
+class Image;
 
 class ImGuiManager {
 public:
-  ImGuiManager(Window* iWindow, Renderer* iRenderer);
+  ImGuiManager(Window* iWindow, Instance* iInstance, Device* iDevice, const Swapchain* iSwapchain,
+               const Image* iDepthImage = nullptr);
   ~ImGuiManager();
 
   ImGuiManager(const ImGuiManager&) = delete;

@@ -6,7 +6,6 @@
 #include "renderer/buffer.h"
 #include "renderer/device.h"
 #include "renderer/image.h"
-#include "renderer/instance.h"
 #include "renderer/swapchain.h"
 #include "renderer/utils.h"
 
@@ -17,41 +16,24 @@
 
 namespace ne {
 
-Renderer::Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) : mWindow(iWindow) {
-  NE_ASSERT(mWindow);
+Renderer::Renderer(Device* iDevice, Window* iWindow) : mDevice(iDevice), mWindow(iWindow) {
+  NE_ASSERT(mDevice && mWindow && mWindow->getSurface() != VK_NULL_HANDLE);
   mFrameBufferResizeCallbackId = mWindow->addFrameBufferResizeCallback([this](int32_t width, int32_t height) {
     NE_UNUSED(width);
     NE_UNUSED(height);
     mFrameBufferResized = true;
   });
 
-  // 1. Initialize Vulkan Instance runtime
-  Instance::Config instanceConfig{
-      .engineName = iEngineName,
-      .appName = iAppName,
-      .requiredExtensions = mWindow->getRequiredInstanceExtensions(),
-  };
-  mInstance = std::make_unique<Instance>(instanceConfig);
-
-  // 2. Create Surface from Window & Instance
-  VK_CHECK(mWindow->createWindowSurface(mInstance->getInstance(), &mSurface));
-
-  // 3. Initialize Hardware Device passing Surface via Config
-  Device::Config deviceConfig{
-      .surface = mSurface,
-  };
-  mDevice = std::make_unique<Device>(mInstance.get(), deviceConfig);
-
-  // 4. Initialize WSI Swapchain
+  // Initialize WSI Swapchain
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
 
   Swapchain::Config swapchainConfig{
-      .surface = mSurface,
+      .surface = mWindow->getSurface(),
       .width = static_cast<uint32_t>(width),
       .height = static_cast<uint32_t>(height),
   };
-  mSwapchain = std::make_unique<Swapchain>(mDevice.get(), swapchainConfig);
+  mSwapchain = std::make_unique<Swapchain>(mDevice, swapchainConfig);
 
   createDepthImage();
   createFramesResources();
@@ -74,15 +56,6 @@ Renderer::~Renderer() {
 
   mSwapchain.reset();
 
-  mDevice.reset();
-
-  if (mSurface != VK_NULL_HANDLE) {
-    vkDestroySurfaceKHR(mInstance->getInstance(), mSurface, nullptr);
-    mSurface = VK_NULL_HANDLE;
-  }
-
-  mInstance.reset();
-
   NE_LOG("Vulkan Renderer destroyed successfully.");
 }
 
@@ -94,7 +67,7 @@ std::unique_ptr<Buffer> Renderer::createUploadBuffer(VkDeviceSize size, std::str
       .storage = Buffer::Storage::Upload,
       .debugName = std::move(iDebugName),
   };
-  auto uploadBuffer = std::make_unique<Buffer>(mDevice.get(), config);
+  auto uploadBuffer = std::make_unique<Buffer>(mDevice, config);
   uploadBuffer->mapMemory();
   return uploadBuffer;
 }
@@ -251,7 +224,7 @@ void Renderer::createDepthImage() {
       .debugName = "Depth_Image",
   };
 
-  mDepthImage = std::make_unique<Image>(mDevice.get(), depthConfig);
+  mDepthImage = std::make_unique<Image>(mDevice, depthConfig);
 
   NE_LOG("Created Depth Attachment resources: Format {}, Extent {}x{}", string_VkFormat(depthFormat), swapExtent.width,
          swapExtent.height);

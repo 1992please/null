@@ -33,16 +33,14 @@ const char* Window::getWindowName() const { return glfwGetWindowTitle(mWindow); 
 void Window::setTitle(const std::string& iTitle) { glfwSetWindowTitle(mWindow, iTitle.c_str()); }
 
 bool Window::shouldClose() const { return glfwWindowShouldClose(mWindow); }
- 
+
 void Window::setShouldClose(bool iClose) { glfwSetWindowShouldClose(mWindow, iClose ? GLFW_TRUE : GLFW_FALSE); }
 
 void Window::getFrameBufferSize(int32_t* oWidth, int32_t* oHeight) const { glfwGetFramebufferSize(mWindow, oWidth, oHeight); }
 
 void Window::getWindowSize(int32_t* oWidth, int32_t* oHeight) const { glfwGetWindowSize(mWindow, oWidth, oHeight); }
 
-GLFWmonitor* Window::getPrimaryMonitor() const {
-  return glfwGetPrimaryMonitor();
-}
+GLFWmonitor* Window::getPrimaryMonitor() const { return glfwGetPrimaryMonitor(); }
 
 std::vector<const char*> Window::getRequiredInstanceExtensions() const {
   uint32_t count = 0;
@@ -51,20 +49,29 @@ std::vector<const char*> Window::getRequiredInstanceExtensions() const {
   return result;
 }
 
-VkResult Window::createWindowSurface(VkInstance instance, VkSurfaceKHR* surface) {
-  return glfwCreateWindowSurface(instance, mWindow, nullptr, surface);
+VkResult Window::createSurface(VkInstance instance) { return glfwCreateWindowSurface(instance, mWindow, nullptr, &mSurface); }
+
+void Window::destroySurface(VkInstance instance) {
+  if (mSurface != VK_NULL_HANDLE) {
+    vkDestroySurfaceKHR(instance, mSurface, nullptr);
+    mSurface = VK_NULL_HANDLE;
+  }
 }
 
-void Window::getCursorPos(double* oXpos, double* oYpos) const {
-  glfwGetCursorPos(mWindow, oXpos, oYpos);
-}
+void Window::getCursorPos(double* oXpos, double* oYpos) const { glfwGetCursorPos(mWindow, oXpos, oYpos); }
 
 void Window::setCursorMode(CursorMode mode) {
   int glfwMode = GLFW_CURSOR_NORMAL;
   switch (mode) {
-    case CursorMode::Normal:   glfwMode = GLFW_CURSOR_NORMAL; break;
-    case CursorMode::Hidden:   glfwMode = GLFW_CURSOR_HIDDEN; break;
-    case CursorMode::Disabled: glfwMode = GLFW_CURSOR_DISABLED; break;
+    case CursorMode::Normal:
+      glfwMode = GLFW_CURSOR_NORMAL;
+      break;
+    case CursorMode::Hidden:
+      glfwMode = GLFW_CURSOR_HIDDEN;
+      break;
+    case CursorMode::Disabled:
+      glfwMode = GLFW_CURSOR_DISABLED;
+      break;
   }
   glfwSetInputMode(mWindow, GLFW_CURSOR, glfwMode);
   if (mode == CursorMode::Disabled) {

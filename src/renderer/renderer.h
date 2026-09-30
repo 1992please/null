@@ -14,12 +14,11 @@ namespace ne {
 class Window;
 class Buffer;
 class Image;
-class Instance;
 class Device;
 
 class Renderer {
 public:
-  Renderer(Window* iWindow, const std::string& iEngineName, const std::string& iAppName);
+  Renderer(Device* iDevice, Window* iWindow);
   ~Renderer();
 
   // Not copyable or movable
@@ -33,8 +32,6 @@ public:
   void endFrame();
 
   // Core subsystems & resources
-  Instance* getInstance() const { return mInstance.get(); }
-  Device* getDevice() const { return mDevice.get(); }
   Swapchain* getSwapchain() const { return mSwapchain.get(); }
   Image* getDepthImage() const { return mDepthImage.get(); }
 
@@ -55,11 +52,8 @@ private:
 
   static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
 
-  Window* mWindow;
-
-  std::unique_ptr<Instance> mInstance;
-  VkSurfaceKHR mSurface = VK_NULL_HANDLE;
-  std::unique_ptr<Device> mDevice;
+  Device* mDevice = nullptr;
+  Window* mWindow = nullptr;
   std::unique_ptr<Swapchain> mSwapchain;
 
   std::unique_ptr<Image> mDepthImage;

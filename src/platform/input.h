@@ -24,7 +24,7 @@ class Input {
 public:
   // Lifecycle
   static void init(Window* iWindow);
-  static void beginFrame();
+  static void update();
 
   // Keyboard state queries (transparently gated by UI capture)
   static bool isKeyDown(KeyCode iKey);

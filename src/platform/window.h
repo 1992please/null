@@ -1,8 +1,8 @@
 #pragma once
 
-#include <volk/volk.h>
 #include "core/event.h"
 #include "platform/input_types.h"
+#include <volk/volk.h>
 
 // std
 #include <string>
@@ -36,14 +36,18 @@ public:
   const char* getWindowName() const;
   void setTitle(const std::string& iTitle);
   std::vector<const char*> getRequiredInstanceExtensions() const;
-  VkResult createWindowSurface(VkInstance instance, VkSurfaceKHR* surface);
+  VkResult createSurface(VkInstance instance);
+  void destroySurface(VkInstance instance);
+  VkSurfaceKHR getSurface() const { return mSurface; }
 
   // Window Cursor & Hardware State
   void getCursorPos(double* oXpos, double* oYpos) const;
   void setCursorMode(CursorMode mode);
 
   // Encapsulated Callback Subscriptions
-  CallbackId addFrameBufferResizeCallback(FrameBufferResizeEvent::Callback iCallback) { return mFrameBufferResizeEvent.add(std::move(iCallback)); }
+  CallbackId addFrameBufferResizeCallback(FrameBufferResizeEvent::Callback iCallback) {
+    return mFrameBufferResizeEvent.add(std::move(iCallback));
+  }
   CallbackId addWindowFocusCallback(WindowFocusEvent::Callback iCallback) { return mWindowFocusEvent.add(std::move(iCallback)); }
 
   void removeFrameBufferResizeCallback(CallbackId iId) { mFrameBufferResizeEvent.remove(iId); }
@@ -55,6 +59,7 @@ private:
 
   // screen coordinates width and height
   GLFWwindow* mWindow;
+  VkSurfaceKHR mSurface = VK_NULL_HANDLE;
 
   FrameBufferResizeEvent mFrameBufferResizeEvent;
   WindowFocusEvent mWindowFocusEvent;

@@ -6,7 +6,7 @@
 #include "renderer/device.h"
 #include "renderer/image.h"
 #include "renderer/instance.h"
-#include "renderer/renderer.h"
+#include "renderer/swapchain.h"
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -14,8 +14,10 @@
 
 namespace ne {
 
-ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWindow) {
-  NE_ASSERT(mWindow && iRenderer);
+ImGuiManager::ImGuiManager(Window* iWindow, Instance* iInstance, Device* iDevice, const Swapchain* iSwapchain,
+                           const Image* iDepthImage)
+    : mWindow(iWindow) {
+  NE_ASSERT(mWindow && iInstance && iDevice && iSwapchain);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -25,26 +27,29 @@ ImGuiManager::ImGuiManager(Window* iWindow, Renderer* iRenderer) : mWindow(iWind
 
   ImGui_ImplGlfw_InitForVulkan(mWindow->getGLFWwindow(), true);
 
+  VkFormat colorFormat = iSwapchain->getSurfaceFormat().format;
+  VkFormat depthFormat = iDepthImage ? iDepthImage->getConfig().format : VK_FORMAT_UNDEFINED;
+
   VkPipelineRenderingCreateInfoKHR renderingInfo{};
   renderingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
   renderingInfo.pNext = nullptr;
   renderingInfo.colorAttachmentCount = 1;
-  renderingInfo.pColorAttachmentFormats = &(iRenderer->getSwapchain()->getSurfaceFormat().format);
-  renderingInfo.depthAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
-  renderingInfo.stencilAttachmentFormat = iRenderer->getDepthImage()->getConfig().format;
+  renderingInfo.pColorAttachmentFormats = &colorFormat;
+  renderingInfo.depthAttachmentFormat = depthFormat;
+  renderingInfo.stencilAttachmentFormat = depthFormat;
 
   ImGui_ImplVulkan_InitInfo initInfo{};
-  initInfo.ApiVersion = iRenderer->getInstance()->getApiVersion();
-  initInfo.Instance = iRenderer->getInstance()->getInstance();
-  initInfo.PhysicalDevice = iRenderer->getDevice()->getPhysicalDevice();
-  initInfo.Device = iRenderer->getDevice()->getDevice();
-  initInfo.QueueFamily = iRenderer->getDevice()->getQueueFamilyIndex();
-  initInfo.Queue = iRenderer->getDevice()->getQueue();
+  initInfo.ApiVersion = iInstance->getApiVersion();
+  initInfo.Instance = iInstance->getInstance();
+  initInfo.PhysicalDevice = iDevice->getPhysicalDevice();
+  initInfo.Device = iDevice->getDevice();
+  initInfo.QueueFamily = iDevice->getQueueFamilyIndex();
+  initInfo.Queue = iDevice->getQueue();
   initInfo.PipelineCache = VK_NULL_HANDLE;
   initInfo.DescriptorPool = VK_NULL_HANDLE;
   initInfo.DescriptorPoolSize = 128;
   initInfo.MinImageCount = 2;
-  initInfo.ImageCount = static_cast<uint32_t>(iRenderer->getSwapchain()->getImages().size());
+  initInfo.ImageCount = static_cast<uint32_t>(iSwapchain->getImages().size());
   initInfo.UseDynamicRendering = true;
   initInfo.PipelineInfoMain.PipelineRenderingCreateInfo = renderingInfo;
   initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;

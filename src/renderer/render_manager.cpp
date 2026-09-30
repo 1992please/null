@@ -40,13 +40,12 @@ struct GlobalUniforms {
   Mat4 viewProj;
 };
 
-RenderManager::RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName) {
-  mRenderer = std::make_unique<Renderer>(iWindow, iEngineName, iAppName);
-  mSamplerManager = std::make_unique<SamplerManager>(mRenderer->getDevice());
-  mStagingManager = std::make_unique<StagingManager>(mRenderer->getDevice());
-  mGeometryAllocator =
-      std::make_unique<GeometryAllocator>(mRenderer->getDevice(), vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
-  mBindlessManager = std::make_unique<BindlessManager>(mRenderer->getDevice()->getDevice(), mSamplerManager.get());
+RenderManager::RenderManager(Device* iDevice, Renderer* iRenderer) : mDevice(iDevice), mRenderer(iRenderer) {
+  NE_ASSERT(mDevice && mRenderer);
+  mSamplerManager = std::make_unique<SamplerManager>(mDevice);
+  mStagingManager = std::make_unique<StagingManager>(mDevice);
+  mGeometryAllocator = std::make_unique<GeometryAllocator>(mDevice, vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
+  mBindlessManager = std::make_unique<BindlessManager>(mDevice->getDevice(), mSamplerManager.get());
 
   // Create and register default fallback 1x1 white texture (index 0)
   ImageData whiteData = ImageData::createWhite1x1();
@@ -61,10 +60,9 @@ RenderManager::~RenderManager() {
   mGeometryAllocator.reset();
   mStagingManager.reset();
   mSamplerManager.reset();
-  mRenderer.reset();
 }
 
-void RenderManager::waitIdle() { mRenderer->getDevice()->waitIdle(); }
+void RenderManager::waitIdle() { mDevice->waitIdle(); }
 
 std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& iShaderName) {
   const std::string& shaderName = iShaderName.empty() ? vk_utils::DEFAULT_SHADER : iShaderName;
@@ -87,8 +85,8 @@ std::shared_ptr<Pipeline> RenderManager::getOrCreatePipeline(const std::string& 
   pushConstantRange.size = sizeof(PushConstants);
   config.pushConstantRanges = {pushConstantRange};
 
-  // Pipeline is created in RenderManager, passing mRenderer->getDevice()->getDevice()
-  auto pipeline = std::make_shared<Pipeline>(mRenderer->getDevice()->getDevice(), config);
+  // Pipeline is created in RenderManager, passing mDevice->getDevice()
+  auto pipeline = std::make_shared<Pipeline>(mDevice->getDevice(), config);
   mPipelines[shaderName] = pipeline;
   return pipeline;
 }
@@ -117,7 +115,7 @@ uint32_t RenderManager::createTexture(const ImageData& iImageData, bool iSrgb, c
       .mipLevels = 1,
       .debugName = iDebugName.empty() ? "Texture" : iDebugName,
   };
-  auto image = std::make_unique<Image>(mRenderer->getDevice(), config);
+  auto image = std::make_unique<Image>(mDevice, config);
   if (iImageData.mPixels && iImageData.getSizeInBytes() > 0) {
     mStagingManager->stageImageUpload(*image, iImageData.mPixels, iImageData.getSizeInBytes());
   }

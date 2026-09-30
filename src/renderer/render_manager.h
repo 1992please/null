@@ -12,7 +12,7 @@
 
 namespace ne {
 
-class Window;
+class Device;
 class Renderer;
 class StagingManager;
 class GeometryAllocator;
@@ -29,7 +29,7 @@ struct ImageData;
 
 class RenderManager {
 public:
-  RenderManager(Window* iWindow, const std::string& iEngineName, const std::string& iAppName);
+  RenderManager(Device* iDevice, Renderer* iRenderer);
   ~RenderManager();
 
   // Prevent copying
@@ -53,7 +53,6 @@ public:
   void flushUploads();
 
   // Subsystem Getters
-  Renderer* getRenderer() const { return mRenderer.get(); }
   StagingManager* getStagingManager() const { return mStagingManager.get(); }
   GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
   SamplerManager* getSamplerManager() const { return mSamplerManager.get(); }
@@ -79,7 +78,8 @@ private:
     uint32_t samplerIndex;
   };
 
-  std::unique_ptr<Renderer> mRenderer;
+  Device* mDevice = nullptr;
+  Renderer* mRenderer = nullptr;
   std::unique_ptr<StagingManager> mStagingManager;
   std::unique_ptr<GeometryAllocator> mGeometryAllocator;
   std::unique_ptr<SamplerManager> mSamplerManager;

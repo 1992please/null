@@ -10,9 +10,6 @@
 
 namespace ne {
 
-class Window;
-class RenderManager;
-class ImGuiManager;
 class Mesh;
 class Material;
 
@@ -25,26 +22,14 @@ public:
   BasicApp& operator=(const BasicApp&) = delete;
 
   virtual void update(float iDeltaTime) override;
-  virtual void render() override;
-  virtual void run() override;
-  void stepFrame();
-  void runForFrames(size_t iFrameCount = 1);
+  virtual void renderUI() override;
 
   // UI & Inspection Accessors
-  float getFPS() const { return mCurrentFPS; }
-  float getFrameTime() const { return mCurrentFrameTime; }
-  Registry* getRegistry() const { return mRegistry.get(); }
-  Window* getWindow() const { return mWindow.get(); }
   Entity getCameraEntity() const { return mCameraEntity; }
   CameraController& getCameraController() { return mCameraController; }
   MainUI& getMainUI() { return mMainUI; }
 
 private:
-  std::unique_ptr<Window> mWindow;
-  std::unique_ptr<RenderManager> mRenderManager;
-  std::unique_ptr<ImGuiManager> mImGuiManager;
-  std::unique_ptr<Registry> mRegistry;
-
   Entity mCameraEntity{NullEntity};
   Entity mCubeEntity1{NullEntity};
   Entity mCubeEntity2{NullEntity};
@@ -61,9 +46,5 @@ private:
 
   // Modular UI
   MainUI mMainUI;
-
-  // FPS tracking
-  float mCurrentFPS{0.0f};
-  float mCurrentFrameTime{0.0f};
 };
 } // namespace ne

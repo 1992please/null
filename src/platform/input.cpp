@@ -1,7 +1,7 @@
 #include "platform/input.h"
-#include "platform/window.h"
-#include "core/logger.h"
 #include "core/defines.h"
+#include "core/logger.h"
+#include "platform/window.h"
 
 #include <GLFW/glfw3.h>
 
@@ -42,7 +42,7 @@ void Input::init(Window* iWindow) {
   NE_LOG("Input subsystem initialized successfully.");
 }
 
-void Input::beginFrame() {
+void Input::update() {
   sState.mJustPressedKeys.reset();
   sState.mJustReleasedKeys.reset();
 
@@ -77,25 +77,15 @@ bool Input::isKeyReleased(KeyCode iKey) {
   return idx >= 0 && static_cast<size_t>(idx) < kMaxKeys && sState.mJustReleasedKeys.test(static_cast<size_t>(idx));
 }
 
-KeyMods Input::getActiveMods() {
-  return sState.mActiveMods;
-}
+KeyMods Input::getActiveMods() { return sState.mActiveMods; }
 
-bool Input::isShiftDown() {
-  return isKeyDown(KeyCode::LeftShift) || isKeyDown(KeyCode::RightShift);
-}
+bool Input::isShiftDown() { return isKeyDown(KeyCode::LeftShift) || isKeyDown(KeyCode::RightShift); }
 
-bool Input::isControlDown() {
-  return isKeyDown(KeyCode::LeftControl) || isKeyDown(KeyCode::RightControl);
-}
+bool Input::isControlDown() { return isKeyDown(KeyCode::LeftControl) || isKeyDown(KeyCode::RightControl); }
 
-bool Input::isAltDown() {
-  return isKeyDown(KeyCode::LeftAlt) || isKeyDown(KeyCode::RightAlt);
-}
+bool Input::isAltDown() { return isKeyDown(KeyCode::LeftAlt) || isKeyDown(KeyCode::RightAlt); }
 
-bool Input::isSuperDown() {
-  return isKeyDown(KeyCode::LeftSuper) || isKeyDown(KeyCode::RightSuper);
-}
+bool Input::isSuperDown() { return isKeyDown(KeyCode::LeftSuper) || isKeyDown(KeyCode::RightSuper); }
 
 bool Input::isMouseButtonDown(MouseButton iButton) {
   if (sState.mUIMouseCaptured) {
@@ -121,9 +111,7 @@ bool Input::isMouseButtonReleased(MouseButton iButton) {
   return idx < kMaxMouseButtons && sState.mJustReleasedMouse.test(idx);
 }
 
-Vec2 Input::getMousePosition() {
-  return Vec2(static_cast<float>(sState.mMouseX), static_cast<float>(sState.mMouseY));
-}
+Vec2 Input::getMousePosition() { return Vec2(static_cast<float>(sState.mMouseX), static_cast<float>(sState.mMouseY)); }
 
 Vec2 Input::getMouseDelta() {
   if (sState.mUIMouseCaptured) {
@@ -151,22 +139,16 @@ void Input::setCursorMode(CursorMode iMode) {
   }
 }
 
-CursorMode Input::getCursorMode() {
-  return sState.mCursorMode;
-}
+CursorMode Input::getCursorMode() { return sState.mCursorMode; }
 
 void Input::setUICapture(bool iCaptureMouse, bool iCaptureKeyboard) {
   sState.mUIMouseCaptured = iCaptureMouse;
   sState.mUIKeyboardCaptured = iCaptureKeyboard;
 }
 
-bool Input::isMouseCapturedByUI() {
-  return sState.mUIMouseCaptured;
-}
+bool Input::isMouseCapturedByUI() { return sState.mUIMouseCaptured; }
 
-bool Input::isKeyboardCapturedByUI() {
-  return sState.mUIKeyboardCaptured;
-}
+bool Input::isKeyboardCapturedByUI() { return sState.mUIKeyboardCaptured; }
 
 void Input::resetState() {
   sState.mCurrentKeys.reset();
