@@ -115,6 +115,8 @@ uint32_t BindlessManager::registerSampledImage(VkImageView iImageView) {
 }
 
 void BindlessManager::bind(VkCommandBuffer iCommandBuffer, VkPipelineLayout iPipelineLayout) {
+  NE_ASSERT(iCommandBuffer != VK_NULL_HANDLE, "Command buffer must not be null");
+  NE_ASSERT(iPipelineLayout != VK_NULL_HANDLE, "Pipeline layout must not be null");
   vkCmdBindDescriptorSets(iCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, iPipelineLayout, 0, 1, &mDescriptorSet, 0, nullptr);
 }
 

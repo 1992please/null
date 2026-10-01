@@ -18,13 +18,20 @@ public:
 
   struct Config {
     std::string shaderName;
-    std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-    std::vector<VkPushConstantRange> pushConstantRanges;
-    DepthMode depthMode = DepthMode::ReadWrite;
-    StencilMode stencilMode = StencilMode::Disabled;
+    VkPipelineLayout layout = VK_NULL_HANDLE;
     VkFormat colorAttachmentFormat = VK_FORMAT_UNDEFINED;
     VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
+    DepthMode depthMode = DepthMode::ReadWrite;
+    StencilMode stencilMode = StencilMode::Disabled;
   };
+
+  static VkPipelineLayout createPipelineLayout(
+      VkDevice iDevice,
+      const std::vector<VkDescriptorSetLayout>& iDescriptorSetLayouts,
+      const std::vector<VkPushConstantRange>& iPushConstantRanges,
+      const std::string& iDebugName = "");
+  static void destroyPipelineLayout(VkDevice iDevice, VkPipelineLayout iPipelineLayout);
+
   Pipeline(VkDevice iDevice, const Config& iConfig);
   ~Pipeline();
 

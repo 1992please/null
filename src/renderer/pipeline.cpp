@@ -110,15 +110,9 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
   colorBlendStateCreateInfo.attachmentCount = 1;
   colorBlendStateCreateInfo.pAttachments = &colorBendAttachmentState;
 
-  // specify the uniforms and push values referenced by the shaders
-  VkPipelineLayoutCreateInfo layoutCreateInfo{};
-  layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-  layoutCreateInfo.setLayoutCount = static_cast<uint32_t>(iConfig.descriptorSetLayouts.size());
-  layoutCreateInfo.pSetLayouts = iConfig.descriptorSetLayouts.empty() ? nullptr : iConfig.descriptorSetLayouts.data();
-  layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iConfig.pushConstantRanges.size());
-  layoutCreateInfo.pPushConstantRanges = iConfig.pushConstantRanges.empty() ? nullptr : iConfig.pushConstantRanges.data();
-  VK_CHECK(vkCreatePipelineLayout(mDevice, &layoutCreateInfo, nullptr, &mPipelineLayout));
-  vk_utils::setDebugObjectName(mDevice, mPipelineLayout, std::format("{}_PipelineLayout", iConfig.shaderName).c_str());
+  // Assign pipeline layout from configuration
+  NE_ASSERT(iConfig.layout != VK_NULL_HANDLE, "Pipeline layout must not be VK_NULL_HANDLE");
+  mPipelineLayout = iConfig.layout;
 
   // Dynamic Renderring
   std::vector<VkDynamicState> dynamicState = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
@@ -170,8 +164,33 @@ Pipeline::~Pipeline() {
   if (mGraphicsPipeline != VK_NULL_HANDLE) {
     vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
   }
-  if (mPipelineLayout != VK_NULL_HANDLE) {
-    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+}
+
+VkPipelineLayout Pipeline::createPipelineLayout(
+    VkDevice iDevice,
+    const std::vector<VkDescriptorSetLayout>& iDescriptorSetLayouts,
+    const std::vector<VkPushConstantRange>& iPushConstantRanges,
+    const std::string& iDebugName) {
+  NE_ASSERT(iDevice != VK_NULL_HANDLE, "Device must not be null");
+
+  VkPipelineLayoutCreateInfo layoutCreateInfo{};
+  layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+  layoutCreateInfo.setLayoutCount = static_cast<uint32_t>(iDescriptorSetLayouts.size());
+  layoutCreateInfo.pSetLayouts = iDescriptorSetLayouts.empty() ? nullptr : iDescriptorSetLayouts.data();
+  layoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(iPushConstantRanges.size());
+  layoutCreateInfo.pPushConstantRanges = iPushConstantRanges.empty() ? nullptr : iPushConstantRanges.data();
+
+  VkPipelineLayout layout = VK_NULL_HANDLE;
+  VK_CHECK(vkCreatePipelineLayout(iDevice, &layoutCreateInfo, nullptr, &layout));
+  if (!iDebugName.empty()) {
+    vk_utils::setDebugObjectName(iDevice, layout, iDebugName.c_str());
+  }
+  return layout;
+}
+
+void Pipeline::destroyPipelineLayout(VkDevice iDevice, VkPipelineLayout iPipelineLayout) {
+  if (iDevice != VK_NULL_HANDLE && iPipelineLayout != VK_NULL_HANDLE) {
+    vkDestroyPipelineLayout(iDevice, iPipelineLayout, nullptr);
   }
 }
 

@@ -14,26 +14,20 @@
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
-#include "renderer/resource_manager.h"
 #include "renderer/utils.h"
+#include "renderer/scene_types.h"
 
 // std
 #include <algorithm>
 
 namespace ne {
 
-struct DrawInfo {
-  VkDeviceAddress vertices;
-  uint32_t instanceBaseOffset;
-};
-
-struct GlobalUniforms {
-  Mat4 viewProj;
-};
-
-SceneRenderer::SceneRenderer(Device* iDevice, ResourceManager* iResourceManager, FrameRenderer* iFrameRenderer)
-    : mDevice(iDevice), mResourceManager(iResourceManager), mFrameRenderer(iFrameRenderer) {
-  NE_ASSERT(mDevice && mResourceManager && mFrameRenderer);
+SceneRenderer::SceneRenderer(const Config& iConfig)
+    : mDevice(iConfig.device), mGeometryAllocator(iConfig.geometryAllocator),
+      mBindlessManager(iConfig.bindlessManager), mScenePipelineLayout(iConfig.scenePipelineLayout),
+      mFrameRenderer(iConfig.frameRenderer) {
+  NE_ASSERT(mDevice && mGeometryAllocator && mBindlessManager && mScenePipelineLayout != VK_NULL_HANDLE &&
+            mFrameRenderer);
 }
 
 SceneRenderer::~SceneRenderer() = default;
@@ -99,7 +93,10 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
   vkCmdSetScissor(iCommandBuffer, 0, 1, &scissor);
 
   // Bind global index buffer
-  vkCmdBindIndexBuffer(iCommandBuffer, mResourceManager->getGeometryAllocator()->getIndexBuffer()->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+  mGeometryAllocator->bindIndexBuffer(iCommandBuffer);
+
+  // Bind global scene bindless descriptor set (Set 0)
+  mBindlessManager->bind(iCommandBuffer, mScenePipelineLayout);
 
   // 2. Resolve Primary Camera ViewProjection Matrix
   Mat4 viewProj{1.0f};
@@ -145,8 +142,6 @@ void SceneRenderer::draw(Registry* iRegistry, ImGuiManager* iGuiManager) {
   if (!iRegistry) {
     return;
   }
-
-  mResourceManager->flushUploads();
 
   VkCommandBuffer commandBuffer = mFrameRenderer->beginFrame();
   if (commandBuffer == VK_NULL_HANDLE) {
@@ -210,7 +205,6 @@ void SceneRenderer::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
     if (currentPipeline != mDrawCalls[i].pipeline) {
       currentPipeline = mDrawCalls[i].pipeline;
       currentPipeline->bind(iCommandBuffer);
-      mResourceManager->getBindlessManager()->bind(iCommandBuffer, currentPipeline->getPipelineLayout());
     }
 
     std::vector<DrawInfo> drawInfos;

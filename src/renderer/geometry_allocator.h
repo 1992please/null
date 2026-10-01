@@ -31,6 +31,8 @@ public:
   // Stages geometry copies into StagingManager
   GeometryAllocation stageGeometry(StagingManager& iStagingManager, const MeshData& iMeshData);
 
+  void bindIndexBuffer(VkCommandBuffer iCommandBuffer) const;
+
   Buffer* getVertexBuffer() const { return mVertexBuffer.get(); }
   Buffer* getIndexBuffer() const { return mIndexBuffer.get(); }
 

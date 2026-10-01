@@ -11,6 +11,7 @@
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/sampler_manager.h"
+#include "renderer/scene_types.h"
 #include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
@@ -24,6 +25,16 @@ ResourceManager::ResourceManager(Device* iDevice, VkFormat iDefaultColorFormat, 
   mGeometryAllocator = std::make_unique<GeometryAllocator>(mDevice, vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
   mBindlessManager = std::make_unique<BindlessManager>(mDevice->getDevice(), mSamplerManager.get());
 
+  // Create unified scene pipeline layout (Set 0: Bindless, PushConstants: PushConstants struct)
+  VkDescriptorSetLayout setLayout = mBindlessManager->getDescriptorSetLayout();
+  VkPushConstantRange pushConstantRange{};
+  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+  pushConstantRange.offset = 0;
+  pushConstantRange.size = sizeof(PushConstants);
+
+  mScenePipelineLayout =
+      Pipeline::createPipelineLayout(mDevice->getDevice(), {setLayout}, {pushConstantRange}, "Scene_PipelineLayout");
+
   // Create and register default fallback 1x1 white texture (index 0)
   ImageData whiteData = ImageData::createWhite1x1();
   uint32_t defaultTexIdx = createTexture(whiteData, true, "Default_White_Texture");
@@ -33,6 +44,7 @@ ResourceManager::ResourceManager(Device* iDevice, VkFormat iDefaultColorFormat, 
 ResourceManager::~ResourceManager() {
   mTextures.clear();
   mPipelines.clear();
+  Pipeline::destroyPipelineLayout(mDevice->getDevice(), mScenePipelineLayout);
   mBindlessManager.reset();
   mGeometryAllocator.reset();
   mStagingManager.reset();
@@ -47,18 +59,12 @@ std::shared_ptr<Pipeline> ResourceManager::getOrCreatePipeline(const std::string
     return it->second;
   }
 
-  Pipeline::Config config{};
-  config.shaderName = shaderName;
-  config.descriptorSetLayouts = {mBindlessManager->getDescriptorSetLayout()};
-  config.colorAttachmentFormat = mDefaultColorFormat;
-  config.depthAttachmentFormat = mDefaultDepthFormat;
-
-  // Configure push constants range using ResourceManager's local PushConstants struct
-  VkPushConstantRange pushConstantRange{};
-  pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-  pushConstantRange.offset = 0;
-  pushConstantRange.size = sizeof(PushConstants);
-  config.pushConstantRanges = {pushConstantRange};
+  Pipeline::Config config{
+      .shaderName = shaderName,
+      .layout = mScenePipelineLayout,
+      .colorAttachmentFormat = mDefaultColorFormat,
+      .depthAttachmentFormat = mDefaultDepthFormat,
+  };
 
   // Pipeline is created in ResourceManager, passing mDevice->getDevice()
   auto pipeline = std::make_shared<Pipeline>(mDevice->getDevice(), config);

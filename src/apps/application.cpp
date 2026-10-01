@@ -51,7 +51,14 @@ Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t 
   Input::init(mWindow.get());
 
   // 8. Initialize Scene Renderer
-  mSceneRenderer = std::make_unique<SceneRenderer>(mDevice.get(), mResourceManager.get(), mFrameRenderer.get());
+  SceneRenderer::Config sceneRendererConfig{
+      .device = mDevice.get(),
+      .geometryAllocator = mResourceManager->getGeometryAllocator(),
+      .bindlessManager = mResourceManager->getBindlessManager(),
+      .scenePipelineLayout = mResourceManager->getScenePipelineLayout(),
+      .frameRenderer = mFrameRenderer.get(),
+  };
+  mSceneRenderer = std::make_unique<SceneRenderer>(sceneRendererConfig);
 
   // 9. Initialize ImGui Manager
   mImGuiManager =
@@ -84,7 +91,10 @@ Application::~Application() {
 
 void Application::update(float iDeltaTime) { NE_UNUSED(iDeltaTime); }
 
-void Application::render() { mSceneRenderer->draw(mRegistry.get(), mImGuiManager.get()); }
+void Application::render() {
+  mResourceManager->flushUploads();
+  mSceneRenderer->draw(mRegistry.get(), mImGuiManager.get());
+}
 
 void Application::stepFrame() {
   Time::tick();

@@ -9,7 +9,8 @@ namespace ne {
 
 class Device;
 class FrameRenderer;
-class ResourceManager;
+class GeometryAllocator;
+class BindlessManager;
 class ImGuiManager;
 class Pipeline;
 class Mesh;
@@ -17,7 +18,15 @@ class Registry;
 
 class SceneRenderer {
 public:
-  SceneRenderer(Device* iDevice, ResourceManager* iResourceManager, FrameRenderer* iFrameRenderer);
+  struct Config {
+    Device* device = nullptr;
+    GeometryAllocator* geometryAllocator = nullptr;
+    BindlessManager* bindlessManager = nullptr;
+    VkPipelineLayout scenePipelineLayout = VK_NULL_HANDLE;
+    FrameRenderer* frameRenderer = nullptr;
+  };
+
+  SceneRenderer(const Config& iConfig);
   ~SceneRenderer();
 
   // Prevent copying
@@ -34,14 +43,6 @@ public:
 private:
   void submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj);
 
-  struct InstanceData {
-    Mat4 modelMatrix;
-    Mat4 normalMatrix;
-    Vec4 color;
-    uint32_t textureIndex;
-    uint32_t samplerIndex;
-  };
-
   struct DrawCall {
     Pipeline* pipeline;
     Mesh* mesh;
@@ -52,7 +53,9 @@ private:
   };
 
   Device* mDevice = nullptr;
-  ResourceManager* mResourceManager = nullptr;
+  GeometryAllocator* mGeometryAllocator = nullptr;
+  BindlessManager* mBindlessManager = nullptr;
+  VkPipelineLayout mScenePipelineLayout = VK_NULL_HANDLE;
   FrameRenderer* mFrameRenderer = nullptr;
   std::vector<DrawCall> mDrawCalls;
 };

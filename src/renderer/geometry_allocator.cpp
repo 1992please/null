@@ -73,4 +73,10 @@ GeometryAllocation GeometryAllocator::stageGeometry(StagingManager& iStagingMana
   return alloc;
 }
 
+void GeometryAllocator::bindIndexBuffer(VkCommandBuffer iCommandBuffer) const {
+  NE_ASSERT(iCommandBuffer != VK_NULL_HANDLE, "Command buffer must not be null");
+  NE_ASSERT(mIndexBuffer, "Index buffer must not be null");
+  vkCmdBindIndexBuffer(iCommandBuffer, mIndexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+}
+
 } // namespace ne
