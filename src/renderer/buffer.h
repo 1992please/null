@@ -24,7 +24,6 @@ public:
     VkBufferUsageFlags usage = 0;
     Storage storage = Storage::DeviceLocal;
     std::string debugName = "";
-    VkDeviceSize alignment = DEFAULT_ALIGNMENT;
   };
 
   Buffer(Device* iDevice, const Config& iConfig);
@@ -36,13 +35,11 @@ public:
   Buffer(Buffer&&) = delete;
   Buffer& operator=(Buffer&&) = delete;
 
-  void mapMemory(VkDeviceSize iSize = VK_WHOLE_SIZE, VkDeviceSize iOffset = 0);
   void writeToBuffer(const void* iData, VkDeviceSize iSize = VK_WHOLE_SIZE, VkDeviceSize iOffset = 0);
-  void unmapMemory();
 
-  VkDeviceSize suballocate(VkDeviceSize iSize);
-  VkDeviceSize upload(const void* iData, VkDeviceSize iSize);
-  bool canUpload(VkDeviceSize iSize) const { return mUploadOffset + iSize <= mConfig.size; }
+  VkDeviceSize suballocate(VkDeviceSize iSize, VkDeviceSize iAlignment = DEFAULT_ALIGNMENT);
+  VkDeviceSize upload(const void* iData, VkDeviceSize iSize, VkDeviceSize iAlignment = DEFAULT_ALIGNMENT);
+  bool canUpload(VkDeviceSize iSize, VkDeviceSize iAlignment = DEFAULT_ALIGNMENT) const;
   void resetUploadOffset() { mUploadOffset = 0; }
   VkDeviceSize getUploadOffset() const { return mUploadOffset; }
 
@@ -52,6 +49,8 @@ public:
 
   const Config& getConfig() const { return mConfig; }
   VkBuffer getBuffer() const { return mBuffer; }
+  void* getMappedData() const { return mMapped; }
+  bool isMapped() const { return mMapped != nullptr; }
 
 private:
   Device* mDevice = nullptr;

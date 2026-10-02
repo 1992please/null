@@ -56,6 +56,7 @@ public:
   VkImage getImage() const { return mImage; }
   VkImageView getImageView() const { return mImageView; }
   const Config& getConfig() const { return mConfig; }
+  const VkImageSubresourceRange& getSubresourceRange() const { return mSubresourceRange; }
 
 private:
   Device* mDevice = nullptr;
@@ -64,6 +65,7 @@ private:
   VkImage mImage = VK_NULL_HANDLE;
   VmaAllocation mAllocation = VK_NULL_HANDLE;
   VkImageView mImageView = VK_NULL_HANDLE;
+  VkImageSubresourceRange mSubresourceRange{};
 
   VkImageLayout mCurrentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
   VkAccessFlags2 mCurrentAccessMask = VK_ACCESS_2_NONE;

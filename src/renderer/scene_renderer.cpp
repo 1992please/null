@@ -14,8 +14,8 @@
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
-#include "renderer/utils.h"
 #include "renderer/scene_types.h"
+#include "renderer/utils.h"
 
 // std
 #include <algorithm>
@@ -23,11 +23,9 @@
 namespace ne {
 
 SceneRenderer::SceneRenderer(const Config& iConfig)
-    : mDevice(iConfig.device), mGeometryAllocator(iConfig.geometryAllocator),
-      mBindlessManager(iConfig.bindlessManager), mScenePipelineLayout(iConfig.scenePipelineLayout),
-      mFrameRenderer(iConfig.frameRenderer) {
-  NE_ASSERT(mDevice && mGeometryAllocator && mBindlessManager && mScenePipelineLayout != VK_NULL_HANDLE &&
-            mFrameRenderer);
+    : mDevice(iConfig.device), mGeometryAllocator(iConfig.geometryAllocator), mBindlessManager(iConfig.bindlessManager),
+      mScenePipelineLayout(iConfig.scenePipelineLayout), mFrameRenderer(iConfig.frameRenderer) {
+  NE_ASSERT(mDevice && mGeometryAllocator && mBindlessManager && mScenePipelineLayout != VK_NULL_HANDLE && mFrameRenderer);
 }
 
 SceneRenderer::~SceneRenderer() = default;
@@ -48,12 +46,19 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
   NE_ASSERT(depthImage, "Depth image must not be null");
 
   // 1. Begin Swapchain Render Pass
-  vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+  VkImageSubresourceRange colorSubresourceRange{
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1,
+  };
+  vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, colorSubresourceRange, VK_IMAGE_LAYOUT_UNDEFINED,
                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
                                   VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT);
 
-  vk_utils::transitionImageLayout(iCommandBuffer, depthImage->getImage(), VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+  vk_utils::transitionImageLayout(iCommandBuffer, depthImage->getImage(), depthImage->getSubresourceRange(),
                                   VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_ACCESS_2_NONE,
                                   VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
                                   VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
@@ -132,9 +137,8 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
   // 5. End Swapchain Render Pass
   vkCmdEndRendering(iCommandBuffer);
 
-  vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, VK_IMAGE_ASPECT_COLOR_BIT,
-                                  VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                  VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
+  vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, colorSubresourceRange, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                                  VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_2_NONE,
                                   VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT);
 }
 

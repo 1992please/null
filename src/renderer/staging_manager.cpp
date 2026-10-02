@@ -20,7 +20,6 @@ StagingManager::StagingManager(Device* iDevice) : mDevice(iDevice) {
       .debugName = "StagingManager_StagingBuffer",
   };
   mStagingBuffer = std::make_unique<Buffer>(mDevice, stagingConfig);
-  mStagingBuffer->mapMemory();
 
   NE_LOG("Initialized StagingManager: Staging Arena Size: {}", vk_utils::formatBytes(mStagingBuffer->getConfig().size));
 }
@@ -74,7 +73,6 @@ void StagingManager::stageBufferCopy(VkBuffer dstBuffer, const void* data, VkDev
         .debugName = "StagingManager_OutlierBufferStaging",
     };
     Buffer tempStaging(mDevice, outlierConfig);
-    tempStaging.mapMemory();
     tempStaging.writeToBuffer(data, size, 0);
 
     VkCommandBuffer cmd = mDevice->beginOneTimeCommand();
@@ -113,20 +111,19 @@ void StagingManager::stageImageUpload(Image& dstImage, const void* pixelData, Vk
         .debugName = "StagingManager_OutlierImageStaging",
     };
     Buffer tempStaging(mDevice, outlierConfig);
-    tempStaging.mapMemory();
     tempStaging.writeToBuffer(pixelData, size, 0);
 
     VkCommandBuffer cmd = mDevice->beginOneTimeCommand();
 
-    vk_utils::transitionImageLayout(cmd, dstImage.getImage(), VK_IMAGE_ASPECT_COLOR_BIT, dstImage.getCurrentLayout(),
+    vk_utils::transitionImageLayout(cmd, dstImage.getImage(), dstImage.getSubresourceRange(), dstImage.getCurrentLayout(),
                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dstImage.getCurrentAccessMask(),
                                     VK_ACCESS_2_TRANSFER_WRITE_BIT, dstImage.getCurrentStageMask(), VK_PIPELINE_STAGE_2_COPY_BIT);
 
     recordImageCopy(cmd, tempStaging.getBuffer(), dstImage.getImage(), dstImage.getConfig().width, dstImage.getConfig().height);
 
-    vk_utils::transitionImageLayout(cmd, dstImage.getImage(), VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_2_TRANSFER_WRITE_BIT,
-                                    VK_ACCESS_2_SHADER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
+    vk_utils::transitionImageLayout(cmd, dstImage.getImage(), dstImage.getSubresourceRange(),
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                    VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_ACCESS_2_SHADER_READ_BIT, VK_PIPELINE_STAGE_2_COPY_BIT,
                                     VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
 
     mDevice->endOneTimeCommand(cmd);

@@ -102,15 +102,19 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
   } else if (mConfig.storage == Storage::Upload) {
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
   } else if (mConfig.storage == Storage::Readback) {
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
   }
 
   VmaAllocationInfo allocationInfo{};
   VK_CHECK(vmaCreateBuffer(mDevice->getMemoryAllocator()->getHandle(), &bufferInfo, &allocInfo, &mBuffer, &mAllocation,
                            &allocationInfo));
+
+  if (allocInfo.flags & VMA_ALLOCATION_CREATE_MAPPED_BIT) {
+    mMapped = allocationInfo.pMappedData;
+  }
 
   if (mConfig.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
     VkBufferDeviceAddressInfo addressInfo{};
@@ -134,45 +138,36 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
 }
 
 Buffer::~Buffer() {
-  if (mMapped) {
-    unmapMemory();
-  }
   NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
          vk_utils::formatBytes(mConfig.size), bufferUsageToString(mConfig.usage));
   vmaDestroyBuffer(mDevice->getMemoryAllocator()->getHandle(), mBuffer, mAllocation);
 }
 
-void Buffer::mapMemory(VkDeviceSize /*iSize*/, VkDeviceSize /*iOffset*/) {
-  NE_ASSERT(mConfig.storage != Storage::DeviceLocal, "Cannot map a buffer with DeviceLocal storage!");
-  NE_ASSERT(!mMapped, "Buffer is already mapped!");
-  VK_CHECK(vmaMapMemory(mDevice->getMemoryAllocator()->getHandle(), mAllocation, &mMapped));
-}
-
 void Buffer::writeToBuffer(const void* iData, VkDeviceSize iSize, VkDeviceSize iOffset) {
-  NE_ASSERT(mMapped, "Buffer must be mapped before writing!");
+  NE_ASSERT(mMapped, "Buffer is not mapped (only Upload and Readback buffers are host-accessible)!");
   VkDeviceSize writeSize = (iSize == VK_WHOLE_SIZE) ? mConfig.size - iOffset : iSize;
   NE_ASSERT(iOffset + writeSize <= mConfig.size, "Buffer write exceeds buffer size!");
   std::memcpy(static_cast<char*>(mMapped) + iOffset, iData, writeSize);
   vmaFlushAllocation(mDevice->getMemoryAllocator()->getHandle(), mAllocation, iOffset, writeSize);
 }
 
-void Buffer::unmapMemory() {
-  NE_ASSERT(mMapped, "Buffer is not mapped!");
-  vmaUnmapMemory(mDevice->getMemoryAllocator()->getHandle(), mAllocation);
-  mMapped = nullptr;
+bool Buffer::canUpload(VkDeviceSize iSize, VkDeviceSize iAlignment) const {
+  const VkDeviceSize alignment = std::max(DEFAULT_ALIGNMENT, iAlignment);
+  return vk_utils::alignUp(mUploadOffset, alignment) + iSize <= mConfig.size;
 }
 
-VkDeviceSize Buffer::suballocate(VkDeviceSize iSize) {
-  NE_ASSERT(canUpload(iSize), "Buffer overflow! Increase buffer size.");
+VkDeviceSize Buffer::suballocate(VkDeviceSize iSize, VkDeviceSize iAlignment) {
+  NE_ASSERT(canUpload(iSize, iAlignment), "Buffer overflow! Increase buffer size.");
 
-  VkDeviceSize allocatedOffset = mUploadOffset;
-  mUploadOffset = vk_utils::alignUp(allocatedOffset + iSize, mConfig.alignment);
+  const VkDeviceSize alignment = std::max(DEFAULT_ALIGNMENT, iAlignment);
+  const VkDeviceSize allocatedOffset = vk_utils::alignUp(mUploadOffset, alignment);
+  mUploadOffset = allocatedOffset + iSize;
   return allocatedOffset;
 }
 
-VkDeviceSize Buffer::upload(const void* iData, VkDeviceSize iSize) {
-  NE_ASSERT(mMapped, "Buffer must be mapped before uploading!");
-  VkDeviceSize allocatedOffset = suballocate(iSize);
+VkDeviceSize Buffer::upload(const void* iData, VkDeviceSize iSize, VkDeviceSize iAlignment) {
+  NE_ASSERT(mMapped, "Buffer is not mapped (only Upload and Readback buffers are host-accessible)!");
+  VkDeviceSize allocatedOffset = suballocate(iSize, iAlignment);
   writeToBuffer(iData, iSize, allocatedOffset);
   return allocatedOffset;
 }

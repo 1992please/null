@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/math/math.h"
-#include <volk/volk.h>
 #include <memory>
 #include <vector>
+#include <volk/volk.h>
 
 namespace ne {
 

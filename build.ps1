@@ -11,8 +11,8 @@ if (-not $vsPath) {
     exit 1
 }
 
-# 2. Load DevShell if compiler is not in PATH
-if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
+# 2. Load DevShell if MSVC environment is not initialized
+if (-not $env:INCLUDE) {
     $devShellPath = Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
     if (Test-Path $devShellPath) {
         Write-Host "Activating Visual Studio Developer Shell..." -ForegroundColor Cyan

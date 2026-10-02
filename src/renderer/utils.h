@@ -162,7 +162,7 @@ inline VkImageAspectFlags deduceAspectFlags(VkFormat format) {
   }
 }
 
-inline void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageAspectFlags aspectMask,
+inline void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, const VkImageSubresourceRange& subresourceRange,
                                   VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags2 srcAccessMask,
                                   VkAccessFlags2 dstAccessMask, VkPipelineStageFlags2 srcStageMask,
                                   VkPipelineStageFlags2 dstStageMask) {
@@ -177,8 +177,7 @@ inline void transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, 
   imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
   imageMemoryBarrier.image = image;
-  imageMemoryBarrier.subresourceRange = {
-      .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
+  imageMemoryBarrier.subresourceRange = subresourceRange;
 
   VkDependencyInfo dependencyInfo{};
   dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;

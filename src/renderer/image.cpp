@@ -46,6 +46,7 @@ Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig
   viewInfo.subresourceRange.levelCount = mConfig.mipLevels;
   viewInfo.subresourceRange.baseArrayLayer = 0;
   viewInfo.subresourceRange.layerCount = 1;
+  mSubresourceRange = viewInfo.subresourceRange;
 
   VK_CHECK(vkCreateImageView(mDevice->getDevice(), &viewInfo, nullptr, &mImageView));
 

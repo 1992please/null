@@ -67,9 +67,7 @@ std::unique_ptr<Buffer> FrameRenderer::createUploadBuffer(VkDeviceSize size, std
       .storage = Buffer::Storage::Upload,
       .debugName = std::move(iDebugName),
   };
-  auto uploadBuffer = std::make_unique<Buffer>(mDevice, config);
-  uploadBuffer->mapMemory();
-  return uploadBuffer;
+  return std::make_unique<Buffer>(mDevice, config);
 }
 
 void FrameRenderer::createFramesResources() {
@@ -230,28 +228,16 @@ void FrameRenderer::createDepthImage() {
          swapExtent.height);
 }
 
-VkFormat FrameRenderer::getColorFormat() const {
-  return mSwapchain->getSurfaceFormat().format;
-}
+VkFormat FrameRenderer::getColorFormat() const { return mSwapchain->getSurfaceFormat().format; }
 
-VkFormat FrameRenderer::getDepthFormat() const {
-  return mDepthImage ? mDepthImage->getConfig().format : VK_FORMAT_UNDEFINED;
-}
+VkFormat FrameRenderer::getDepthFormat() const { return mDepthImage ? mDepthImage->getConfig().format : VK_FORMAT_UNDEFINED; }
 
-uint32_t FrameRenderer::getImageCount() const {
-  return static_cast<uint32_t>(mSwapchain->getImages().size());
-}
+uint32_t FrameRenderer::getImageCount() const { return static_cast<uint32_t>(mSwapchain->getImages().size()); }
 
-VkExtent2D FrameRenderer::getExtent() const {
-  return mSwapchain->getExtent();
-}
+VkExtent2D FrameRenderer::getExtent() const { return mSwapchain->getExtent(); }
 
-VkImage FrameRenderer::getActiveImage() const {
-  return mSwapchain->getImages()[mActiveImageIndex].image;
-}
+VkImage FrameRenderer::getActiveImage() const { return mSwapchain->getImages()[mActiveImageIndex].image; }
 
-VkImageView FrameRenderer::getActiveImageView() const {
-  return mSwapchain->getImages()[mActiveImageIndex].view;
-}
+VkImageView FrameRenderer::getActiveImageView() const { return mSwapchain->getImages()[mActiveImageIndex].view; }
 
 } // namespace ne
