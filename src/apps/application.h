@@ -36,6 +36,9 @@ public:
   ResourceManager* getResourceManager() const { return mResourceManager.get(); }
   Registry* getRegistry() const { return mRegistry.get(); }
 
+  // Diagnostics: true once the Vulkan validation layer has reported any error
+  bool hasValidationErrors() const;
+
 protected:
   int32_t mWidth = 1200;
   int32_t mHeight = 1000;

@@ -9,6 +9,7 @@ UseTab: Never
 
 BreakTemplateDeclarations: Leave
 IndentCaseLabels: true
+SortIncludes: false
 # AlignConsecutiveAssignments:
 #   Enabled: true
 #   AcrossEmptyLines: false

@@ -8,16 +8,17 @@
 #include <algorithm>
 #include <cstring>
 
+// pUserData points at Instance::mHasValidationErrors
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT iMessageSeverity,
                                                     VkDebugUtilsMessageTypeFlagsEXT iMessageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
   NE_UNUSED(iMessageType);
-  NE_UNUSED(pUserData);
   NE_UNUSED(pCallbackData);
 
   if (iMessageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
     NE_WARN("validation layer: {}", pCallbackData->pMessage);
   } else if (iMessageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+    *static_cast<bool*>(pUserData) = true;
     NE_ERROR("validation layer: {}", pCallbackData->pMessage);
   }
 
@@ -33,13 +34,8 @@ Instance::Instance(const Config& iConfig) {
 
 Instance::~Instance() {
   NE_LOG("Destroying Vulkan Instance and deallocating resources...");
-
-  if (mDebugMessenger != VK_NULL_HANDLE) {
-    vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
-  }
-  if (mInstance != VK_NULL_HANDLE) {
-    vkDestroyInstance(mInstance, nullptr);
-  }
+  vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+  vkDestroyInstance(mInstance, nullptr);
   NE_LOG("Vulkan Instance destroyed successfully.");
 }
 
@@ -76,34 +72,39 @@ void Instance::createInstance(const Config& iConfig) {
     NE_ASSERT(extensionFound, "Required window extension not supported: {}", windowExtension);
   }
 
-  // make sure all the validation layers we need are available
-  std::vector<char const*> requiredLayers;
-  if (enableValidationLayers) {
-    uint32_t availableValidationLayersCount;
-    vkEnumerateInstanceLayerProperties(&availableValidationLayersCount, nullptr);
-    std::vector<VkLayerProperties> availableValidationLayers(availableValidationLayersCount);
-    vkEnumerateInstanceLayerProperties(&availableValidationLayersCount, availableValidationLayers.data());
-    for (const char* validationLayer : mValidationLayers) {
-      bool layerFound = false;
-      for (const auto& layerProperties : availableValidationLayers) {
-        if (strcmp(validationLayer, layerProperties.layerName) == 0) {
-          layerFound = true;
-          break;
-        }
-      }
-      NE_ASSERT(layerFound, "Required validation layer not supported: {}", validationLayer);
-    }
-
-    requiredLayers = mValidationLayers;
-  }
-
   VkInstanceCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
   createInfo.pApplicationInfo = &appInfo;
-  createInfo.enabledLayerCount = static_cast<uint32_t>(requiredLayers.size());
-  createInfo.ppEnabledLayerNames = requiredLayers.data();
   createInfo.enabledExtensionCount = static_cast<uint32_t>(windowExtensions.size());
   createInfo.ppEnabledExtensionNames = windowExtensions.data();
+
+  if (enableValidationLayers) {
+    uint32_t availableLayerCount = 0;
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
+    std::vector<VkLayerProperties> availableLayers(availableLayerCount);
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
+    const bool layerFound = std::any_of(availableLayers.begin(), availableLayers.end(), [](const VkLayerProperties& iLayer) {
+      return strcmp(iLayer.layerName, VALIDATION_LAYER_NAME) == 0;
+    });
+    NE_ASSERT(layerFound, "Required validation layer not supported: {}", VALIDATION_LAYER_NAME);
+    createInfo.enabledLayerCount = 1;
+    createInfo.ppEnabledLayerNames = &VALIDATION_LAYER_NAME;
+
+    // Khronos validation layer with synchronization validation (RAW/WAR/WAW hazards from missing barriers or semaphores)
+    const VkBool32 validateSync = VK_TRUE;
+    VkLayerSettingEXT validateSyncSetting{};
+    validateSyncSetting.pLayerName = VALIDATION_LAYER_NAME;
+    validateSyncSetting.pSettingName = "validate_sync";
+    validateSyncSetting.type = VK_LAYER_SETTING_TYPE_BOOL32_EXT;
+    validateSyncSetting.valueCount = 1;
+    validateSyncSetting.pValues = &validateSync;
+
+    VkLayerSettingsCreateInfoEXT layerSettingsInfo{};
+    layerSettingsInfo.sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT;
+    layerSettingsInfo.settingCount = 1;
+    layerSettingsInfo.pSettings = &validateSyncSetting;
+    createInfo.pNext = &layerSettingsInfo;
+  }
 
   VK_CHECK(vkCreateInstance(&createInfo, nullptr, &mInstance));
 
@@ -122,7 +123,7 @@ void Instance::setupDebugMessenger() {
   createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
   createInfo.pfnUserCallback = debugCallback;
-  createInfo.pUserData = nullptr; // optional user data
+  createInfo.pUserData = &mHasValidationErrors;
 
   VK_CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger));
 }

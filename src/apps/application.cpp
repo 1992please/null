@@ -89,6 +89,8 @@ Application::~Application() {
   NE_LOG("Engine Application '{}' destroyed successfully.", mAppName);
 }
 
+bool Application::hasValidationErrors() const { return mInstance->hasValidationErrors(); }
+
 void Application::update(float iDeltaTime) { NE_UNUSED(iDeltaTime); }
 
 void Application::render() {

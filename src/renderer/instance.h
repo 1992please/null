@@ -34,12 +34,15 @@ public:
   VkInstance getInstance() const { return mInstance; }
   uint32_t getApiVersion() const { return API_VERSION; }
 
+  // True once the validation layer has reported any error (always false when validation is disabled)
+  bool hasValidationErrors() const { return mHasValidationErrors; }
+
 private:
   void createInstance(const Config& iConfig);
   void setupDebugMessenger();
 
   static constexpr uint32_t API_VERSION = VK_API_VERSION_1_4;
-  const std::vector<char const*> mValidationLayers = {"VK_LAYER_KHRONOS_validation"};
+  static constexpr const char* VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
 #if defined(NE_BUILD_DEBUG)
   const bool enableValidationLayers = true;
@@ -49,6 +52,10 @@ private:
 
   VkInstance mInstance = VK_NULL_HANDLE;
   VkDebugUtilsMessengerEXT mDebugMessenger = VK_NULL_HANDLE;
+
+  // Set by debugCallback on the thread issuing the Vulkan call. Plain bool while all Vulkan calls are made from one
+  // thread; make it std::atomic<bool> once Vulkan calls are issued from multiple threads.
+  bool mHasValidationErrors = false;
 };
 
 } // namespace ne
