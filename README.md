@@ -38,6 +38,7 @@ A high-performance, modular 3D rendering engine built with modern C++20 and Vulk
 - [x] **Vulkan Memory Allocator (VMA) Integration**: Sub-allocate all buffers and images from unified device-local and host-visible memory pools to eliminate discrete `vkAllocateMemory` calls and prevent `maxMemoryAllocationCount` exhaustion.
 - [ ] **glTF PBR Material Pipeline**: Material parameter representation (factors, textures), `stb_image` decoding, and glTF 2.0 metallic-roughness PBR lighting.
 - [ ] **Mipmap Generation & Subresource Ranges**: GPU blit mip generation (`vkCmdBlitImage2`) and subresource range handling (`VK_REMAINING_MIP_LEVELS`) in view and transition helpers.
+- [ ] **GPU Timeline & Deferred Destruction**: Replace per-frame fences with a `Device`-owned timeline semaphore, defer `Buffer`/`Image` destruction until the GPU passes the submit that last used them, and remove `vkQueueWaitIdle` from staging uploads.
 - [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
 
 ### Step 4: GPU-Driven Pipeline & Optimization
