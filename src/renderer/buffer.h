@@ -1,9 +1,9 @@
 #pragma once
 
+#include "renderer/rhi_types.h"
+
 #include <string>
 #include <volk/volk.h>
-
-VK_DEFINE_HANDLE(VmaAllocation)
 
 namespace ne {
 
@@ -13,16 +13,10 @@ class Buffer {
 public:
   static constexpr VkDeviceSize DEFAULT_ALIGNMENT = 16;
 
-  enum class Storage : uint8_t {
-    DeviceLocal, // Device-local VRAM (vertex, index, storage)
-    Upload,      // Host-visible upload / staging / uniform (writes to ReBAR VRAM or RAM)
-    Readback     // Readback / profiling
-  };
-
   struct Config {
     VkDeviceSize size = 0;
     VkBufferUsageFlags usage = 0;
-    Storage storage = Storage::DeviceLocal;
+    MemoryUsage memoryUsage = MemoryUsage::DeviceLocal;
     std::string debugName = "";
   };
 
@@ -57,7 +51,7 @@ private:
 
   Config mConfig;
   VkBuffer mBuffer = VK_NULL_HANDLE;
-  VmaAllocation mAllocation = VK_NULL_HANDLE;
+  MemoryAllocation mAllocation = nullptr;
   VkDeviceAddress mDeviceAddress = 0;
   void* mMapped = nullptr;
   VkDeviceSize mUploadOffset = 0;

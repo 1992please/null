@@ -5,8 +5,6 @@
 #include "renderer/memory_allocator.h"
 #include "renderer/utils.h"
 
-#include <vma/vk_mem_alloc.h>
-
 // std
 #include <cstring>
 #include <string>
@@ -16,13 +14,13 @@ namespace ne {
 
 namespace {
 
-[[maybe_unused]] std::string_view storageToString(Buffer::Storage storage) {
-  switch (storage) {
-    case Buffer::Storage::DeviceLocal:
+[[maybe_unused]] std::string_view memoryUsageToString(MemoryUsage usage) {
+  switch (usage) {
+    case MemoryUsage::DeviceLocal:
       return "DeviceLocal";
-    case Buffer::Storage::Upload:
+    case MemoryUsage::Upload:
       return "Upload";
-    case Buffer::Storage::Readback:
+    case MemoryUsage::Readback:
       return "Readback";
   }
   return "Unknown";
@@ -97,24 +95,11 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
   bufferInfo.usage = mConfig.usage;
   bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  VmaAllocationCreateInfo allocInfo{};
-  if (mConfig.storage == Storage::DeviceLocal) {
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-  } else if (mConfig.storage == Storage::Upload) {
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  } else if (mConfig.storage == Storage::Readback) {
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  }
-
-  VmaAllocationInfo allocationInfo{};
-  VK_CHECK(vmaCreateBuffer(mDevice->getMemoryAllocator()->getHandle(), &bufferInfo, &allocInfo, &mBuffer, &mAllocation,
-                           &allocationInfo));
-
-  if (allocInfo.flags & VMA_ALLOCATION_CREATE_MAPPED_BIT) {
-    mMapped = allocationInfo.pMappedData;
-  }
+  const MemoryAllocator::BufferAllocation allocation =
+      mDevice->getMemoryAllocator()->createBuffer(bufferInfo, mConfig.memoryUsage, mConfig.debugName);
+  mBuffer = allocation.buffer;
+  mAllocation = allocation.allocation;
+  mMapped = allocation.mapped;
 
   if (mConfig.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) {
     VkBufferDeviceAddressInfo addressInfo{};
@@ -125,22 +110,18 @@ Buffer::Buffer(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConf
 
   if (!mConfig.debugName.empty()) {
     vk_utils::setDebugObjectName(mDevice->getDevice(), mBuffer, mConfig.debugName);
-    vmaSetAllocationName(mDevice->getMemoryAllocator()->getHandle(), mAllocation, mConfig.debugName.c_str());
   }
 
-  VkMemoryPropertyFlags effectiveMemProps = 0;
-  vmaGetAllocationMemoryProperties(mDevice->getMemoryAllocator()->getHandle(), mAllocation, &effectiveMemProps);
-
-  NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | Storage: [{}] | Type: [{}]",
+  NE_LOG("Allocated Buffer{}: Size: {} (Allocated: {}) | Usage: [{}] | MemoryUsage: [{}] | Type: [{}]",
          mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'", vk_utils::formatBytes(mConfig.size),
-         vk_utils::formatBytes(allocationInfo.size), bufferUsageToString(mConfig.usage), storageToString(mConfig.storage),
-         memoryPropertiesToString(effectiveMemProps));
+         vk_utils::formatBytes(allocation.allocatedSize), bufferUsageToString(mConfig.usage),
+         memoryUsageToString(mConfig.memoryUsage), memoryPropertiesToString(allocation.memoryProperties));
 }
 
 Buffer::~Buffer() {
   NE_LOG("Destroyed Buffer{}: Size: {} | Usage: [{}]", mConfig.debugName.empty() ? "" : " '" + mConfig.debugName + "'",
          vk_utils::formatBytes(mConfig.size), bufferUsageToString(mConfig.usage));
-  vmaDestroyBuffer(mDevice->getMemoryAllocator()->getHandle(), mBuffer, mAllocation);
+  mDevice->getMemoryAllocator()->destroyBuffer(mBuffer, mAllocation);
 }
 
 void Buffer::writeToBuffer(const void* iData, VkDeviceSize iSize, VkDeviceSize iOffset) {
@@ -148,7 +129,7 @@ void Buffer::writeToBuffer(const void* iData, VkDeviceSize iSize, VkDeviceSize i
   VkDeviceSize writeSize = (iSize == VK_WHOLE_SIZE) ? mConfig.size - iOffset : iSize;
   NE_ASSERT(iOffset + writeSize <= mConfig.size, "Buffer write exceeds buffer size!");
   std::memcpy(static_cast<char*>(mMapped) + iOffset, iData, writeSize);
-  vmaFlushAllocation(mDevice->getMemoryAllocator()->getHandle(), mAllocation, iOffset, writeSize);
+  mDevice->getMemoryAllocator()->flush(mAllocation, iOffset, writeSize);
 }
 
 bool Buffer::canUpload(VkDeviceSize iSize, VkDeviceSize iAlignment) const {

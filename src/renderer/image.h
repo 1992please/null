@@ -1,11 +1,11 @@
 #pragma once
 
+#include "renderer/rhi_types.h"
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <volk/volk.h>
-
-VK_DEFINE_HANDLE(VmaAllocation)
 
 namespace ne {
 
@@ -63,7 +63,7 @@ private:
   Config mConfig;
 
   VkImage mImage = VK_NULL_HANDLE;
-  VmaAllocation mAllocation = VK_NULL_HANDLE;
+  MemoryAllocation mAllocation = nullptr;
   VkImageView mImageView = VK_NULL_HANDLE;
   VkImageSubresourceRange mSubresourceRange{};
 

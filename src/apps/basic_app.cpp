@@ -14,7 +14,7 @@
 #include "renderer/mesh.h"
 #include "renderer/mesh_utils.h"
 #include "renderer/resource_manager.h"
-#include "renderer/sampler_type.h"
+#include "renderer/rhi_types.h"
 #include <format>
 
 namespace ne {

@@ -5,8 +5,6 @@
 #include "renderer/memory_allocator.h"
 #include "renderer/utils.h"
 
-#include <vma/vk_mem_alloc.h>
-
 namespace ne {
 
 Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig(iConfig) {
@@ -27,12 +25,9 @@ Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig
   imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
   imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-  VmaAllocationCreateInfo allocInfo{};
-  allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-
-  VmaAllocationInfo allocationInfo{};
-  VK_CHECK(
-      vmaCreateImage(mDevice->getMemoryAllocator()->getHandle(), &imageInfo, &allocInfo, &mImage, &mAllocation, &allocationInfo));
+  const MemoryAllocator::ImageAllocation allocation = mDevice->getMemoryAllocator()->createImage(imageInfo, mConfig.debugName);
+  mImage = allocation.image;
+  mAllocation = allocation.allocation;
 
   VkImageAspectFlags aspectMask = mConfig.aspectMask != 0 ? mConfig.aspectMask : vk_utils::deduceAspectFlags(mConfig.format);
 
@@ -57,7 +52,6 @@ Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig
   if (!mConfig.debugName.empty()) {
     vk_utils::setDebugObjectName(mDevice->getDevice(), mImage, mConfig.debugName);
     vk_utils::setDebugObjectName(mDevice->getDevice(), mImageView, mConfig.debugName + "_View");
-    vmaSetAllocationName(mDevice->getMemoryAllocator()->getHandle(), mAllocation, mConfig.debugName.c_str());
   }
 
   NE_LOG("Allocated Image{}: Extent {}x{} | Format: {}", mConfig.debugName.empty() ? "" : std::format(" '{}'", mConfig.debugName),
@@ -66,7 +60,7 @@ Image::Image(Device* iDevice, const Config& iConfig) : mDevice(iDevice), mConfig
 
 Image::~Image() {
   vkDestroyImageView(mDevice->getDevice(), mImageView, nullptr);
-  vmaDestroyImage(mDevice->getMemoryAllocator()->getHandle(), mImage, mAllocation);
+  mDevice->getMemoryAllocator()->destroyImage(mImage, mAllocation);
 }
 
 } // namespace ne

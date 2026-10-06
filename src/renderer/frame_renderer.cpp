@@ -64,7 +64,7 @@ std::unique_ptr<Buffer> FrameRenderer::createUploadBuffer(VkDeviceSize size, std
       .size = size,
       .usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-      .storage = Buffer::Storage::Upload,
+      .memoryUsage = MemoryUsage::Upload,
       .debugName = std::move(iDebugName),
   };
   return std::make_unique<Buffer>(mDevice, config);
