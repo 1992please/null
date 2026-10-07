@@ -81,7 +81,7 @@ struct TransformComponent {
   const Vec3& getScale() const { return local.scale; }
 
   Vec3 getForward() const { return local.getForward(); }
-  Vec3 getRight() const { return local.getRight(); }
+  Vec3 getLeft() const { return local.getLeft(); }
   Vec3 getUp() const { return local.getUp(); }
 };
 

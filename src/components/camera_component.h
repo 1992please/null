@@ -9,7 +9,6 @@ namespace ne {
  * @struct CameraComponent
  * @brief Manages camera lens, frustum parameters, and projection matrix generation.
  *
- * Designed for left-handed coordinate conventions (+X Forward, +Y Right, +Z Up).
  * Supports Reverse-Z, and Infinite Far Clip perspective and orthographic projections.
  */
 struct CameraComponent {
@@ -30,18 +29,19 @@ struct CameraComponent {
   /**
    * @brief Computes the 4x4 View Matrix (World-to-Camera space).
    *
-   * Maps Null Engine coordinates (+X Forward, +Y Right, +Z Up) to standard
-   * Graphics View Space (+X Right, +Y Up, +Z Forward) in O(1) time without cross products.
+   * Maps world space to the ROS camera optical frame (+X Right, +Y Down, +Z Forward) in O(1) time
+   * without cross products. The optical frame has the same handedness as world space and matches
+   * Vulkan NDC axes, so the view matrix is a pure rotation + translation.
    */
   Mat4 getViewMatrix(const TransformComponent& iTransform) const {
     const Vec3& eye = iTransform.getPosition();
-    const Vec3 right = iTransform.getRight();
-    const Vec3 up = iTransform.getUp();
+    const Vec3 right = -iTransform.getLeft();
+    const Vec3 down = -iTransform.getUp();
     const Vec3 forward = iTransform.getForward();
 
     Mat4 view{1.0f};
     view[0][0] = right.x;   view[1][0] = right.y;   view[2][0] = right.z;   view[3][0] = -right.dot(eye);
-    view[0][1] = up.x;      view[1][1] = up.y;      view[2][1] = up.z;      view[3][1] = -up.dot(eye);
+    view[0][1] = down.x;    view[1][1] = down.y;    view[2][1] = down.z;    view[3][1] = -down.dot(eye);
     view[0][2] = forward.x; view[1][2] = forward.y; view[2][2] = forward.z; view[3][2] = -forward.dot(eye);
     return view;
   }

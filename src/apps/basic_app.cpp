@@ -59,7 +59,7 @@ BasicApp::BasicApp() : Application("Basic App (MDI Showcase)", 1200, 1000) {
   getRegistry()->addComponent<TransformComponent>(mCameraEntity, Vec3(-4.0f, 0.0f, 0.0f));
   getRegistry()->addComponent<CameraComponent>(mCameraEntity, 45.0f, aspect, 0.1f, 100.0f);
 
-  // Cube Entity 1 (Right: +Y axis) - Textured with LinearRepeat (anisotropic trilinear)
+  // Cube Entity 1 (Left: +Y axis) - Textured with LinearRepeat (anisotropic trilinear)
   if (!mLoadedMeshes.empty()) {
     mCubeEntity1 = getRegistry()->createEntity();
     getRegistry()->addComponent<TransformComponent>(mCubeEntity1, Vec3(0.0f, 1.5f, -0.5f));
@@ -73,7 +73,7 @@ BasicApp::BasicApp() : Application("Basic App (MDI Showcase)", 1200, 1000) {
     getRegistry()->addComponent<MeshComponent>(mCubeEntity2, mLoadedMeshes[0], mCube2Material);
   }
 
-  // Helmet Entity (Left: -Y axis) - Untextured, using fallback white texture (index 0)
+  // Helmet Entity (Right: -Y axis) - Untextured, using fallback white texture (index 0)
   if (mLoadedMeshes.size() > 1) {
     mHelmetEntity = getRegistry()->createEntity();
     getRegistry()->addComponent<TransformComponent>(mHelmetEntity, Vec3(0.0f, -1.5f, -0.5f));

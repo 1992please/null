@@ -28,6 +28,8 @@ A high-performance, modular 3D rendering engine built with modern C++20 and Vulk
 - [x] **CameraController**: Interactive Free-Fly camera (WASD + QE + Mouse Look) driving `TransformComponent`.
 - [x] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
 - [x] **Simulation Time Controls & UI Toggle**: Scalable `timeScale` (0x-3x), unscaled frame metrics, UI input isolation, and `H` overlay toggle.
+- [x] **Right-Handed Z-Up Convention (ROS REP-103)**: Switch from the Unreal convention (see Engine Conventions) so glTF, URDF, ROS tf, and USD imports are pure rotations instead of mirrors.
+- [ ] **Transform Hierarchy & glTF Scene Import**: Parent/child `TransformComponent` with world-matrix propagation, and glTF node-tree import (node TRS, glTF Y-up → engine Z-up rotation) instantiated as entities.
 
 ### Step 3: Materials & Bindless Resources
 - [x] **Transient Per-Draw Data Core**: Zero-overhead 64-bit Buffer Device Address (BDA) pointers and per-draw metadata dispatched via `vkCmdPushConstants` directly into Multi-Draw Indirect (MDI).
@@ -36,23 +38,34 @@ A high-performance, modular 3D rendering engine built with modern C++20 and Vulk
 - [x] **Vulkan Feature Enablement**: Enable `samplerAnisotropy` and descriptor indexing features on `VkDeviceCreateInfo` with hardware limit validation.
 - [x] **Bindless Texture Architecture**: Unsized texture arrays (`Texture2D gTextures[]` in Slang) with Vulkan 1.4 descriptor indexing (`partiallyBound`, `updateAfterBind`).
 - [x] **Vulkan Memory Allocator (VMA) Integration**: Sub-allocate all buffers and images from unified device-local and host-visible memory pools to eliminate discrete `vkAllocateMemory` calls and prevent `maxMemoryAllocationCount` exhaustion.
-- [ ] **glTF PBR Material Pipeline**: Material parameter representation (factors, textures), `stb_image` decoding, and glTF 2.0 metallic-roughness PBR lighting.
 - [ ] **Mipmap Generation & Subresource Ranges**: GPU blit mip generation (`vkCmdBlitImage2`) and subresource range handling (`VK_REMAINING_MIP_LEVELS`) in view and transition helpers.
+- [ ] **glTF PBR Material Pipeline**: GPU material buffer (BDA) indexed by a per-instance `materialIndex`, glTF metallic-roughness factors and textures (embedded images via `ImageImporter::importFromMemory`), MikkTSpace tangent generation, alpha-mode / double-sided pipeline variants, hemisphere ambient, and Khronos PBR Neutral tonemapping.
 - [ ] **GPU Timeline & Deferred Destruction**: Replace per-frame fences with a `Device`-owned timeline semaphore, defer `Buffer`/`Image` destruction until the GPU passes the submit that last used them, and remove `vkQueueWaitIdle` from staging uploads.
-- [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
 
 ### Step 4: GPU-Driven Pipeline & Optimization
-- [ ] **Offscreen Viewport & Multi-View Panels**: Render 3D scene to an offscreen HDR/SDR `VkImage` target displayed via `ImGui::Image` inside a dedicated Viewport panel with dynamic aspect-ratio resizing.
+- [ ] **Render Views & Offscreen Targets**: A render view = camera + offscreen HDR target; multiple simultaneous views, headless operation (no window required), GPU → CPU readback, and tonemapping as a post pass. The ImGui Viewport panel (`ImGui::Image` with dynamic aspect-ratio resizing) is one consumer.
 - [ ] **Push Descriptors for Utility Passes**: Integrate `VK_KHR_push_descriptor` (Vulkan 1.4 core `pushDescriptors`) for single-pass post-processing and compute passes without descriptor pool overhead.
-- [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
 - [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
 - [ ] **Context-Driven Encoder Pattern & RHI Decoupling**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability, formalizing the boundary between low-level hardware abstraction (`RHI` / `Device` / resources) and high-level scene passes.
+- [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
+- [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
+
+### Step 5: Robotics Digital Twin (Future)
+> Null stays the renderer, visualizer, and sensor simulator. Physics comes from an external source of truth (MuJoCo, Isaac Sim, Gazebo, or the real robot).
+- [ ] **URDF Import**: Links and joints mapped onto the transform hierarchy, with STL / DAE / OBJ mesh loading.
+- [ ] **Debug Draw**: Lines, tf coordinate frames, trajectories, and point clouds.
+- [ ] **External State Bridge**: ROS 2 / Zenoh bridge kept outside the engine core, writing timestamped joint states and poses into the ECS with interpolation.
+- [ ] **Camera Sensor Simulation**: RGB, depth, and instance / semantic ID outputs from render views with readback.
+- [ ] **Picking & Gizmos**: Entity selection and transform manipulation in the viewport.
+- [ ] **Ray-Query LiDAR**: Acceleration structures (`VK_KHR_acceleration_structure`) and `VK_KHR_ray_query` for LiDAR and depth sensor simulation.
 
 ---
 
 ## 📐 Engine Conventions
 
-* **Coordinates (Unreal Convention)**: Left-handed (`+X` Forward, `+Y` Right, `+Z` Up).
+* **Coordinates (ROS REP-103)**: Right-handed (`+X` Forward, `+Y` Left, `+Z` Up). Positive rotations are counter-clockwise about the axis; Euler angles are Roll (X), Pitch (Y), Yaw (Z), composed as `Rz * Ry * Rx`.
+* **Camera View Space**: ROS camera optical frame (`+X` Right, `+Y` Down, `+Z` Forward), which matches Vulkan NDC without a projection Y-flip.
+* **Winding**: Counter-clockwise front faces (glTF convention).
 * **Reverse-Z Depth**: Floating-point depth (`VK_FORMAT_D32_SFLOAT_S8_UINT`, `0.0` far clear, `VK_COMPARE_OP_GREATER_OR_EQUAL`).
 * **Memory & Shaders**: Unified sub-allocation via Vulkan Memory Allocator (VMA), Buffer Device Address (BDA) vertex pulling, and Slang shaders compiled to SPIR-V.
 

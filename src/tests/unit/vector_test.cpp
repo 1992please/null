@@ -79,7 +79,7 @@ NE_TEST_CASE("vector", "Vec3 Operations & Member Functions") {
   NE_TEST_ASSERT(math::equals(a.length(), 3.0f), "Vec3 member length of (1,2,2) must be 3.");
   NE_TEST_ASSERT(math::equals(a.lengthSquared(), 9.0f), "Vec3 member lengthSquared must be 9.");
   NE_TEST_ASSERT(a.getUnsafeNormal().isNormalized(), "Vec3 getUnsafeNormal must be normalized.");
-  NE_TEST_ASSERT(Vec3::Forward.cross(Vec3::Right).equals(Vec3::Up), "Forward x Right in member cross must equal Up (+Z).");
+  NE_TEST_ASSERT(Vec3::Forward.cross(Vec3::Left).equals(Vec3::Up), "Forward x Left in member cross must equal Up (+Z).");
   NE_TEST_ASSERT(Vec3::Zero.getSafeNormal(math::SMALL_NUMBER, Vec3::Up).equals(Vec3::Up), "Vec3 getSafeNormal zero fallback.");
 
   // Indexing and data pointer checks
@@ -103,13 +103,13 @@ NE_TEST_CASE("vector", "Vec3 Operations & Member Functions") {
 
   // Geometric helpers & difference length
   NE_TEST_ASSERT(math::equals((a - Vec3::Zero).length(), 3.0f), "Vec3 distance via difference length must be 3.");
-  NE_TEST_ASSERT(Vec3::Forward.cross(Vec3::Right).equals(Vec3::Up), "Vec3 cross product must equal Up (+Z).");
-  NE_TEST_ASSERT(math::equals(Vec3::Forward.dot(Vec3::Right), 0.0f), "Vec3 dot product must be 0.");
+  NE_TEST_ASSERT(Vec3::Forward.cross(Vec3::Left).equals(Vec3::Up), "Vec3 cross product must equal Up (+Z).");
+  NE_TEST_ASSERT(math::equals(Vec3::Forward.dot(Vec3::Left), 0.0f), "Vec3 dot product must be 0.");
 
   Vec3 fwd = Vec3::Forward;
-  Vec3 right = Vec3::Right;
-  Vec3 up = fwd.cross(right);
-  NE_TEST_ASSERT(up.equals(Vec3::Up), "Forward x Right in LH system must equal Up (+Z).");
+  Vec3 left = Vec3::Left;
+  Vec3 up = fwd.cross(left);
+  NE_TEST_ASSERT(up.equals(Vec3::Up), "Forward x Left in RH system must equal Up (+Z).");
 
   Vec3 normTarget = a;
   NE_TEST_ASSERT(normTarget.normalize(), "Vec3 normalize() must return true for non-zero vector.");

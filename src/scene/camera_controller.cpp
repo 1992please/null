@@ -28,8 +28,8 @@ void CameraController::update(float iDeltaTime, TransformComponent& ioTransform)
   // 2. Mouse look rotation
   if (mIsLooking) {
     Vec2 mouseDelta = Input::getMouseDelta();
-    mYaw += mouseDelta.x * mLookSensitivity;
-    mPitch = math::clamp(mPitch + mouseDelta.y * mLookSensitivity, -89.0f, 89.0f);
+    mYaw -= mouseDelta.x * mLookSensitivity; // Positive yaw turns left (counter-clockwise about +Z)
+    mPitch = math::clamp(mPitch + mouseDelta.y * mLookSensitivity, -89.0f, 89.0f); // Positive pitch tilts down
     ioTransform.setEulerAngles(Vec3(0.0f, mPitch, mYaw));
   }
 
@@ -42,13 +42,13 @@ void CameraController::update(float iDeltaTime, TransformComponent& ioTransform)
   // 4. 1:1 Keyboard translation movement (W/S/A/D/E/Q + Shift)
   if (iDeltaTime > 0.0f) {
     Vec3 forward = ioTransform.getForward();
-    Vec3 right = ioTransform.getRight();
+    Vec3 left = ioTransform.getLeft();
     Vec3 moveDir = Vec3::Zero;
 
     if (Input::isKeyDown(KeyCode::W)) moveDir += forward;
     if (Input::isKeyDown(KeyCode::S)) moveDir -= forward;
-    if (Input::isKeyDown(KeyCode::D)) moveDir += right;
-    if (Input::isKeyDown(KeyCode::A)) moveDir -= right;
+    if (Input::isKeyDown(KeyCode::D)) moveDir -= left;
+    if (Input::isKeyDown(KeyCode::A)) moveDir += left;
     if (Input::isKeyDown(KeyCode::E)) moveDir += Vec3::Up;
     if (Input::isKeyDown(KeyCode::Q)) moveDir -= Vec3::Up;
 

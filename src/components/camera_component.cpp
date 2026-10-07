@@ -73,8 +73,8 @@ void CameraComponent::updateProjection() {
 
     mProjectionMatrix = Mat4(0.0f);
     mProjectionMatrix[0][0] = 1.0f / (mAspectRatio * tanHalfFovy);
-    mProjectionMatrix[1][1] = -1.0f / tanHalfFovy; // Vulkan NDC Y-flip correction (y points down)
-    mProjectionMatrix[2][3] = 1.0f;                // Left Handed
+    mProjectionMatrix[1][1] = 1.0f / tanHalfFovy; // View +Y (down) already matches Vulkan NDC +Y (down)
+    mProjectionMatrix[2][3] = 1.0f;               // Clip w = view depth (+Z forward)
 
     // Floating-point Reverse-Z (Near -> 1.0, Far -> 0.0)
     if (mInfiniteFarClip) {
@@ -91,7 +91,7 @@ void CameraComponent::updateProjection() {
 
     mProjectionMatrix = Mat4(1.0f);
     mProjectionMatrix[0][0] = 1.0f / halfWidth;
-    mProjectionMatrix[1][1] = -1.0f / halfHeight; // Vulkan NDC Y-flip correction (y points down)
+    mProjectionMatrix[1][1] = 1.0f / halfHeight; // View +Y (down) already matches Vulkan NDC +Y (down)
 
     // Floating-point Reverse-Z (Near -> 1.0, Far -> 0.0)
     NE_ASSERT(mFarClip > mNearClip);

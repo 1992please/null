@@ -4,10 +4,11 @@
  * @file math.h
  * @brief Engine Math Master Include Header
  *
- * Engine Coordinate System Specification (Unreal Engine Style):
- *   - World Axes : +X Forward, +Y Right, +Z Up
- *   - Handedness : Left-handed coordinate system
- *                  Right = Up x Forward  (+Y = +Z x +X)
+ * Engine Coordinate System Specification (ROS REP-103):
+ *   - World Axes : +X Forward, +Y Left, +Z Up
+ *   - Handedness : Right-handed coordinate system
+ *                  Up = Forward x Left  (+Z = +X x +Y)
+ *   - Rotations  : Positive angles are counter-clockwise about the axis (right-hand rule)
  */
 
 #include "core/math/math_utils.h"

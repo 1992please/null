@@ -8,10 +8,6 @@ namespace ne {
 /**
  * @struct Transform
  * @brief Pure TRS (Translation, Rotation Quaternion, Scale) struct layout.
- *
- * Adheres to Null Engine's left-handed coordinate system:
- *   - +X Forward, +Y Right, +Z Up
- *   - Identity Rotation: Quat(0.0f, 0.0f, 0.0f, 1.0f) [x=0, y=0, z=0, w=1]
  */
 struct Transform {
   Vec3 position{Vec3::Zero};
@@ -50,10 +46,10 @@ struct Transform {
   }
 
   /**
-   * @brief Gets local right unit vector (+Y transformed by rotation).
+   * @brief Gets local left unit vector (+Y transformed by rotation).
    */
-  Vec3 getRight() const {
-    return rotation * Vec3::Right;
+  Vec3 getLeft() const {
+    return rotation * Vec3::Left;
   }
 
   /**
@@ -95,14 +91,14 @@ struct Transform {
   }
 
   /**
-   * @brief Sets rotation from Pitch (X), Yaw (Y), Roll (Z) Euler angles in degrees.
+   * @brief Sets rotation from Roll (X), Pitch (Y), Yaw (Z) Euler angles in degrees.
    */
   void setEulerAngles(const Vec3& iEulerDegrees) {
     rotation = Quat::fromEuler(iEulerDegrees);
   }
 
   /**
-   * @brief Returns Pitch (X), Yaw (Y), Roll (Z) Euler angles in degrees.
+   * @brief Returns Roll (X), Pitch (Y), Yaw (Z) Euler angles in degrees.
    */
   Vec3 getEulerAngles() const {
     return rotation.toEuler();

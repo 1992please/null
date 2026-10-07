@@ -41,9 +41,9 @@ struct Vec3 {
     return &x;
   }
 
-  // Engine World Standard Basis Vectors (+X Forward, +Y Right, +Z Up)
+  // Engine World Standard Basis Vectors (ROS REP-103: +X Forward, +Y Left, +Z Up)
   static const Vec3 Forward;
-  static const Vec3 Right;
+  static const Vec3 Left;
   static const Vec3 Up;
   static const Vec3 Zero;
   static const Vec3 One;
@@ -227,7 +227,7 @@ struct Vec3 {
 };
 
 inline const Vec3 Vec3::Forward{1.0f, 0.0f, 0.0f};
-inline const Vec3 Vec3::Right{0.0f, 1.0f, 0.0f};
+inline const Vec3 Vec3::Left{0.0f, 1.0f, 0.0f};
 inline const Vec3 Vec3::Up{0.0f, 0.0f, 1.0f};
 inline const Vec3 Vec3::Zero{0.0f, 0.0f, 0.0f};
 inline const Vec3 Vec3::One{1.0f, 1.0f, 1.0f};

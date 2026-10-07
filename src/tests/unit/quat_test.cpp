@@ -19,14 +19,14 @@ NE_TEST_CASE("quat", "Quat Initialization & Identity") {
 }
 
 NE_TEST_CASE("quat", "Quat Angle-Axis & Vector Rotation") {
-  // In Unreal Left-Handed space (+X Forward, +Y Right, +Z Up):
-  // 90 deg rotation around +Z (Up) rotates +X (Forward) into +Y (Right)
+  // In right-handed ROS REP-103 space (+X Forward, +Y Left, +Z Up):
+  // 90 deg rotation around +Z (Up) rotates +X (Forward) into +Y (Left)
   Quat yaw90 = Quat::angleAxis(math::radians(90.0f), Vec3::Up);
   Vec3 rotatedX = yaw90 * Vec3::Forward;
-  NE_TEST_ASSERT(rotatedX.equals(Vec3::Right), "90 deg rotation around +Z must rotate Forward (+X) into Right (+Y).");
+  NE_TEST_ASSERT(rotatedX.equals(Vec3::Left), "90 deg rotation around +Z must rotate Forward (+X) into Left (+Y).");
 
-  // -90 deg rotation around +Y (Right) rotates +X (Forward) into +Z (Up)
-  Quat pitch90 = Quat::angleAxis(math::radians(-90.0f), Vec3::Right);
+  // -90 deg rotation around +Y (Left) rotates +X (Forward) into +Z (Up)
+  Quat pitch90 = Quat::angleAxis(math::radians(-90.0f), Vec3::Left);
   Vec3 pitchedX = pitch90 * Vec3::Forward;
   NE_TEST_ASSERT(pitchedX.equals(Vec3::Up), "-90 deg rotation around +Y must rotate Forward (+X) into Up (+Z).");
 
@@ -41,6 +41,14 @@ NE_TEST_CASE("quat", "Quat fromEuler & toEuler Roundtrip") {
   Vec3 recoveredEuler = q.toEuler();
 
   NE_TEST_ASSERT(recoveredEuler.equals(originalEuler, 1e-3f), "Quat fromEuler -> toEuler roundtrip.");
+}
+
+NE_TEST_CASE("quat", "Quat fromEuler Matches ROS Roll-Pitch-Yaw") {
+  const float roll = 30.0f, pitch = 45.0f, yaw = 60.0f;
+  Quat q = Quat::fromEuler(Vec3(roll, pitch, yaw));
+  Quat expected = Quat::angleAxis(math::radians(yaw), Vec3::Up) * Quat::angleAxis(math::radians(pitch), Vec3::Left) *
+                  Quat::angleAxis(math::radians(roll), Vec3::Forward);
+  NE_TEST_ASSERT(q.equals(expected, 1e-4f), "fromEuler(roll, pitch, yaw) must equal Rz(yaw) * Ry(pitch) * Rx(roll).");
 }
 
 NE_TEST_CASE("quat", "Quat Conjugate & Inversion") {

@@ -21,13 +21,13 @@ NE_TEST_CASE("transform", "Transform Pure TRS & Basis Vector Correctness") {
   Transform tRotFirst(Quat::Identity, Vec3(4.0f, 5.0f, 6.0f));
   NE_TEST_ASSERT(tRotFirst.position.equals(Vec3(4.0f, 5.0f, 6.0f)), "Transform(rot, pos, scale) constructor.");
 
-  // Basis vectors in Unreal Left-Handed space (+X Forward, +Y Right, +Z Up)
+  // Basis vectors in right-handed ROS REP-103 space (+X Forward, +Y Left, +Z Up)
   Vec3 fwd = t.getForward();
-  Vec3 right = t.getRight();
+  Vec3 left = t.getLeft();
   Vec3 up = t.getUp();
 
   NE_TEST_ASSERT(fwd.equals(Vec3::Forward), "Default forward must be +X.");
-  NE_TEST_ASSERT(right.equals(Vec3::Right), "Default right must be +Y.");
+  NE_TEST_ASSERT(left.equals(Vec3::Left), "Default left must be +Y.");
   NE_TEST_ASSERT(up.equals(Vec3::Up), "Default up must be +Z.");
 
   // Transform point (1, 0, 0) by translation (10, 20, 30) and scale 2

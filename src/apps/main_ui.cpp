@@ -152,7 +152,7 @@ void MainUI::drawCameraSettings(BasicApp& iApp) {
       auto& transform = reg->getComponent<TransformComponent>(camEntity);
       auto& camera = reg->getComponent<CameraComponent>(camEntity);
 
-      ImGui::Text("Transform (+X Fwd, +Y Right, +Z Up)");
+      ImGui::Text("Transform (+X Fwd, +Y Left, +Z Up)");
       ImGui::Separator();
       Vec3 pos = transform.getPosition();
       if (ImGui::DragFloat3("Position (m)", &pos.x, 0.05f)) {
@@ -160,7 +160,7 @@ void MainUI::drawCameraSettings(BasicApp& iApp) {
       }
 
       Vec3 euler = transform.getEulerAngles();
-      if (ImGui::DragFloat3("Rotation (deg)", &euler.x, 0.5f)) {
+      if (ImGui::DragFloat3("Roll/Pitch/Yaw (deg)", &euler.x, 0.5f)) {
         transform.setEulerAngles(euler);
       }
 
@@ -234,7 +234,7 @@ void MainUI::drawAboutModal() {
     ImGui::BulletText("Vulkan 1.4 Dynamic Rendering & Synchronization2");
     ImGui::BulletText("Programmable Vertex Pulling via BDA & MDI");
     ImGui::BulletText("Slang Shading Language -> SPIR-V 1.4");
-    ImGui::BulletText("Unreal Coordinate System (+X Fwd, +Y Right, +Z Up)");
+    ImGui::BulletText("ROS REP-103 Coordinate System (+X Fwd, +Y Left, +Z Up)");
     ImGui::BulletText("Floating-Point Reverse-Z Depth (0.0 Far Clear)");
     ImGui::Spacing();
 

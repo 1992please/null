@@ -116,12 +116,12 @@ NE_TEST_CASE("camera", "CameraComponent View and View-Projection Matrix Calculat
   Vec4 eyeInView = view * Vec4(transform.getPosition(), 1.0f);
   NE_TEST_ASSERT(eyeInView.equals(Vec4(0.0f, 0.0f, 0.0f, 1.0f), 1e-4f), "Camera position must map to view-space origin.");
 
-  // Null Engine world axes (+X Forward, +Y Right, +Z Up) map to standard View space (+X Right, +Y Up, +Z Forward)
-  Vec4 rightInView = view * Vec4(transform.getRight(), 0.0f);
+  // Null Engine world axes (+X Forward, +Y Left, +Z Up) map to the optical frame (+X Right, +Y Down, +Z Forward)
+  Vec4 leftInView = view * Vec4(transform.getLeft(), 0.0f);
   Vec4 upInView = view * Vec4(transform.getUp(), 0.0f);
   Vec4 forwardInView = view * Vec4(transform.getForward(), 0.0f);
-  NE_TEST_ASSERT(rightInView.equals(Vec4(1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Camera Right (+Y) must map to View +X.");
-  NE_TEST_ASSERT(upInView.equals(Vec4(0.0f, 1.0f, 0.0f, 0.0f), 1e-4f), "Camera Up (+Z) must map to View +Y.");
+  NE_TEST_ASSERT(leftInView.equals(Vec4(-1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Camera Left (+Y) must map to View -X.");
+  NE_TEST_ASSERT(upInView.equals(Vec4(0.0f, -1.0f, 0.0f, 0.0f), 1e-4f), "Camera Up (+Z) must map to View -Y.");
   NE_TEST_ASSERT(forwardInView.equals(Vec4(0.0f, 0.0f, 1.0f, 0.0f), 1e-4f), "Camera Forward (+X) must map to View +Z.");
 
   Mat4 viewProj = camera.getViewProjectionMatrix(transform);
@@ -137,11 +137,11 @@ NE_TEST_CASE("camera", "CameraComponent View and View-Projection Matrix Calculat
   Vec4 rotEyeInView = rotatedView * Vec4(transform.getPosition(), 1.0f);
   NE_TEST_ASSERT(rotEyeInView.equals(Vec4(0.0f, 0.0f, 0.0f, 1.0f), 1e-4f), "Rotated camera position must map to view-space origin.");
 
-  Vec4 rotRightInView = rotatedView * Vec4(transform.getRight(), 0.0f);
+  Vec4 rotLeftInView = rotatedView * Vec4(transform.getLeft(), 0.0f);
   Vec4 rotUpInView = rotatedView * Vec4(transform.getUp(), 0.0f);
   Vec4 rotForwardInView = rotatedView * Vec4(transform.getForward(), 0.0f);
-  NE_TEST_ASSERT(rotRightInView.equals(Vec4(1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Rotated Camera Right must map to View +X.");
-  NE_TEST_ASSERT(rotUpInView.equals(Vec4(0.0f, 1.0f, 0.0f, 0.0f), 1e-4f), "Rotated Camera Up must map to View +Y.");
+  NE_TEST_ASSERT(rotLeftInView.equals(Vec4(-1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Rotated Camera Left must map to View -X.");
+  NE_TEST_ASSERT(rotUpInView.equals(Vec4(0.0f, -1.0f, 0.0f, 0.0f), 1e-4f), "Rotated Camera Up must map to View -Y.");
   NE_TEST_ASSERT(rotForwardInView.equals(Vec4(0.0f, 0.0f, 1.0f, 0.0f), 1e-4f), "Rotated Camera Forward must map to View +Z.");
 
   // 3. World point in front of camera maps to positive Z in view space
@@ -150,6 +150,31 @@ NE_TEST_CASE("camera", "CameraComponent View and View-Projection Matrix Calculat
   NE_TEST_ASSERT(math::equals(targetView.x, 0.0f, 1e-4f), "Point directly forward must have view X = 0.");
   NE_TEST_ASSERT(math::equals(targetView.y, 0.0f, 1e-4f), "Point directly forward must have view Y = 0.");
   NE_TEST_ASSERT(math::equals(targetView.z, 5.0f, 1e-4f), "Point 5 units forward must have view Z = 5.");
+}
+
+NE_TEST_CASE("camera", "CameraComponent Screen Orientation Is Not Mirrored") {
+  CameraComponent camera;
+  camera.setPerspective(60.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+
+  TransformComponent transform;
+  transform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
+  Mat4 viewProj = camera.getViewProjectionMatrix(transform);
+
+  // Vulkan NDC: +X right, +Y down. World +Y (Left) must land on the left half, world +Z (Up) on the top half.
+  Vec4 leftClip = viewProj * Vec4(0.0f, 1.0f, 0.0f, 1.0f);
+  Vec4 upClip = viewProj * Vec4(0.0f, 0.0f, 1.0f, 1.0f);
+  NE_TEST_ASSERT(leftClip.x / leftClip.w < 0.0f, "World +Y (Left) must project to NDC -X (screen left).");
+  NE_TEST_ASSERT(math::equals(leftClip.y / leftClip.w, 0.0f, 1e-4f), "World +Y must stay on the horizon.");
+  NE_TEST_ASSERT(upClip.y / upClip.w < 0.0f, "World +Z (Up) must project to NDC -Y (screen top).");
+  NE_TEST_ASSERT(math::equals(upClip.x / upClip.w, 0.0f, 1e-4f), "World +Z must stay on the vertical center line.");
+
+  // Orthographic projection must keep the same orientation
+  camera.setOrthographic(10.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+  viewProj = camera.getViewProjectionMatrix(transform);
+  leftClip = viewProj * Vec4(0.0f, 1.0f, 0.0f, 1.0f);
+  upClip = viewProj * Vec4(0.0f, 0.0f, 1.0f, 1.0f);
+  NE_TEST_ASSERT(leftClip.x / leftClip.w < 0.0f, "Ortho: World +Y (Left) must project to NDC -X (screen left).");
+  NE_TEST_ASSERT(upClip.y / upClip.w < 0.0f, "Ortho: World +Z (Up) must project to NDC -Y (screen top).");
 }
 
 } // namespace ne::test

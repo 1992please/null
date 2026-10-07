@@ -70,7 +70,8 @@ struct Quat {
   }
 
   /**
-   * @brief Constructs a rotation quaternion from Euler angles in degrees (Pitch=X, Yaw=Y, Roll=Z).
+   * @brief Constructs a rotation quaternion from Euler angles in degrees (Roll=X, Pitch=Y, Yaw=Z).
+   * Composed as Yaw * Pitch * Roll (rotate about X, then Y, then Z in the fixed frame), matching ROS RPY.
    */
   static inline Quat fromEuler(const Vec3& iEulerDegrees) {
     float radX = math::radians(iEulerDegrees.x) * 0.5f;
@@ -195,34 +196,34 @@ struct Quat {
   }
 
   /**
-   * @brief Converts the quaternion to Euler angles in degrees (Pitch=X, Yaw=Y, Roll=Z).
+   * @brief Converts the quaternion to Euler angles in degrees (Roll=X, Pitch=Y, Yaw=Z).
    */
   inline Vec3 toEuler() const {
-    // Pitch (X-axis rotation)
-    float pitchY = 2.0f * (y * z + w * x);
-    float pitchX = w * w - x * x - y * y + z * z;
-    float pitchRad = 0.0f;
-    if (math::abs(pitchX) < math::SMALL_NUMBER && math::abs(pitchY) < math::SMALL_NUMBER) {
-      pitchRad = 2.0f * math::atan2(x, w);
-    } else {
-      pitchRad = math::atan2(pitchY, pitchX);
-    }
-
-    // Yaw (Y-axis rotation)
-    float sinYaw = math::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f);
-    float yawRad = math::asin(sinYaw);
-
-    // Roll (Z-axis rotation)
-    float rollY = 2.0f * (x * y + w * z);
-    float rollX = w * w + x * x - y * y - z * z;
+    // Roll (X-axis rotation)
+    float rollY = 2.0f * (y * z + w * x);
+    float rollX = w * w - x * x - y * y + z * z;
     float rollRad = 0.0f;
     if (math::abs(rollX) < math::SMALL_NUMBER && math::abs(rollY) < math::SMALL_NUMBER) {
-      rollRad = 0.0f;
+      rollRad = 2.0f * math::atan2(x, w);
     } else {
       rollRad = math::atan2(rollY, rollX);
     }
 
-    return Vec3(math::degrees(pitchRad), math::degrees(yawRad), math::degrees(rollRad));
+    // Pitch (Y-axis rotation)
+    float sinPitch = math::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f);
+    float pitchRad = math::asin(sinPitch);
+
+    // Yaw (Z-axis rotation)
+    float yawY = 2.0f * (x * y + w * z);
+    float yawX = w * w + x * x - y * y - z * z;
+    float yawRad = 0.0f;
+    if (math::abs(yawX) < math::SMALL_NUMBER && math::abs(yawY) < math::SMALL_NUMBER) {
+      yawRad = 0.0f;
+    } else {
+      yawRad = math::atan2(yawY, yawX);
+    }
+
+    return Vec3(math::degrees(rollRad), math::degrees(pitchRad), math::degrees(yawRad));
   }
 
   /**
