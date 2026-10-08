@@ -3,7 +3,7 @@
 #include "core/mesh_data.h"
 #include "renderer/buffer.h"
 #include "renderer/device.h"
-#include "renderer/mesh.h"
+#include "renderer/gpu_types.h"
 #include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
@@ -34,25 +34,25 @@ GeometryAllocator::GeometryAllocator(Device* iDevice, VkDeviceSize iVertexPoolSi
 
 GeometryAllocator::~GeometryAllocator() = default;
 
-GeometryAllocation GeometryAllocator::stageGeometry(StagingManager& iStagingManager, const MeshData& iMeshData) {
-  NE_ASSERT(!iMeshData.mPositions.empty(), "Mesh positions cannot be empty");
-  NE_ASSERT(!iMeshData.mIndices.empty(), "Mesh indices cannot be empty");
+Mesh::Submesh GeometryAllocator::stageSubmesh(StagingManager& iStagingManager, const SubmeshData& iSubmeshData) {
+  NE_ASSERT(!iSubmeshData.mPositions.empty(), "Mesh positions cannot be empty");
+  NE_ASSERT(!iSubmeshData.mIndices.empty(), "Mesh indices cannot be empty");
 
-  const size_t vertexCount = iMeshData.mPositions.size();
-  const bool hasNormals = (iMeshData.mNormals.size() == vertexCount);
-  const bool hasTexCoords = (iMeshData.mTexCoords.size() == vertexCount);
-  const bool hasColors = (iMeshData.mColors.size() == vertexCount);
+  const size_t vertexCount = iSubmeshData.mPositions.size();
+  const bool hasNormals = (iSubmeshData.mNormals.size() == vertexCount);
+  const bool hasTexCoords = (iSubmeshData.mTexCoords.size() == vertexCount);
+  const bool hasColors = (iSubmeshData.mColors.size() == vertexCount);
 
-  std::vector<Mesh::Vertex> vertices(vertexCount);
+  std::vector<gpu::Vertex> vertices(vertexCount);
   for (size_t i = 0; i < vertexCount; ++i) {
-    vertices[i].mPos = iMeshData.mPositions[i];
-    vertices[i].mNormal = hasNormals ? iMeshData.mNormals[i] : Vec3(0.0f, 0.0f, 1.0f);
-    vertices[i].mTexCoord = hasTexCoords ? iMeshData.mTexCoords[i] : Vec2(0.0f, 0.0f);
-    vertices[i].mColor = hasColors ? Vec4(iMeshData.mColors[i], 1.0f) : Vec4(1.0f);
+    vertices[i].pos = iSubmeshData.mPositions[i];
+    vertices[i].normal = hasNormals ? iSubmeshData.mNormals[i] : Vec3(0.0f, 0.0f, 1.0f);
+    vertices[i].uv = hasTexCoords ? iSubmeshData.mTexCoords[i] : Vec2(0.0f, 0.0f);
+    vertices[i].color = hasColors ? Vec4(iSubmeshData.mColors[i], 1.0f) : Vec4(1.0f);
   }
 
-  VkDeviceSize vertexSize = vertices.size() * sizeof(Mesh::Vertex);
-  VkDeviceSize indexSize = iMeshData.mIndices.size() * sizeof(uint32_t);
+  VkDeviceSize vertexSize = vertices.size() * sizeof(gpu::Vertex);
+  VkDeviceSize indexSize = iSubmeshData.mIndices.size() * sizeof(uint32_t);
 
   VkDeviceSize vertexOffset = mVertexBuffer->suballocate(vertexSize);
   VkDeviceSize indexOffset = mIndexBuffer->suballocate(indexSize);
@@ -65,12 +65,13 @@ GeometryAllocation GeometryAllocator::stageGeometry(StagingManager& iStagingMana
          (static_cast<double>(mIndexBuffer->getUploadOffset()) / mIndexBuffer->getConfig().size) * 100.0);
 
   iStagingManager.stageBufferCopy(mVertexBuffer->getBuffer(), vertices.data(), vertexSize, vertexOffset);
-  iStagingManager.stageBufferCopy(mIndexBuffer->getBuffer(), iMeshData.mIndices.data(), indexSize, indexOffset);
+  iStagingManager.stageBufferCopy(mIndexBuffer->getBuffer(), iSubmeshData.mIndices.data(), indexSize, indexOffset);
 
-  GeometryAllocation alloc{};
-  alloc.mVertexAddress = mVertexBuffer->getDeviceAddress(vertexOffset);
-  alloc.mFirstIndex = static_cast<uint32_t>(indexOffset / sizeof(uint32_t));
-  return alloc;
+  return Mesh::Submesh{
+      .mVertexAddress = mVertexBuffer->getDeviceAddress(vertexOffset),
+      .mFirstIndex = static_cast<uint32_t>(indexOffset / sizeof(uint32_t)),
+      .mIndexCount = static_cast<uint32_t>(iSubmeshData.mIndices.size()),
+  };
 }
 
 void GeometryAllocator::bindIndexBuffer(VkCommandBuffer iCommandBuffer) const {

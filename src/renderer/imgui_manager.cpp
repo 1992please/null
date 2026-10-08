@@ -89,8 +89,8 @@ bool ImGuiManager::wantsCaptureKeyboard() const { return ImGui::GetIO().WantCapt
 
 void ImGuiManager::setupIO() {
   ImGuiIO& io = ImGui::GetIO();
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
-  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+  io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
   io.ConfigNavCaptureKeyboard = false;
 
   mIniPath = fs::resolveSavedPath("imgui.ini");
@@ -103,7 +103,6 @@ void ImGuiManager::setupStyle() {
 
   ImGuiStyle& style = ImGui::GetStyle();
 
-  // Bake the right scaling
   float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(mWindow->getPrimaryMonitor());
   style.ScaleAllSizes(main_scale);
   style.FontScaleDpi = main_scale;

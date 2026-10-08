@@ -9,13 +9,12 @@ CameraController::CameraController(float iMoveSpeed, float iLookSensitivity)
     : mMoveSpeed(iMoveSpeed), mLookSensitivity(iLookSensitivity) {}
 
 void CameraController::update(float iDeltaTime, TransformComponent& ioTransform) {
-  // 1. Mouse look toggle and orientation synchronization
   if (Input::isMouseButtonPressed(MouseButton::Right)) {
     mIsLooking = true;
     Input::setCursorMode(CursorMode::Disabled);
 
-    // Synchronize pitch and yaw from current transform orientation once at look start
-    Vec3 euler = ioTransform.getEulerAngles();
+    // Start from the current orientation
+    Vec3 euler = ioTransform.getLocal().getEulerAngles();
     mPitch = euler.y;
     mYaw = euler.z;
   } else if (Input::isMouseButtonReleased(MouseButton::Right)) {
@@ -25,24 +24,21 @@ void CameraController::update(float iDeltaTime, TransformComponent& ioTransform)
     }
   }
 
-  // 2. Mouse look rotation
   if (mIsLooking) {
     Vec2 mouseDelta = Input::getMouseDelta();
     mYaw -= mouseDelta.x * mLookSensitivity; // Positive yaw turns left (counter-clockwise about +Z)
     mPitch = math::clamp(mPitch + mouseDelta.y * mLookSensitivity, -89.0f, 89.0f); // Positive pitch tilts down
-    ioTransform.setEulerAngles(Vec3(0.0f, mPitch, mYaw));
+    ioTransform.setLocalRotation(Quat::fromEuler(Vec3(0.0f, mPitch, mYaw)));
   }
 
-  // 3. Mouse wheel speed adjustment
   Vec2 scroll = Input::getMouseScroll();
   if (scroll.y != 0.0f) {
     mMoveSpeed = math::clamp(mMoveSpeed + scroll.y * 0.5f, 0.2f, 50.0f);
   }
 
-  // 4. 1:1 Keyboard translation movement (W/S/A/D/E/Q + Shift)
   if (iDeltaTime > 0.0f) {
-    Vec3 forward = ioTransform.getForward();
-    Vec3 left = ioTransform.getLeft();
+    Vec3 forward = ioTransform.getLocal().getForward();
+    Vec3 left = ioTransform.getLocal().getLeft();
     Vec3 moveDir = Vec3::Zero;
 
     if (Input::isKeyDown(KeyCode::W)) moveDir += forward;
@@ -55,7 +51,7 @@ void CameraController::update(float iDeltaTime, TransformComponent& ioTransform)
     if (moveDir.lengthSquared() > math::SMALL_NUMBER) {
       moveDir.normalize();
       float speed = mMoveSpeed * (Input::isShiftDown() ? 2.5f : 1.0f);
-      ioTransform.translate(moveDir * (speed * iDeltaTime));
+      ioTransform.setLocalPosition(ioTransform.getLocal().position + moveDir * (speed * iDeltaTime));
     }
   }
 }

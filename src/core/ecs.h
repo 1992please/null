@@ -10,11 +10,7 @@
 
 namespace ne {
 
-/**
- * @brief Generational entity handle representing a unique entity in the ECS.
- * Combines a 32-bit entity ID (index) with a 32-bit generation version counter
- * to prevent use-after-free bugs when entity IDs are recycled.
- */
+// The version changes whenever an id is recycled, so stale handles stay invalid
 struct Entity {
   static constexpr uint32_t INVALID_ID = ~0U;
 
@@ -41,9 +37,6 @@ struct hash<ne::Entity> {
 
 namespace ne {
 
-/**
- * @brief Abstract base interface for component storage pools.
- */
 class IComponentPool {
 public:
   virtual ~IComponentPool() = default;
@@ -52,11 +45,7 @@ public:
   virtual void clear() = 0;
 };
 
-/**
- * @brief High-performance Sparse Set component storage.
- * Maintains dense arrays for components and entities to guarantee contiguous
- * cache-line friendly memory layout and O(1) swap-and-pop removal.
- */
+// Sparse set: components are stored densely for cache-friendly iteration
 template <typename ComponentType>
 class ComponentPool : public IComponentPool {
 public:
@@ -74,9 +63,7 @@ public:
     mSparse.reserve(reserveEntities > 0 ? reserveEntities : reserveComponents);
   }
 
-  /**
-   * @brief Construct a component in-place for an entity.
-   */
+  // Replaces the component if the entity already has one
   template <typename... Args>
   ComponentType& emplace(Entity iEntity, Args&&... iArgs) {
     NE_ASSERT(iEntity.isValid(), "Entity handle is invalid.");
@@ -108,9 +95,7 @@ public:
     return add(iEntity);
   }
 
-  /**
-   * @brief Remove component associated with entity using O(1) swap-and-pop.
-   */
+  // Swap-and-pop: moves the last component into the hole, invalidating references to it
   void remove(Entity iEntity) {
     NE_ASSERT(has(iEntity), "Entity does not have specified component.");
     uint32_t removedDenseIdx = mSparse[iEntity.mId];
@@ -166,7 +151,6 @@ public:
   const std::vector<Entity>& entities() const { return mDenseEntities; }
   const std::vector<ComponentType>& components() const { return mDenseComponents; }
 
-  // Range-based iteration support over contiguous dense components
   auto begin() { return mDenseComponents.begin(); }
   auto end() { return mDenseComponents.end(); }
   auto begin() const { return mDenseComponents.cbegin(); }
@@ -179,19 +163,12 @@ private:
   std::vector<ComponentType> mDenseComponents;
 };
 
-/**
- * @brief Zero-allocation multi-component view for iterating over entities
- * matching a set of required component types.
- */
 template <typename... Components>
 class View {
 public:
   View(ComponentPool<Components>&... iPools) : mPools(std::forward_as_tuple(iPools...)) {}
 
-  /**
-   * @brief Iterate matching entities. Callback can accept (Entity, Comp1&, Comp2&...)
-   * or (Comp1&, Comp2&...).
-   */
+  // The callback takes (Entity, Components&...) or (Components&...)
   template <typename Func>
   void each(Func&& iFunc) {
     const std::vector<Entity>* smallestEntities = getSmallestEntities();
@@ -232,9 +209,6 @@ private:
   std::tuple<ComponentPool<Components>&...> mPools;
 };
 
-/**
- * @brief Central manager for creating entities, attaching components, and managing system views.
- */
 class Registry {
 public:
   Registry(int32_t inExpectedNumOfEntities = 100) { reserveEntities(inExpectedNumOfEntities); }
@@ -247,9 +221,6 @@ public:
 
   void reserveEntities(int32_t count) { mGenerations.reserve(count); }
 
-  /**
-   * @brief Create a new entity with a unique generational handle.
-   */
   Entity createEntity() {
     uint32_t id;
     if (!mFreeEntities.empty()) {
@@ -262,9 +233,6 @@ public:
     return Entity{id, mGenerations[id]};
   }
 
-  /**
-   * @brief Destroy entity, invalidate its handles, and remove all attached components.
-   */
   void destroyEntity(Entity iEntity) {
     if (!isValid(iEntity))
       return;
@@ -279,9 +247,6 @@ public:
     mFreeEntities.push_back(iEntity.mId);
   }
 
-  /**
-   * @brief Check if an entity handle is valid and active.
-   */
   bool isValid(Entity iEntity) const {
     return iEntity.isValid() && iEntity.mId < mGenerations.size() && mGenerations[iEntity.mId] == iEntity.mVersion;
   }

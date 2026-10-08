@@ -24,7 +24,6 @@ public:
   virtual void update(float iDeltaTime) override;
   virtual void renderUI() override;
 
-  // UI & Inspection Accessors
   Entity getCameraEntity() const { return mCameraEntity; }
   CameraController& getCameraController() { return mCameraController; }
   MainUI& getMainUI() { return mMainUI; }
@@ -37,14 +36,11 @@ private:
 
   CameraController mCameraController;
 
-  // Showcase assets
   std::vector<std::shared_ptr<Mesh>> mLoadedMeshes;
   std::shared_ptr<Material> mCube1Material;
   std::shared_ptr<Material> mCube2Material;
-  std::shared_ptr<Material> mHelmetMaterial;
   float mCurrentRotationAngle{0.0f};
 
-  // Modular UI
   MainUI mMainUI;
 };
 } // namespace ne

@@ -12,11 +12,7 @@ namespace ne {
 class Instance;
 class Device;
 
-/**
- * @class MemoryAllocator
- * @brief Sole owner of the Vulkan Memory Allocator (VMA). Creates and destroys memory-backed
- * buffers and images; no other translation unit includes or calls VMA.
- */
+// The only code that includes or calls VMA
 class MemoryAllocator {
 public:
   struct BufferAllocation {

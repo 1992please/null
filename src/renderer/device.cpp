@@ -65,10 +65,8 @@ void Device::pickPhysicalDevice(VkInstance iInstance, const Config& iConfig) {
   for (VkPhysicalDevice& physicalDevice : physicalDevices) {
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-    // Vulkan Support
     const bool supportsVulkanApi = physicalDeviceProperties.apiVersion >= VK_API_VERSION_1_3;
 
-    // Get supported device queue
     uint32_t physicalDeviceQueueIndex = ~0U;
     uint32_t deviceQueueFamilyPropertyCount;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &deviceQueueFamilyPropertyCount, nullptr);
@@ -136,32 +134,26 @@ void Device::pickPhysicalDevice(VkInstance iInstance, const Config& iConfig) {
     VkPhysicalDeviceFeatures2 features2{};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features2.pNext = &vulkan11Features; // Start of the chain
-    // Query all features at once
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
-    // Modern Vulkan 1.3 Core: Dynamic Rendering (no legacy VkRenderPass) & Synchronization2 barriers
     const bool supportsModernPipeline = vulkan13Features.dynamicRendering && vulkan13Features.synchronization2;
 
-    // Buffer Device Address (BDA) & C++ Struct Alignment: 64-bit GPU vertex and uniform pulling
+    // Vertex pulling and shader-shared structs through 64-bit buffer addresses
     const bool supportsBufferDeviceAddress = vulkan12Features.bufferDeviceAddress && vulkan12Features.scalarBlockLayout;
 
-    // GPU-Driven Rendering: Indirect multi-draw commands & shader draw/base-instance parameters
+    // Multi-draw indirect with SV_DrawIndex
     const bool supportsGpuDrivenRendering = features2.features.multiDrawIndirect && vulkan11Features.shaderDrawParameters;
 
-    // Texture Sampling: Anisotropic filtering for high-fidelity texture lookups
     const bool supportsTextureFiltering = features2.features.samplerAnisotropy;
 
-    // Bindless Architecture: Unbounded texture arrays, update-after-bind, and partially-bound descriptors
     const bool supportsDescriptorIndexing =
         vulkan12Features.descriptorIndexing && vulkan12Features.shaderSampledImageArrayNonUniformIndexing &&
         vulkan12Features.descriptorBindingSampledImageUpdateAfterBind && vulkan12Features.descriptorBindingPartiallyBound &&
         vulkan12Features.runtimeDescriptorArray;
 
-    // All required engine features must be supported by the physical device
     const bool supportsRequiredFeatures = supportsModernPipeline && supportsBufferDeviceAddress && supportsGpuDrivenRendering &&
                                           supportsTextureFiltering && supportsDescriptorIndexing;
 
-    // this features are a must to continue using this device
     if (!(supportsVulkanApi && supportRequiredQueueFamilies && supportsAllRequiredExtensions && supportsSwapChain &&
           supportsRequiredFeatures)) {
       continue;

@@ -6,12 +6,12 @@
 #include "renderer/bindless_manager.h"
 #include "renderer/device.h"
 #include "renderer/geometry_allocator.h"
+#include "renderer/gpu_types.h"
 #include "renderer/image.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
 #include "renderer/sampler_manager.h"
-#include "renderer/scene_types.h"
 #include "renderer/staging_manager.h"
 #include "renderer/utils.h"
 
@@ -25,29 +25,28 @@ ResourceManager::ResourceManager(Device* iDevice, VkFormat iDefaultColorFormat, 
   mGeometryAllocator = std::make_unique<GeometryAllocator>(mDevice, vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
   mBindlessManager = std::make_unique<BindlessManager>(mDevice->getDevice(), mSamplerManager.get());
 
-  // Create unified scene pipeline layout (Set 0: Bindless, PushConstants: PushConstants struct)
   VkDescriptorSetLayout setLayout = mBindlessManager->getDescriptorSetLayout();
   VkPushConstantRange pushConstantRange{};
   pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
   pushConstantRange.offset = 0;
-  pushConstantRange.size = sizeof(PushConstants);
+  pushConstantRange.size = sizeof(gpu::PushConstants);
 
   mScenePipelineLayout =
       Pipeline::createPipelineLayout(mDevice->getDevice(), {setLayout}, {pushConstantRange}, "Scene_PipelineLayout");
 
-  // Create and register default fallback 1x1 white texture (index 0)
+  // Materials default to texture index 0, so it must be the white fallback
   ImageData whiteData = ImageData::createWhite1x1();
   uint32_t defaultTexIdx = createTexture(whiteData, true, "Default_White_Texture");
   NE_ASSERT(defaultTexIdx == 0, "Fallback white texture must occupy bindless texture index 0");
 }
 
 ResourceManager::~ResourceManager() {
+  mStagingManager.reset();
   mTextures.clear();
   mPipelines.clear();
   Pipeline::destroyPipelineLayout(mDevice->getDevice(), mScenePipelineLayout);
   mBindlessManager.reset();
   mGeometryAllocator.reset();
-  mStagingManager.reset();
   mSamplerManager.reset();
 }
 
@@ -66,7 +65,6 @@ std::shared_ptr<Pipeline> ResourceManager::getOrCreatePipeline(const std::string
       .depthAttachmentFormat = mDefaultDepthFormat,
   };
 
-  // Pipeline is created in ResourceManager, passing mDevice->getDevice()
   auto pipeline = std::make_shared<Pipeline>(mDevice->getDevice(), config);
   mPipelines[shaderName] = pipeline;
   return pipeline;
@@ -80,8 +78,12 @@ std::shared_ptr<Mesh> ResourceManager::createMesh(const MeshData& iMeshData) {
   if (!mStagingManager->isBatching()) {
     mStagingManager->beginBatch();
   }
-  GeometryAllocation alloc = mGeometryAllocator->stageGeometry(*mStagingManager, iMeshData);
-  return std::make_shared<Mesh>(alloc, static_cast<uint32_t>(iMeshData.mIndices.size()));
+  std::vector<Mesh::Submesh> submeshes;
+  submeshes.reserve(iMeshData.mSubmeshes.size());
+  for (const SubmeshData& submesh : iMeshData.mSubmeshes) {
+    submeshes.push_back(mGeometryAllocator->stageSubmesh(*mStagingManager, submesh));
+  }
+  return std::make_shared<Mesh>(std::move(submeshes));
 }
 
 uint32_t ResourceManager::createTexture(const ImageData& iImageData, bool iSrgb, const std::string& iDebugName) {

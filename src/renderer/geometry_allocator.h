@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderer/mesh.h"
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -10,26 +11,20 @@ namespace ne {
 class Device;
 class Buffer;
 class StagingManager;
-struct MeshData;
-
-struct GeometryAllocation {
-  VkDeviceAddress mVertexAddress = 0;
-  uint32_t mFirstIndex = 0;
-};
+struct SubmeshData;
 
 class GeometryAllocator {
 public:
   GeometryAllocator(Device* iDevice, VkDeviceSize iVertexPoolSize, VkDeviceSize iIndexPoolSize);
   ~GeometryAllocator();
 
-  // Pinned resource (non-copyable, non-movable)
   GeometryAllocator(const GeometryAllocator&) = delete;
   GeometryAllocator& operator=(const GeometryAllocator&) = delete;
   GeometryAllocator(GeometryAllocator&&) = delete;
   GeometryAllocator& operator=(GeometryAllocator&&) = delete;
 
-  // Stages geometry copies into StagingManager
-  GeometryAllocation stageGeometry(StagingManager& iStagingManager, const MeshData& iMeshData);
+  // Sub-allocates the submesh in the vertex and index pools and stages its copies into StagingManager
+  Mesh::Submesh stageSubmesh(StagingManager& iStagingManager, const SubmeshData& iSubmeshData);
 
   void bindIndexBuffer(VkCommandBuffer iCommandBuffer) const;
 

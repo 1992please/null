@@ -9,26 +9,19 @@ namespace ne {
 
 class Device;
 
-/**
- * @class SamplerManager
- * @brief Centralized manager owning the pre-allocated standard Vulkan samplers.
- * Pure O(1) lookup with zero dynamic heap allocations. Pinned Vulkan RAII resource.
- */
 class SamplerManager {
 public:
   SamplerManager(Device* iDevice);
   ~SamplerManager();
 
-  // Non-copyable and non-moveable (pinned Vulkan RAII resource)
   SamplerManager(const SamplerManager&) = delete;
   SamplerManager& operator=(const SamplerManager&) = delete;
   SamplerManager(SamplerManager&&) = delete;
   SamplerManager& operator=(SamplerManager&&) = delete;
 
-  // Fast O(1) standard sampler lookup
   VkSampler get(SamplerType iType) const;
 
-  // Array access for bindless descriptor set updates
+  // Indexed by SamplerType, for the bindless descriptor set
   const std::array<VkSampler, static_cast<size_t>(SamplerType::Count)>& getSamplers() const { return mSamplers; }
 
 private:
@@ -37,7 +30,6 @@ private:
 
   VkDevice mDevice = VK_NULL_HANDLE;
 
-  // Pre-allocated immutable samplers
   std::array<VkSampler, static_cast<size_t>(SamplerType::Count)> mSamplers{};
 };
 

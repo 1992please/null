@@ -9,12 +9,12 @@
 #include "renderer/device.h"
 #include "renderer/frame_renderer.h"
 #include "renderer/geometry_allocator.h"
+#include "renderer/gpu_types.h"
 #include "renderer/image.h"
 #include "renderer/imgui_manager.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/pipeline.h"
-#include "renderer/scene_types.h"
 #include "renderer/utils.h"
 
 // std
@@ -45,7 +45,6 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
   Image* depthImage = mFrameRenderer->getDepthImage();
   NE_ASSERT(depthImage, "Depth image must not be null");
 
-  // 1. Begin Swapchain Render Pass
   VkImageSubresourceRange colorSubresourceRange{
       .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
       .baseMipLevel = 0,
@@ -98,44 +97,46 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
   vkCmdSetViewport(iCommandBuffer, 0, 1, &viewport);
   vkCmdSetScissor(iCommandBuffer, 0, 1, &scissor);
 
-  // Bind global index buffer
   mGeometryAllocator->bindIndexBuffer(iCommandBuffer);
 
-  // Bind global scene bindless descriptor set (Set 0)
   mBindlessManager->bind(iCommandBuffer, mScenePipelineLayout);
 
-  // 2. Resolve Primary Camera ViewProjection Matrix
   Mat4 viewProj{1.0f};
   iRegistry->view<TransformComponent, CameraComponent>().each(
       [&](Entity entity, const TransformComponent& transform, const CameraComponent& camera) {
         NE_UNUSED(entity);
         if (camera.mIsPrimary) {
-          viewProj = camera.getViewProjectionMatrix(transform);
+          viewProj = camera.getViewProjectionMatrix(transform.getWorldMatrix());
         }
       });
 
-  // 3. Collect Draw Batches from ECS Meshes
   iRegistry->view<TransformComponent, MeshComponent>().each(
       [&](Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
         NE_UNUSED(entity);
-        if (mesh.mMesh && mesh.mMaterial && mesh.mMaterial->getPipeline()) {
-          mDrawCalls.push_back(DrawCall{.pipeline = mesh.mMaterial->getPipeline(),
-                                        .mesh = mesh.mMesh.get(),
-                                        .transform = transform.getLocalMatrix(),
-                                        .color = mesh.mColorTint,
-                                        .textureIndex = mesh.mMaterial->getTextureIndex(),
-                                        .samplerIndex = static_cast<uint32_t>(mesh.mMaterial->getSamplerType())});
+        if (!mesh.mMesh) {
+          return;
+        }
+        const std::vector<Mesh::Submesh>& submeshes = mesh.mMesh->getSubmeshes();
+        const size_t drawnCount = std::min(submeshes.size(), mesh.mMaterials.size());
+        for (size_t i = 0; i < drawnCount; ++i) {
+          const Material* material = mesh.mMaterials[i].get();
+          if (material && material->getPipeline()) {
+            mDrawCalls.push_back(DrawCall{.pipeline = material->getPipeline(),
+                                          .submesh = &submeshes[i],
+                                          .transform = transform.getWorldMatrix(),
+                                          .color = mesh.mColorTint,
+                                          .textureIndex = material->getTextureIndex(),
+                                          .samplerIndex = static_cast<uint32_t>(material->getSamplerType())});
+          }
         }
       });
 
   submit(iCommandBuffer, viewProj);
 
-  // 4. Render ImGui Overlay
   if (iGuiManager) {
     iGuiManager->draw(iCommandBuffer);
   }
 
-  // 5. End Swapchain Render Pass
   vkCmdEndRendering(iCommandBuffer);
 
   vk_utils::transitionImageLayout(iCommandBuffer, activeColorImage, colorSubresourceRange, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
@@ -164,32 +165,31 @@ void SceneRenderer::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
 
   NE_ASSERT(iCommandBuffer != VK_NULL_HANDLE);
 
-  // 1. Sort mDrawCalls by Pipeline*, then Mesh* to group identical draws
+  // Adjacent draws of the same submesh become one instanced indirect draw
   std::sort(mDrawCalls.begin(), mDrawCalls.end(), [](const DrawCall& a, const DrawCall& b) {
     if (a.pipeline != b.pipeline) {
       return a.pipeline < b.pipeline;
     }
-    return a.mesh < b.mesh;
+    return a.submesh < b.submesh;
   });
 
-  // 2. Calculate the exact upload buffer size needed for this frame
-  VkDeviceSize totalRequiredSize = sizeof(GlobalUniforms) + 16;
+  // +16 per upload covers its worst-case alignment padding
+  VkDeviceSize totalRequiredSize = sizeof(gpu::GlobalUniforms) + 16;
   Pipeline* lastPipeline = nullptr;
-  Mesh* lastMesh = nullptr;
+  const Mesh::Submesh* lastSubmesh = nullptr;
   for (const auto& call : mDrawCalls) {
     if (call.pipeline != lastPipeline) {
       lastPipeline = call.pipeline;
-      lastMesh = nullptr;
+      lastSubmesh = nullptr;
     }
-    if (call.mesh != lastMesh) {
-      lastMesh = call.mesh;
-      totalRequiredSize += sizeof(DrawInfo) + 16;
+    if (call.submesh != lastSubmesh) {
+      lastSubmesh = call.submesh;
+      totalRequiredSize += sizeof(gpu::DrawInfo) + 16;
       totalRequiredSize += sizeof(VkDrawIndexedIndirectCommand) + 16;
     }
-    totalRequiredSize += sizeof(InstanceData) + 16;
+    totalRequiredSize += sizeof(gpu::InstanceData) + 16;
   }
 
-  // 3. Check and dynamically resize the upload buffer if needed
   Buffer* uploadBuffer = mFrameRenderer->getUploadBuffer();
   if (uploadBuffer->getConfig().size < totalRequiredSize) {
     VkDeviceSize newSize = std::max(totalRequiredSize, uploadBuffer->getConfig().size * 2);
@@ -197,13 +197,11 @@ void SceneRenderer::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
     uploadBuffer = mFrameRenderer->getUploadBuffer();
   }
 
-  // 4. Upload scene-wide uniforms
-  GlobalUniforms globalUniforms;
+  gpu::GlobalUniforms globalUniforms;
   globalUniforms.viewProj = iViewProj;
   VkDeviceAddress globalUniformsAddr =
-      uploadBuffer->getDeviceAddress(uploadBuffer->upload(&globalUniforms, sizeof(GlobalUniforms)));
+      uploadBuffer->getDeviceAddress(uploadBuffer->upload(&globalUniforms, sizeof(gpu::GlobalUniforms)));
 
-  // 5. Loop through sorted mDrawCalls and batch/submit
   size_t i = 0;
   Pipeline* currentPipeline = nullptr;
   while (i < mDrawCalls.size()) {
@@ -212,60 +210,58 @@ void SceneRenderer::submit(VkCommandBuffer iCommandBuffer, const Mat4& iViewProj
       currentPipeline->bind(iCommandBuffer);
     }
 
-    std::vector<DrawInfo> drawInfos;
-    std::vector<InstanceData> instanceData;
+    std::vector<gpu::DrawInfo> drawInfos;
+    std::vector<gpu::InstanceData> instanceData;
     std::vector<VkDrawIndexedIndirectCommand> indirectCommands;
 
-    // Collect all batches for this pipeline
     while (i < mDrawCalls.size() && mDrawCalls[i].pipeline == currentPipeline) {
-      Mesh* currentMesh = mDrawCalls[i].mesh;
+      const Mesh::Submesh* currentSubmesh = mDrawCalls[i].submesh;
       uint32_t startInstanceOffset = static_cast<uint32_t>(instanceData.size());
 
       uint32_t instanceCount = 0;
-      // Collect all instances for this mesh
-      while (i < mDrawCalls.size() && mDrawCalls[i].pipeline == currentPipeline && mDrawCalls[i].mesh == currentMesh) {
+      while (i < mDrawCalls.size() && mDrawCalls[i].pipeline == currentPipeline && mDrawCalls[i].submesh == currentSubmesh) {
         Mat4 normalMatrix = mDrawCalls[i].transform.inversed().transposed();
-        instanceData.push_back(InstanceData{.modelMatrix = mDrawCalls[i].transform,
-                                            .normalMatrix = normalMatrix,
-                                            .color = mDrawCalls[i].color,
-                                            .textureIndex = mDrawCalls[i].textureIndex,
-                                            .samplerIndex = mDrawCalls[i].samplerIndex});
+        instanceData.push_back(gpu::InstanceData{.modelMatrix = mDrawCalls[i].transform,
+                                                 .normalMatrix = normalMatrix,
+                                                 .color = mDrawCalls[i].color,
+                                                 .textureIndex = mDrawCalls[i].textureIndex,
+                                                 .samplerIndex = mDrawCalls[i].samplerIndex});
         instanceCount++;
         i++;
       }
 
-      DrawInfo drawInfo{};
-      drawInfo.vertices = currentMesh->getVertexBufferAddress();
+      gpu::DrawInfo drawInfo{};
+      drawInfo.vertices = currentSubmesh->mVertexAddress;
       drawInfo.instanceBaseOffset = startInstanceOffset;
       drawInfos.push_back(drawInfo);
 
       VkDrawIndexedIndirectCommand indirectCmd{};
-      indirectCmd.indexCount = currentMesh->getIndexCount();
+      indirectCmd.indexCount = currentSubmesh->mIndexCount;
       indirectCmd.instanceCount = instanceCount;
-      indirectCmd.firstIndex = currentMesh->getFirstIndex();
+      indirectCmd.firstIndex = currentSubmesh->mFirstIndex;
       indirectCmd.vertexOffset = 0;
       indirectCmd.firstInstance = 0;
       indirectCommands.push_back(indirectCmd);
     }
 
-    uint32_t numUniqueMeshes = static_cast<uint32_t>(drawInfos.size());
+    uint32_t numUniqueSubmeshes = static_cast<uint32_t>(drawInfos.size());
 
     VkDeviceAddress drawInfosAddr =
-        uploadBuffer->getDeviceAddress(uploadBuffer->upload(drawInfos.data(), drawInfos.size() * sizeof(DrawInfo)));
-    VkDeviceAddress instancesAddr =
-        uploadBuffer->getDeviceAddress(uploadBuffer->upload(instanceData.data(), instanceData.size() * sizeof(InstanceData)));
+        uploadBuffer->getDeviceAddress(uploadBuffer->upload(drawInfos.data(), drawInfos.size() * sizeof(gpu::DrawInfo)));
+    VkDeviceAddress instancesAddr = uploadBuffer->getDeviceAddress(
+        uploadBuffer->upload(instanceData.data(), instanceData.size() * sizeof(gpu::InstanceData)));
     VkDeviceSize indirectOffset =
         uploadBuffer->upload(indirectCommands.data(), indirectCommands.size() * sizeof(VkDrawIndexedIndirectCommand));
 
-    PushConstants pc{};
+    gpu::PushConstants pc{};
     pc.drawInfos = drawInfosAddr;
     pc.globalUniforms = globalUniformsAddr;
     pc.instances = instancesAddr;
 
-    vkCmdPushConstants(iCommandBuffer, currentPipeline->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants),
-                       &pc);
+    vkCmdPushConstants(iCommandBuffer, currentPipeline->getPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0,
+                       sizeof(gpu::PushConstants), &pc);
 
-    vkCmdDrawIndexedIndirect(iCommandBuffer, uploadBuffer->getBuffer(), indirectOffset, numUniqueMeshes,
+    vkCmdDrawIndexedIndirect(iCommandBuffer, uploadBuffer->getBuffer(), indirectOffset, numUniqueSubmeshes,
                              sizeof(VkDrawIndexedIndirectCommand));
   }
 }

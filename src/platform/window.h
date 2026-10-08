@@ -21,7 +21,6 @@ public:
   Window(int32_t iWidth, int32_t iHeight, const std::string& iName);
   ~Window();
 
-  // Remove copy constructor
   Window(const Window&) = delete;
   Window& operator=(const Window&) = delete;
 
@@ -40,11 +39,9 @@ public:
   void destroySurface(VkInstance instance);
   VkSurfaceKHR getSurface() const { return mSurface; }
 
-  // Window Cursor & Hardware State
   void getCursorPos(double* oXpos, double* oYpos) const;
   void setCursorMode(CursorMode mode);
 
-  // Encapsulated Callback Subscriptions
   CallbackId addFrameBufferResizeCallback(FrameBufferResizeEvent::Callback iCallback) {
     return mFrameBufferResizeEvent.add(std::move(iCallback));
   }
@@ -57,7 +54,6 @@ private:
   static void framebufferResizeCallback(GLFWwindow* iWindow, int iWidth, int iHeight);
   static void windowFocusCallback(GLFWwindow* iWindow, int iFocused);
 
-  // screen coordinates width and height
   GLFWwindow* mWindow;
   VkSurfaceKHR mSurface = VK_NULL_HANDLE;
 

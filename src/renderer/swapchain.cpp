@@ -52,7 +52,6 @@ void Swapchain::createSwapchain(VkSwapchainKHR iOldSwapchain) {
   Device::SwapChainSupportDetails swapChainSupport = mDevice->querySwapChainSupport(mConfig.surface);
   const VkSurfaceCapabilitiesKHR& surfaceCapabilities = swapChainSupport.mCapabilities;
 
-  // 1. Surface format selection
   NE_ASSERT(!swapChainSupport.mFormats.empty(), "No surface formats found");
   VkSurfaceFormatKHR selectedSurfaceFormat = swapChainSupport.mFormats[0];
   for (const auto& surfaceFormat : swapChainSupport.mFormats) {
@@ -62,7 +61,6 @@ void Swapchain::createSwapchain(VkSwapchainKHR iOldSwapchain) {
     }
   }
 
-  // 2. Present mode selection
   NE_ASSERT(!swapChainSupport.mPresentModes.empty(), "No present modes found");
   VkPresentModeKHR selectedPresentMode = swapChainSupport.mPresentModes[0];
   for (const auto& presentMode : swapChainSupport.mPresentModes) {
@@ -77,7 +75,6 @@ void Swapchain::createSwapchain(VkSwapchainKHR iOldSwapchain) {
   NE_ASSERT(selectedPresentMode == VK_PRESENT_MODE_MAILBOX_KHR || selectedPresentMode == VK_PRESENT_MODE_FIFO_KHR,
             "Unsupported present mode");
 
-  // 3. Swap extent selection
   VkExtent2D selectedSwapExtent = surfaceCapabilities.currentExtent;
   if (surfaceCapabilities.currentExtent.width == UINT32_MAX) {
     selectedSwapExtent = {
@@ -88,13 +85,12 @@ void Swapchain::createSwapchain(VkSwapchainKHR iOldSwapchain) {
     };
   }
 
-  // 4. Image count selection (triple-buffering preference)
+  // Prefer triple buffering
   uint32_t minImageCount = std::max(3u, surfaceCapabilities.minImageCount);
   if (surfaceCapabilities.maxImageCount > 0 && minImageCount > surfaceCapabilities.maxImageCount) {
     minImageCount = surfaceCapabilities.maxImageCount;
   }
 
-  // 5. Swapchain creation info
   VkSwapchainCreateInfoKHR swapchainCreateInfo{};
   swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
   swapchainCreateInfo.surface = mConfig.surface;
@@ -118,7 +114,6 @@ void Swapchain::createSwapchain(VkSwapchainKHR iOldSwapchain) {
   mExtent = selectedSwapExtent;
   mPresentMode = selectedPresentMode;
 
-  // Clear previous swapchain resources (views and semaphores)
   for (ImageResource& image : mImages) {
     if (image.view != VK_NULL_HANDLE) {
       vkDestroyImageView(mDevice->getDevice(), image.view, nullptr);
@@ -129,7 +124,6 @@ void Swapchain::createSwapchain(VkSwapchainKHR iOldSwapchain) {
   }
   mImages.clear();
 
-  // Retrieve swapchain images
   uint32_t swapchainImagesCount = 0;
   VK_CHECK(vkGetSwapchainImagesKHR(mDevice->getDevice(), mSwapchain, &swapchainImagesCount, nullptr));
   std::vector<VkImage> swapChainImages(swapchainImagesCount);

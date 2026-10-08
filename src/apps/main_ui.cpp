@@ -17,7 +17,7 @@ void MainUI::draw(BasicApp& iApp) {
     toggleVisible();
   }
 
-  // 1. Right-Click on empty space (void) unfocuses windows just like Left-Click already does natively in ImGui
+  // ImGui unfocuses windows on a left click in empty space; do the same for right clicks
   if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
     ImGui::SetWindowFocus(nullptr);
   }
@@ -42,7 +42,6 @@ void MainUI::draw(BasicApp& iApp) {
     }
   }
 
-  // 2. Forward UI capture state to Input subsystem
   ImGuiIO& io = ImGui::GetIO();
   Input::setUICapture(mVisible && io.WantCaptureMouse,
                       mVisible && io.WantCaptureKeyboard);
@@ -154,33 +153,22 @@ void MainUI::drawCameraSettings(BasicApp& iApp) {
 
       ImGui::Text("Transform (+X Fwd, +Y Left, +Z Up)");
       ImGui::Separator();
-      Vec3 pos = transform.getPosition();
+      Vec3 pos = transform.getLocal().position;
       if (ImGui::DragFloat3("Position (m)", &pos.x, 0.05f)) {
-        transform.setPosition(pos);
+        transform.setLocalPosition(pos);
       }
 
-      Vec3 euler = transform.getEulerAngles();
+      Vec3 euler = transform.getLocal().getEulerAngles();
       if (ImGui::DragFloat3("Roll/Pitch/Yaw (deg)", &euler.x, 0.5f)) {
-        transform.setEulerAngles(euler);
+        transform.setLocalRotation(Quat::fromEuler(euler));
       }
 
       ImGui::Spacing();
       ImGui::Text("Projection (Reverse-Z Depth)");
       ImGui::Separator();
-      float fov = camera.mFovDeg;
-      if (ImGui::SliderFloat("FOV (deg)", &fov, 10.0f, 120.0f, "%.1f")) {
-        camera.setPerspective(fov, camera.mAspectRatio, camera.mNearClip, camera.mFarClip);
-      }
-
-      float nearClip = camera.mNearClip;
-      if (ImGui::DragFloat("Near Clip (m)", &nearClip, 0.01f, 0.01f, 10.0f, "%.2f")) {
-        camera.setPerspective(camera.mFovDeg, camera.mAspectRatio, nearClip, camera.mFarClip);
-      }
-
-      float farClip = camera.mFarClip;
-      if (ImGui::DragFloat("Far Clip (m)", &farClip, 1.0f, 1.0f, 1000.0f, "%.1f")) {
-        camera.setPerspective(camera.mFovDeg, camera.mAspectRatio, camera.mNearClip, farClip);
-      }
+      ImGui::SliderFloat("FOV (deg)", &camera.mFovDeg, 10.0f, 120.0f, "%.1f");
+      ImGui::DragFloat("Near Clip (m)", &camera.mNearClip, 0.01f, 0.01f, 10.0f, "%.2f");
+      ImGui::DragFloat("Far Clip (m)", &camera.mFarClip, 1.0f, 1.0f, 1000.0f, "%.1f");
 
       ImGui::Spacing();
       ImGui::Text("Controller Parameters");
@@ -209,8 +197,7 @@ void MainUI::resetCamera(BasicApp& iApp) {
     Entity camEntity = iApp.getCameraEntity();
     if (reg->isValid(camEntity) && reg->hasComponent<TransformComponent>(camEntity)) {
       auto& transform = reg->getComponent<TransformComponent>(camEntity);
-      transform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
-      transform.setRotation(Quat::Identity);
+      transform.setLocal(Transform(Vec3(-4.0f, 0.0f, 0.0f)));
     }
   }
 }

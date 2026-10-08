@@ -23,7 +23,6 @@ public:
   Buffer(Device* iDevice, const Config& iConfig);
   ~Buffer();
 
-  // Non-copyable and non-moveable (pinned Vulkan RAII resource)
   Buffer(const Buffer&) = delete;
   Buffer& operator=(const Buffer&) = delete;
   Buffer(Buffer&&) = delete;

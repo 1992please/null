@@ -35,6 +35,8 @@ Instance::Instance(const Config& iConfig) {
 Instance::~Instance() {
   NE_LOG("Destroying Vulkan Instance and deallocating resources...");
   vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+  // Checked after the messenger is gone so errors raised while tearing down the device are included
+  NE_ASSERT(!mHasValidationErrors, "Vulkan validation layer reported errors (see log above)");
   vkDestroyInstance(mInstance, nullptr);
   NE_LOG("Vulkan Instance destroyed successfully.");
 }
@@ -50,13 +52,11 @@ void Instance::createInstance(const Config& iConfig) {
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.apiVersion = API_VERSION;
 
-  // Get all the supported instance extensions
   uint32_t availableExtensionCount = 0;
   vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
   std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
   vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
 
-  // make sure all the extensions we need are available
   std::vector<const char*> windowExtensions = iConfig.requiredExtensions;
   if (enableValidationLayers) {
     windowExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -90,7 +90,7 @@ void Instance::createInstance(const Config& iConfig) {
     createInfo.enabledLayerCount = 1;
     createInfo.ppEnabledLayerNames = &VALIDATION_LAYER_NAME;
 
-    // Khronos validation layer with synchronization validation (RAW/WAR/WAW hazards from missing barriers or semaphores)
+    // Synchronization validation reports hazards from missing barriers or semaphores
     const VkBool32 validateSync = VK_TRUE;
     VkLayerSettingEXT validateSyncSetting{};
     validateSyncSetting.pLayerName = VALIDATION_LAYER_NAME;
@@ -115,7 +115,6 @@ void Instance::setupDebugMessenger() {
   if (!enableValidationLayers)
     return;
 
-  // Setting up the debug messenger
   VkDebugUtilsMessengerCreateInfoEXT createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
   createInfo.pNext = nullptr;

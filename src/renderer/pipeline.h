@@ -35,7 +35,6 @@ public:
   Pipeline(VkDevice iDevice, const Config& iConfig);
   ~Pipeline();
 
-  // Prevent copying
   Pipeline(const Pipeline&) = delete;
   Pipeline& operator=(const Pipeline&) = delete;
 

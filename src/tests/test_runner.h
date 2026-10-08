@@ -7,9 +7,14 @@
 #include <string>
 #include <vector>
 
+namespace ne {
+class Application;
+}
+
 namespace ne::test {
 
 struct TestContext {
+  Application* mApp{nullptr}; // For tests that need the device or GPU resources
   uint32_t mPasses{0};
   uint32_t mFailures{0};
 
@@ -32,7 +37,7 @@ public:
 
   void registerTest(const TestCase& iTestCase);
   const std::vector<TestCase>& getTests() const;
-  int runAll();
+  int runAll(Application& ioApp);
 
 private:
   std::vector<TestCase> mTests;
@@ -44,7 +49,7 @@ struct TestRegistrar {
   }
 };
 
-int runAllTests();
+int runAllTests(Application& ioApp);
 
 } // namespace ne::test
 

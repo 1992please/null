@@ -1,88 +1,40 @@
 #pragma once
 
+#include "core/ecs.h"
 #include "core/math/transform.h"
+#include "scene/transform_system.h"
+
+// std
+#include <vector>
 
 namespace ne {
 
-/**
- * @struct TransformComponent
- * @brief ECS Component wrapping a local Transform TRS struct with matrix caching.
- *
- * Implements lazy evaluation via an internal `isDirty` flag so that repeated matrix
- * queries (`getLocalMatrix()`) operate at O(1) cost for GPU upload loops.
- */
-struct TransformComponent {
-  Transform local;
-  mutable Mat4 cachedLocalMatrix{1.0f};
-  mutable bool isDirty{true};
+// Parent/children links change only through TransformSystem::setParent(), and the world matrix is written by
+// TransformSystem::update().
+class TransformComponent {
+public:
+  TransformComponent() = default;
+  explicit TransformComponent(const Transform& iLocal) : mLocal(iLocal) {}
 
-  constexpr TransformComponent() = default;
-  explicit constexpr TransformComponent(const Transform& t) : local(t), isDirty(true) {}
-  explicit constexpr TransformComponent(const Vec3& pos, const Quat& rot = Quat::Identity, const Vec3& scale = Vec3::One)
-      : local(pos, rot, scale), isDirty(true) {}
-  explicit constexpr TransformComponent(const Quat& rot, const Vec3& pos, const Vec3& scale = Vec3::One)
-      : local(rot, pos, scale), isDirty(true) {}
+  const Transform& getLocal() const { return mLocal; }
+  void setLocal(const Transform& iLocal) { mLocal = iLocal; mDirty = true; }
+  void setLocalPosition(const Vec3& iPosition) { mLocal.position = iPosition; mDirty = true; }
+  void setLocalRotation(const Quat& iRotation) { mLocal.rotation = iRotation; mDirty = true; }
+  void setLocalScale(const Vec3& iScale) { mLocal.scale = iScale; mDirty = true; }
 
-  /**
-   * @brief Returns the cached 4x4 matrix, lazily recalculating if dirty.
-   */
-  const Mat4& getLocalMatrix() const {
-    if (isDirty) {
-      cachedLocalMatrix = local.toMatrix();
-      isDirty = false;
-    }
-    return cachedLocalMatrix;
-  }
+  const Mat4& getWorldMatrix() const { return mWorldMatrix; }
+  Entity getParent() const { return mParent; }
+  const std::vector<Entity>& getChildren() const { return mChildren; }
 
-  /**
-   * @brief Explicitly marks the transform matrix cache as dirty.
-   */
-  void markDirty() const {
-    isDirty = true;
-  }
+private:
+  friend void TransformSystem::setParent(Registry&, Entity, Entity, TransformSystem::AttachRule);
+  friend void TransformSystem::update(Registry&);
 
-  // --- Mutators (automatically invalidate cache) ---
-
-  void setPosition(const Vec3& pos) {
-    local.position = pos;
-    isDirty = true;
-  }
-
-  void setRotation(const Quat& rot) {
-    local.rotation = rot;
-    isDirty = true;
-  }
-
-  void setEulerAngles(const Vec3& eulerDegrees) {
-    local.setEulerAngles(eulerDegrees);
-    isDirty = true;
-  }
-
-  void setScale(const Vec3& s) {
-    local.scale = s;
-    isDirty = true;
-  }
-
-  void translate(const Vec3& delta) {
-    local.position += delta;
-    isDirty = true;
-  }
-
-  void rotate(const Quat& deltaRot) {
-    local.rotation = deltaRot * local.rotation;
-    isDirty = true;
-  }
-
-  // --- Accessors ---
-
-  const Vec3& getPosition() const { return local.position; }
-  const Quat& getRotation() const { return local.rotation; }
-  Vec3 getEulerAngles() const { return local.getEulerAngles(); }
-  const Vec3& getScale() const { return local.scale; }
-
-  Vec3 getForward() const { return local.getForward(); }
-  Vec3 getLeft() const { return local.getLeft(); }
-  Vec3 getUp() const { return local.getUp(); }
+  Transform mLocal;
+  Mat4 mWorldMatrix{1.0f};
+  Entity mParent{NullEntity};
+  std::vector<Entity> mChildren;
+  bool mDirty{true}; // Local transform or parent changed since the last TransformSystem::update()
 };
 
 } // namespace ne

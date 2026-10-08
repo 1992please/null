@@ -12,13 +12,6 @@ namespace ne {
 class Device;
 struct ImageData;
 
-/**
- * @class Image
- * @brief RAII management of a 2D Vulkan Image, VMA Allocation, and Image View.
- *
- * Serves as the Vulkan RHI wrapper for sampled images, render targets, depth attachments,
- * and storage images. Pinned GPU resource (non-copyable, non-moveable).
- */
 class Image {
 public:
   struct Config {
@@ -34,13 +27,12 @@ public:
   Image(Device* iDevice, const Config& iConfig);
   ~Image();
 
-  // Non-copyable and non-moveable (pinned Vulkan RAII resource)
   Image(const Image&) = delete;
   Image& operator=(const Image&) = delete;
   Image(Image&&) = delete;
   Image& operator=(Image&&) = delete;
 
-  // Synchronization State
+  // Last layout and access recorded on this image, used to build its next barrier
   VkImageLayout getCurrentLayout() const { return mCurrentLayout; }
   VkAccessFlags2 getCurrentAccessMask() const { return mCurrentAccessMask; }
   VkPipelineStageFlags2 getCurrentStageMask() const { return mCurrentStageMask; }
@@ -51,7 +43,6 @@ public:
     mCurrentStageMask = iStageMask;
   }
 
-  // Getters
   bool isValid() const { return mImage != VK_NULL_HANDLE; }
   VkImage getImage() const { return mImage; }
   VkImageView getImageView() const { return mImageView; }

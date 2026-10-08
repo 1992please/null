@@ -11,13 +11,6 @@ namespace ne {
 class Instance;
 class MemoryAllocator;
 
-/**
- * @class Device
- * @brief Encapsulates the Vulkan 1.4 hardware execution context:
- * Physical Device, Logical Device, Queue, and immediate one-time transfer facilities.
- * Agnostic of platform windowing.
- */
-
 class Device {
 public:
   struct SwapChainSupportDetails {
@@ -34,7 +27,6 @@ public:
   Device(Instance* iInstance, const Config& iConfig);
   ~Device();
 
-  // Pinned resource (non-copyable, non-movable)
   Device(const Device&) = delete;
   Device& operator=(const Device&) = delete;
   Device(Device&&) = delete;

@@ -193,12 +193,12 @@ NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
   Registry registry;
 
   Entity cam = registry.createEntity();
-  registry.addComponent<TransformComponent>(cam, Vec3(-5.0f, 0.0f, 1.0f));
+  registry.addComponent<TransformComponent>(cam, Transform(Vec3(-5.0f, 0.0f, 1.0f)));
   auto& camComp = registry.addComponent<CameraComponent>(cam);
   camComp.mIsPrimary = true;
 
   Entity meshObj = registry.createEntity();
-  registry.addComponent<TransformComponent>(meshObj, Vec3(0.0f, 2.0f, 0.0f));
+  registry.addComponent<TransformComponent>(meshObj, Transform(Vec3(0.0f, 2.0f, 0.0f)));
   registry.addComponent<MeshComponent>(meshObj);
 
   Mat4 resolvedViewProj{1.0f};
@@ -206,7 +206,7 @@ NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
   registry.view<TransformComponent, CameraComponent>().each([&](Entity e, const TransformComponent& t, const CameraComponent& c) {
     NE_UNUSED(e);
     if (c.mIsPrimary) {
-      resolvedViewProj = c.getViewProjectionMatrix(t);
+      resolvedViewProj = c.getViewProjectionMatrix(t.getLocal().toMatrix());
       camCount++;
     }
   });
@@ -218,30 +218,27 @@ NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
   registry.view<TransformComponent, MeshComponent>().each([&](Entity e, const TransformComponent& t, const MeshComponent& m) {
     NE_UNUSED(e);
     NE_UNUSED(m);
-    NE_TEST_ASSERT(t.getPosition().equals(Vec3(0.0f, 2.0f, 0.0f)), "Mesh entity transform position matches.");
+    NE_TEST_ASSERT(t.getLocal().position.equals(Vec3(0.0f, 2.0f, 0.0f)), "Mesh entity transform position matches.");
     meshCount++;
   });
 
   NE_TEST_ASSERT(meshCount == 1, "Exactly one mesh entity matched in view.");
 }
 
-NE_TEST_CASE("ecs", "In-Place Component Constructor Overload Dispatch") {
+NE_TEST_CASE("ecs", "In-Place Component Construction") {
   Registry registry;
 
-  // 1. TransformComponent with (pos, rot, scale)
+  // Class component through its constructor
   Entity e1 = registry.createEntity();
-  Quat rot = Quat::angleAxis(math::radians(45.0f), Vec3::Up);
-  auto& transform = registry.addComponent<TransformComponent>(e1, Vec3(1.0f, 2.0f, 3.0f), rot, Vec3(2.0f, 2.0f, 2.0f));
+  Transform local(Vec3(1.0f, 2.0f, 3.0f), Quat::angleAxis(math::radians(45.0f), Vec3::Up), Vec3(2.0f));
+  auto& transform = registry.addComponent<TransformComponent>(e1, local);
+  NE_TEST_ASSERT(transform.getLocal().equals(local), "Local transform forwarded correctly.");
 
-  NE_TEST_ASSERT(transform.getPosition().equals(Vec3(1.0f, 2.0f, 3.0f)), "Position forwarded correctly.");
-  NE_TEST_ASSERT(transform.getRotation().equals(rot), "Rotation forwarded correctly.");
-  NE_TEST_ASSERT(transform.getScale().equals(Vec3(2.0f, 2.0f, 2.0f)), "Scale forwarded correctly.");
-
-  // 2. CameraComponent with (fov, aspect, near, far)
+  // Aggregate component through designated initializers
   Entity e2 = registry.createEntity();
-  auto& camera = registry.addComponent<CameraComponent>(e2, 60.0f, 16.0f / 9.0f, 0.5f, 500.0f);
-  NE_TEST_ASSERT(math::equals(camera.mFovDeg, 60.0f), "Camera FOV forwarded correctly.");
-  NE_TEST_ASSERT(!camera.mProjectionMatrix.equals(Mat4::Identity), "Projection matrix initialized immediately on construction.");
+  auto& camera = registry.addComponent<CameraComponent>(e2, CameraComponent{.mFovDeg = 60.0f, .mNearClip = 0.5f});
+  NE_TEST_ASSERT(math::equals(camera.mFovDeg, 60.0f) && math::equals(camera.mNearClip, 0.5f), "Initialized fields forwarded correctly.");
+  NE_TEST_ASSERT(math::equals(camera.mFarClip, 1000.0f), "Omitted fields keep their defaults.");
 }
 
 } // namespace ne::test

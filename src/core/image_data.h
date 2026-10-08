@@ -5,10 +5,7 @@
 
 namespace ne {
 
-/**
- * @struct ImageData
- * @brief CPU-side RGBA8 image pixel buffer with zero-copy raw pointer RAII ownership.
- */
+// Owns its pixels, which are freed with std::free
 struct ImageData {
   uint32_t mWidth = 0;
   uint32_t mHeight = 0;
@@ -21,11 +18,9 @@ struct ImageData {
 
   ~ImageData() { std::free(mPixels); }
 
-  // Prevent copying to avoid double-free
   ImageData(const ImageData&) = delete;
   ImageData& operator=(const ImageData&) = delete;
 
-  // Move constructor (transfers ownership and resets source)
   ImageData(ImageData&& iImageData)
       : mWidth(iImageData.mWidth),
         mHeight(iImageData.mHeight),
@@ -37,7 +32,6 @@ struct ImageData {
     iImageData.mChannels = 0;
   }
 
-  // Move assignment (cleans up existing resource, transfers ownership and resets source)
   ImageData& operator=(ImageData&& iImageData) {
     if (this != &iImageData) {
       std::free(mPixels);

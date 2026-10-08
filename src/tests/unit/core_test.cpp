@@ -20,7 +20,7 @@ NE_TEST_CASE("core", "Exceptions Disabled Check") {
 }
 
 NE_TEST_CASE("core", "Event Bus Lifecycle & Dispatch") {
-  // 1. Basic dispatch
+  // Basic dispatch
   Event<int, float> testEvent;
   NE_TEST_ASSERT(testEvent.empty(), "Event must start empty.");
   NE_TEST_ASSERT(testEvent.size() == 0, "Event size must be 0.");
@@ -38,7 +38,7 @@ NE_TEST_CASE("core", "Event Bus Lifecycle & Dispatch") {
   testEvent.broadcast(42, 3.14f);
   NE_TEST_ASSERT(receivedInt == 42 && math::equals(receivedFloat, 3.14f), "Callback received broadcast arguments.");
 
-  // 2. Multiple listeners
+  // Multiple listeners
   int listener2Count = 0;
   CallbackId id2 = testEvent.add([&](int, float) {
     listener2Count++;
@@ -49,7 +49,7 @@ NE_TEST_CASE("core", "Event Bus Lifecycle & Dispatch") {
   NE_TEST_ASSERT(receivedInt == 1 && listener2Count == 1, "Both listeners invoked on broadcast.");
   NE_TEST_ASSERT(testEvent.size() == 2, "Event size must be 2.");
 
-  // 3. Remove single listener
+  // Remove single listener
   bool removed = testEvent.remove(id1);
   NE_TEST_ASSERT(removed, "remove() must return true for existing CallbackId.");
   NE_TEST_ASSERT(testEvent.size() == 1, "Event size decrements after remove.");
@@ -59,7 +59,7 @@ NE_TEST_CASE("core", "Event Bus Lifecycle & Dispatch") {
   NE_TEST_ASSERT(receivedInt == 999, "Removed listener must not be called.");
   NE_TEST_ASSERT(listener2Count == 2, "Remaining listener must still receive broadcast.");
 
-  // 4. Clear all listeners
+  // Clear all listeners
   testEvent.clear();
   NE_TEST_ASSERT(testEvent.empty(), "Event must be empty after clear().");
   NE_TEST_ASSERT(testEvent.size() == 0, "Event size must be 0 after clear().");

@@ -10,14 +10,11 @@
 namespace ne {
 
 Logger::Logger() {
-  // Setup a colorful console sink
   auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
-  // Setup a file sink for persistent logs
   std::filesystem::path log_path = std::filesystem::path(platform::getExecutableDirectory()) / "logs/engine.log";
   auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(log_path.string(), 1024 * 1024, 5, true);
 
-  // Combine sinks: log to both console and file
   spdlog::sinks_init_list sink_list = {console_sink, rotating_sink};
 
   mLogger = std::make_shared<spdlog::logger>("Engine", sink_list.begin(), sink_list.end());

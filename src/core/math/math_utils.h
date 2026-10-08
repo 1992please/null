@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file math_utils.h
- * @brief Engine Scalar Math Utilities & Constants
- */
-
 #include "core/math/simd.h"
 #include <cmath>
 

@@ -15,7 +15,6 @@
 
 #ifndef NE_BUILD_SHIPPING
 
-// Debug & Development: Verbose error logging with file, line, and string enum conversion
 #define VK_CHECK(fn)                                                                                                             \
   do {                                                                                                                           \
     VkResult vkCheckResult = (fn);                                                                                               \
@@ -34,7 +33,6 @@
 
 #else
 
-// Shipping: Execute the Vulkan call without string formatting or logging overhead
 #define VK_CHECK(fn)                                                                                                             \
   do {                                                                                                                           \
     VkResult vkCheckResult = (fn);                                                                                               \
@@ -47,10 +45,10 @@
 
 namespace ne::vk_utils {
 
-constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;    // 64 MB
-constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;     // 32 MB
-constexpr VkDeviceSize UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;  // 16 MB
-constexpr VkDeviceSize STAGING_BUFFER_SIZE = 64 * 1024 * 1024; // 64 MB
+constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;
+constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;
+constexpr VkDeviceSize UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;
+constexpr VkDeviceSize STAGING_BUFFER_SIZE = 64 * 1024 * 1024;
 constexpr uint32_t MAX_SAMPLED_IMAGES = 4096;
 constexpr const char* DEFAULT_SHADER = "base_shader";
 

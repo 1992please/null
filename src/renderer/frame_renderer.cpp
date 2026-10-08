@@ -24,7 +24,6 @@ FrameRenderer::FrameRenderer(Device* iDevice, Window* iWindow) : mDevice(iDevice
     mFrameBufferResized = true;
   });
 
-  // Initialize WSI Swapchain
   int32_t width = 0, height = 0;
   mWindow->getFrameBufferSize(&width, &height);
 
@@ -74,8 +73,7 @@ void FrameRenderer::createFramesResources() {
   NE_ASSERT(mFrames.empty());
   mFrames.resize(MAX_FRAMES_IN_FLIGHT);
   for (size_t i = 0; i < mFrames.size(); i++) {
-    // We create a command Pool per frame because resetting it
-    // reclaims all command memory in one bulk operation, eliminating fragmentation
+    // One pool per frame: resetting the pool reclaims all of the frame's command memory at once
     VkCommandPoolCreateInfo commandPoolCreateInfo{};
     commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     commandPoolCreateInfo.queueFamilyIndex = mDevice->getQueueFamilyIndex();
@@ -127,7 +125,6 @@ VkCommandBuffer FrameRenderer::beginFrame() {
 
   vkResetCommandPool(mDevice->getDevice(), currentFrame.mCommandPool, 0);
 
-  // Reset transient uniform allocations for this frame
   currentFrame.mUploadBuffer->resetUploadOffset();
 
   VkCommandBufferBeginInfo commandBufferBeginInfo{};

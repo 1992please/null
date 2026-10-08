@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file quat.h
- * @brief Quaternion rotation struct with (x, y, z, w) GPU shader & glTF component ordering.
- */
-
 #include "core/math/math_utils.h"
 #include "core/math/vec3.h"
 #include "core/math/mat4.h"
@@ -12,12 +7,7 @@
 
 namespace ne {
 
-/**
- * @struct Quat
- * @brief Quaternion rotation struct with (x, y, z, w) memory layout,
- * providing 100% binary equivalence with GPU shaders (rot.xyz = axis, rot.w = scalar),
- * glTF 2.0 buffers, and standard SIMD layouts.
- */
+// Memory layout is (x, y, z, w), matching Slang and glTF
 struct Quat {
   float x{0.0f};
   float y{0.0f};
@@ -29,11 +19,6 @@ struct Quat {
 
   static const Quat Identity;
 
-  // --- Operators ---
-
-  /**
-   * @brief Rotates a 3D vector by this quaternion: v' = q * v * q^-1
-   */
   constexpr Vec3 operator*(const Vec3& iV) const {
     const Vec3 qv(x, y, z);
     const Vec3 uv = qv.cross(iV);
@@ -41,9 +26,7 @@ struct Quat {
     return iV + ((uv * w) + uuv) * 2.0f;
   }
 
-  /**
-   * @brief Quaternion multiplication (Hamilton product): q = self * other
-   */
+  // Hamilton product: the result applies iQ first, then this rotation
   constexpr Quat operator*(const Quat& iQ) const {
     return Quat(
       w * iQ.x + x * iQ.w + y * iQ.z - z * iQ.y,
@@ -53,11 +36,6 @@ struct Quat {
     );
   }
 
-  // --- Static Factories ---
-
-  /**
-   * @brief Constructs a rotation quaternion around an arbitrary axis.
-   */
   static inline Quat angleAxis(float iAngleRad, const Vec3& iAxis) {
     float lenSq = iAxis.lengthSquared();
     if (lenSq < math::SMALL_NUMBER) {
@@ -69,10 +47,7 @@ struct Quat {
     return Quat(iAxis.x * invLen * s, iAxis.y * invLen * s, iAxis.z * invLen * s, math::cos(halfAngle));
   }
 
-  /**
-   * @brief Constructs a rotation quaternion from Euler angles in degrees (Roll=X, Pitch=Y, Yaw=Z).
-   * Composed as Yaw * Pitch * Roll (rotate about X, then Y, then Z in the fixed frame), matching ROS RPY.
-   */
+  // Roll (X), pitch (Y), yaw (Z) in degrees, composed as Rz * Ry * Rx (ROS RPY)
   static inline Quat fromEuler(const Vec3& iEulerDegrees) {
     float radX = math::radians(iEulerDegrees.x) * 0.5f;
     float radY = math::radians(iEulerDegrees.y) * 0.5f;
@@ -93,9 +68,31 @@ struct Quat {
     );
   }
 
-  /**
-   * @brief Spherical linear interpolation between two quaternions along the shortest path.
-   */
+  // The upper 3x3 must be a pure rotation (orthonormal, no scale)
+  static inline Quat fromRotationMatrix(const Mat4& iRotation) {
+    // Rij = row i, column j (Mat4 is column-major)
+    const float r00 = iRotation[0].x, r01 = iRotation[1].x, r02 = iRotation[2].x;
+    const float r10 = iRotation[0].y, r11 = iRotation[1].y, r12 = iRotation[2].y;
+    const float r20 = iRotation[0].z, r21 = iRotation[1].z, r22 = iRotation[2].z;
+
+    // Branch on the largest of (w, x, y, z) to keep the square root argument well away from zero
+    const float trace = r00 + r11 + r22;
+    if (trace > 0.0f) {
+      const float s = math::sqrt(trace + 1.0f) * 2.0f;
+      return Quat((r21 - r12) / s, (r02 - r20) / s, (r10 - r01) / s, 0.25f * s);
+    }
+    if (r00 > r11 && r00 > r22) {
+      const float s = math::sqrt(1.0f + r00 - r11 - r22) * 2.0f;
+      return Quat(0.25f * s, (r01 + r10) / s, (r02 + r20) / s, (r21 - r12) / s);
+    }
+    if (r11 > r22) {
+      const float s = math::sqrt(1.0f + r11 - r00 - r22) * 2.0f;
+      return Quat((r01 + r10) / s, 0.25f * s, (r12 + r21) / s, (r02 - r20) / s);
+    }
+    const float s = math::sqrt(1.0f + r22 - r00 - r11) * 2.0f;
+    return Quat((r02 + r20) / s, (r12 + r21) / s, 0.25f * s, (r10 - r01) / s);
+  }
+
   static inline Quat slerp(const Quat& iA, const Quat& iB, float iT) {
     Quat qb = iB;
     float cosTheta = iA.dot(iB);
@@ -131,32 +128,18 @@ struct Quat {
     );
   }
 
-  // --- Instance Methods ---
-
-  /**
-   * @brief Computes 4-component dot product with another quaternion.
-   */
   constexpr float dot(const Quat& iOther) const {
     return x * iOther.x + y * iOther.y + z * iOther.z + w * iOther.w;
   }
 
-  /**
-   * @brief Returns the squared length (norm) of the quaternion.
-   */
   constexpr float lengthSquared() const {
     return x * x + y * y + z * z + w * w;
   }
 
-  /**
-   * @brief Returns the length (norm) of the quaternion.
-   */
   inline float length() const {
     return math::sqrt(lengthSquared());
   }
 
-  /**
-   * @brief Converts the unit quaternion to a 4x4 rotation matrix.
-   */
   constexpr Mat4 toMatrix() const {
     const float xx = x * x;
     const float yy = y * y;
@@ -176,16 +159,11 @@ struct Quat {
     return res;
   }
 
-  /**
-   * @brief Returns the conjugate (inverse for unit quaternions): (-x, -y, -z, w).
-   */
+  // Equals the inverse for unit quaternions
   constexpr Quat conjugate() const {
     return Quat(-x, -y, -z, w);
   }
 
-  /**
-   * @brief Computes the inverse quaternion: conjugate() / lengthSquared().
-   */
   inline Quat inverse() const {
     float lenSq = lengthSquared();
     if (lenSq > math::SMALL_NUMBER) {
@@ -195,11 +173,8 @@ struct Quat {
     return Identity;
   }
 
-  /**
-   * @brief Converts the quaternion to Euler angles in degrees (Roll=X, Pitch=Y, Yaw=Z).
-   */
+  // Inverse of fromEuler()
   inline Vec3 toEuler() const {
-    // Roll (X-axis rotation)
     float rollY = 2.0f * (y * z + w * x);
     float rollX = w * w - x * x - y * y + z * z;
     float rollRad = 0.0f;
@@ -209,11 +184,9 @@ struct Quat {
       rollRad = math::atan2(rollY, rollX);
     }
 
-    // Pitch (Y-axis rotation)
     float sinPitch = math::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f);
     float pitchRad = math::asin(sinPitch);
 
-    // Yaw (Z-axis rotation)
     float yawY = 2.0f * (x * y + w * z);
     float yawX = w * w + x * x - y * y - z * z;
     float yawRad = 0.0f;
@@ -226,9 +199,7 @@ struct Quat {
     return Vec3(math::degrees(rollRad), math::degrees(pitchRad), math::degrees(yawRad));
   }
 
-  /**
-   * @brief Normalizes the quaternion in-place. Resets to Identity if near-zero.
-   */
+  // Resets to Identity when the length is near zero
   inline bool normalize(float iTolerance = math::SMALL_NUMBER) {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
@@ -246,9 +217,6 @@ struct Quat {
     return false;
   }
 
-  /**
-   * @brief Component-wise tolerance equality comparison.
-   */
   inline bool equals(const Quat& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
     return math::abs(x - iOther.x) <= iTolerance &&
            math::abs(y - iOther.y) <= iTolerance &&

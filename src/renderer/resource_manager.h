@@ -30,14 +30,12 @@ public:
   ResourceManager(ResourceManager&&) = delete;
   ResourceManager& operator=(ResourceManager&&) = delete;
 
-  // Asset Creation Facades
   std::shared_ptr<Mesh> createMesh(const MeshData& iMeshData);
   uint32_t createTexture(const ImageData& iImageData, bool iSrgb = true, const std::string& iDebugName = "");
   std::shared_ptr<Pipeline> getOrCreatePipeline(const std::string& iShaderName = "");
   std::shared_ptr<Material> createMaterial(const std::string& iShaderName = "");
   void flushUploads();
 
-  // Subsystem Accessors
   StagingManager* getStagingManager() const { return mStagingManager.get(); }
   GeometryAllocator* getGeometryAllocator() const { return mGeometryAllocator.get(); }
   SamplerManager* getSamplerManager() const { return mSamplerManager.get(); }

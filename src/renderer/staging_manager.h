@@ -11,11 +11,6 @@ class Device;
 class Buffer;
 class Image;
 
-/**
- * @class StagingManager
- * @brief Manages a persistent host-visible staging memory arena and orchestrates
- * batched or immediate transfers to GPU buffers and images with modern Vulkan 1.4 Synchronization2.
- */
 class StagingManager {
 public:
   explicit StagingManager(Device* iDevice);
@@ -26,7 +21,6 @@ public:
   StagingManager(StagingManager&&) = delete;
   StagingManager& operator=(StagingManager&&) = delete;
 
-  // Batched workflow
   void beginBatch();
   void stageBufferCopy(VkBuffer dstBuffer, const void* data, VkDeviceSize size, VkDeviceSize dstOffset = 0);
   void stageImageUpload(Image& dstImage, const void* pixelData, VkDeviceSize size);

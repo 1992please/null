@@ -1,20 +1,10 @@
 #pragma once
 
-/**
- * @file vec2.h
- * @brief Standalone 2D Vector struct and mathematical operations.
- */
-
 #include "core/math/math_utils.h"
 #include <string>
 
 namespace ne {
 
-/**
- * @struct Vec2
- * @brief Pure 2D float vector POD struct with zero external math library dependencies,
- * offering 100% binary compatibility with float[2].
- */
 struct Vec2 {
   float x{0.0f};
   float y{0.0f};
@@ -104,8 +94,6 @@ struct Vec2 {
   constexpr bool equals(const Vec2& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
     return math::abs(x - iOther.x) <= iTolerance && math::abs(y - iOther.y) <= iTolerance;
   }
-
-  // --- Arithmetic Operators ---
 
   constexpr Vec2 operator+(const Vec2& iV) const {
     return Vec2(x + iV.x, y + iV.y);
@@ -215,8 +203,6 @@ constexpr Vec2 operator+(float iBias, const Vec2& iV) {
   return Vec2(iV.x + iBias, iV.y + iBias);
 }
 
-// --- Integer 2D Vector Structs ---
-
 struct IVec2 {
   int x{0};
   int y{0};
@@ -234,8 +220,6 @@ struct UVec2 {
   constexpr explicit UVec2(unsigned int iScalar) : x(iScalar), y(iScalar) {}
   constexpr UVec2(unsigned int iX, unsigned int iY) : x(iX), y(iY) {}
 };
-
-// --- Component-Wise Vector Math Utilities ---
 
 namespace math {
 

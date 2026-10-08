@@ -29,7 +29,7 @@ A high-performance, modular 3D rendering engine built with modern C++20 and Vulk
 - [x] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
 - [x] **Simulation Time Controls & UI Toggle**: Scalable `timeScale` (0x-3x), unscaled frame metrics, UI input isolation, and `H` overlay toggle.
 - [x] **Right-Handed Z-Up Convention (ROS REP-103)**: Switch from the Unreal convention (see Engine Conventions) so glTF, URDF, ROS tf, and USD imports are pure rotations instead of mirrors.
-- [ ] **Transform Hierarchy & glTF Scene Import**: Parent/child `TransformComponent` with world-matrix propagation, and glTF node-tree import (node TRS, glTF Y-up → engine Z-up rotation) instantiated as entities.
+- [x] **Transform Hierarchy & glTF Scene Import**: Parent/children links in `TransformComponent` with world-matrix propagation that skips unchanged subtrees and keep-local / keep-world re-parenting (`TransformSystem`), `NameComponent`, meshes with per-submesh materials, and glTF node-tree import (node TRS / matrix, Y-up → Z-up axis permutation baked at import) into reusable `Prefab`s spawned with `Prefab::instantiate()`.
 
 ### Step 3: Materials & Bindless Resources
 - [x] **Transient Per-Draw Data Core**: Zero-overhead 64-bit Buffer Device Address (BDA) pointers and per-draw metadata dispatched via `vkCmdPushConstants` directly into Multi-Draw Indirect (MDI).
@@ -68,6 +68,7 @@ A high-performance, modular 3D rendering engine built with modern C++20 and Vulk
 * **Winding**: Counter-clockwise front faces (glTF convention).
 * **Reverse-Z Depth**: Floating-point depth (`VK_FORMAT_D32_SFLOAT_S8_UINT`, `0.0` far clear, `VK_COMPARE_OP_GREATER_OR_EQUAL`).
 * **Memory & Shaders**: Unified sub-allocation via Vulkan Memory Allocator (VMA), Buffer Device Address (BDA) vertex pulling, and Slang shaders compiled to SPIR-V.
+* **Types**: `struct` with public fields for plain data (no getters/setters, aggregate initialization); `class` with private data when there is an invariant to protect (C++ Core Guidelines C.2, C.131). Stateless helpers and systems are free functions in a namespace, not classes of static members.
 
 ---
 
@@ -79,12 +80,12 @@ null/
 ├── shaders/              # Slang shader sources (.slang, .comp)
 ├── src/
 │   ├── apps/             # Application entrypoints (BasicApp)
-│   ├── components/       # ECS components (Camera, Transform, Mesh)
+│   ├── components/       # ECS components (Camera, Transform, Mesh, Name)
 │   ├── core/             # Math (Vec, Mat4, Quat, Transform), Logger, Assert, Events, ECS, Filesystem
 │   ├── importers/        # glTF / asset importers
 │   ├── platform/         # Window abstraction & input handling
 │   ├── renderer/         # Vulkan RHI, buffers, pipeline, scene & render manager
-│   ├── scene/            # Scene systems (CameraSystem)
+│   ├── scene/            # Scene systems & assets (TransformSystem, Prefab, CameraController)
 │   └── tests/            # Automated unit testing suite
 ├── CMakeLists.txt        # Build system configuration
 └── CMakePresets.json     # Standardized build presets

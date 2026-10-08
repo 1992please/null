@@ -3,103 +3,55 @@
 
 namespace ne {
 
-CameraComponent::CameraComponent() {
-  updateProjection();
-}
+Mat4 CameraComponent::getProjectionMatrix() const {
+  NE_ASSERT(mAspectRatio > math::SMALL_NUMBER);
+  NE_ASSERT(mNearClip > math::SMALL_NUMBER);
 
-CameraComponent::CameraComponent(float iFovDeg, float iAspect, float iNear, float iFar)
-    : mProjectionType(ProjectionType::Perspective),
-      mFovDeg(iFovDeg),
-      mAspectRatio(iAspect),
-      mNearClip(iNear),
-      mFarClip(iFar),
-      mInfiniteFarClip(iFar <= 0.0f) {
-  updateProjection();
-}
-
-CameraComponent::CameraComponent(ProjectionType iType, float iFovOrSize, float iAspect, float iNear, float iFar)
-    : mProjectionType(iType),
-      mAspectRatio(iAspect),
-      mNearClip(iNear),
-      mFarClip(iFar),
-      mInfiniteFarClip(iType == ProjectionType::Perspective && iFar <= 0.0f) {
-  if (iType == ProjectionType::Perspective) {
-    mFovDeg = iFovOrSize;
-  } else {
-    mOrthoSize = iFovOrSize;
-  }
-  updateProjection();
-}
-
-CameraComponent CameraComponent::createPerspective(float iFovDeg, float iAspect, float iNear, float iFar) {
-  return CameraComponent(iFovDeg, iAspect, iNear, iFar);
-}
-
-CameraComponent CameraComponent::createOrthographic(float iSize, float iAspect, float iNear, float iFar) {
-  return CameraComponent(ProjectionType::Orthographic, iSize, iAspect, iNear, iFar);
-}
-
-void CameraComponent::setPerspective(float iFovDeg, float iAspect, float iNear, float iFar) {
-  NE_ASSERT(iAspect > math::SMALL_NUMBER);
-  NE_ASSERT(iNear > math::SMALL_NUMBER);
-
-  mProjectionType = ProjectionType::Perspective;
-  mFovDeg = iFovDeg;
-  mAspectRatio = iAspect;
-  mNearClip = iNear;
-  mFarClip = iFar;
-  mInfiniteFarClip = (iFar <= 0.0f);
-
-  updateProjection();
-}
-
-void CameraComponent::setOrthographic(float iSize, float iAspect, float iNear, float iFar) {
-  NE_ASSERT(iAspect > math::SMALL_NUMBER);
-  NE_ASSERT(iSize > math::SMALL_NUMBER);
-
-  mProjectionType = ProjectionType::Orthographic;
-  mOrthoSize = iSize;
-  mAspectRatio = iAspect;
-  mNearClip = iNear;
-  mFarClip = iFar;
-
-  updateProjection();
-}
-
-void CameraComponent::updateProjection() {
+  Mat4 projection(0.0f);
   if (mProjectionType == ProjectionType::Perspective) {
-    const float fovRad = math::radians(mFovDeg);
-    const float tanHalfFovy = tan(fovRad / 2.0f);
+    const float tanHalfFovy = math::tan(math::radians(mFovDeg) * 0.5f);
 
-    mProjectionMatrix = Mat4(0.0f);
-    mProjectionMatrix[0][0] = 1.0f / (mAspectRatio * tanHalfFovy);
-    mProjectionMatrix[1][1] = 1.0f / tanHalfFovy; // View +Y (down) already matches Vulkan NDC +Y (down)
-    mProjectionMatrix[2][3] = 1.0f;               // Clip w = view depth (+Z forward)
+    projection[0][0] = 1.0f / (mAspectRatio * tanHalfFovy);
+    projection[1][1] = 1.0f / tanHalfFovy; // View +Y (down) already matches Vulkan NDC +Y (down)
+    projection[2][3] = 1.0f;               // Clip w = view depth (+Z forward)
 
     // Floating-point Reverse-Z (Near -> 1.0, Far -> 0.0)
-    if (mInfiniteFarClip) {
-      mProjectionMatrix[2][2] = 0.0f;
-      mProjectionMatrix[3][2] = mNearClip;
+    if (mFarClip <= 0.0f) {
+      projection[2][2] = 0.0f;
+      projection[3][2] = mNearClip;
     } else {
       NE_ASSERT(mFarClip > mNearClip);
-      mProjectionMatrix[2][2] = -mNearClip / (mFarClip - mNearClip);
-      mProjectionMatrix[3][2] = (mFarClip * mNearClip) / (mFarClip - mNearClip);
+      projection[2][2] = -mNearClip / (mFarClip - mNearClip);
+      projection[3][2] = (mFarClip * mNearClip) / (mFarClip - mNearClip);
     }
-  } else { // Orthographic
+  } else {
+    NE_ASSERT(mOrthoSize > math::SMALL_NUMBER);
+    NE_ASSERT(mFarClip > mNearClip);
     const float halfHeight = mOrthoSize * 0.5f;
     const float halfWidth = halfHeight * mAspectRatio;
 
-    mProjectionMatrix = Mat4(1.0f);
-    mProjectionMatrix[0][0] = 1.0f / halfWidth;
-    mProjectionMatrix[1][1] = 1.0f / halfHeight; // View +Y (down) already matches Vulkan NDC +Y (down)
+    projection[0][0] = 1.0f / halfWidth;
+    projection[1][1] = 1.0f / halfHeight; // View +Y (down) already matches Vulkan NDC +Y (down)
+    projection[3][3] = 1.0f;
 
     // Floating-point Reverse-Z (Near -> 1.0, Far -> 0.0)
-    NE_ASSERT(mFarClip > mNearClip);
-    mProjectionMatrix[2][2] = -1.0f / (mFarClip - mNearClip);
-    mProjectionMatrix[3][2] = mFarClip / (mFarClip - mNearClip);
+    projection[2][2] = -1.0f / (mFarClip - mNearClip);
+    projection[3][2] = mFarClip / (mFarClip - mNearClip);
   }
+  return projection;
+}
 
-  mInverseProjectionMatrix = mProjectionMatrix.inversed();
+Mat4 CameraComponent::getViewMatrix(const Mat4& iWorldMatrix) const {
+  const Vec3 eye(iWorldMatrix[3].x, iWorldMatrix[3].y, iWorldMatrix[3].z);
+  const Vec3 forward = Vec3(iWorldMatrix[0].x, iWorldMatrix[0].y, iWorldMatrix[0].z).getSafeNormal();
+  const Vec3 right = -Vec3(iWorldMatrix[1].x, iWorldMatrix[1].y, iWorldMatrix[1].z).getSafeNormal();
+  const Vec3 down = -Vec3(iWorldMatrix[2].x, iWorldMatrix[2].y, iWorldMatrix[2].z).getSafeNormal();
+
+  Mat4 view{1.0f};
+  view[0][0] = right.x;   view[1][0] = right.y;   view[2][0] = right.z;   view[3][0] = -right.dot(eye);
+  view[0][1] = down.x;    view[1][1] = down.y;    view[2][1] = down.z;    view[3][1] = -down.dot(eye);
+  view[0][2] = forward.x; view[1][2] = forward.y; view[2][2] = forward.z; view[3][2] = -forward.dot(eye);
+  return view;
 }
 
 } // namespace ne

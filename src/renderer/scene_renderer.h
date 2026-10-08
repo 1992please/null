@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/math/math.h"
+#include "renderer/mesh.h"
 #include <memory>
 #include <vector>
 #include <volk/volk.h>
@@ -13,7 +14,6 @@ class GeometryAllocator;
 class BindlessManager;
 class ImGuiManager;
 class Pipeline;
-class Mesh;
 class Registry;
 
 class SceneRenderer {
@@ -29,7 +29,6 @@ public:
   SceneRenderer(const Config& iConfig);
   ~SceneRenderer();
 
-  // Prevent copying
   SceneRenderer(const SceneRenderer&) = delete;
   SceneRenderer& operator=(const SceneRenderer&) = delete;
   SceneRenderer(SceneRenderer&&) = delete;
@@ -45,7 +44,7 @@ private:
 
   struct DrawCall {
     Pipeline* pipeline;
-    Mesh* mesh;
+    const Mesh::Submesh* submesh;
     Mat4 transform;
     Vec4 color;
     uint32_t textureIndex;

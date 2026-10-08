@@ -4,7 +4,7 @@
 namespace ne::MeshUtils {
 
 MeshData createBoxMeshData(const Vec3& size) {
-  MeshData meshData;
+  SubmeshData meshData;
   meshData.mPositions.reserve(24);
   meshData.mNormals.reserve(24);
   meshData.mTexCoords.reserve(24);
@@ -61,7 +61,7 @@ MeshData createBoxMeshData(const Vec3& size) {
     meshData.mIndices.push_back(baseIndex + 3);
   }
 
-  return meshData;
+  return MeshData{.mSubmeshes = {std::move(meshData)}};
 }
 
 } // namespace ne::MeshUtils

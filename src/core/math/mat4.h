@@ -1,21 +1,12 @@
 #pragma once
 
-/**
- * @file mat4.h
- * @brief Pure 4x4 Linear Algebra Matrix struct.
- */
-
 #include "core/math/vec3.h"
 #include "core/math/vec4.h"
 #include <string>
 
 namespace ne {
 
-/**
- * @struct Mat4
- * @brief Pure 4x4 float matrix providing 100% binary & math compatibility with Vulkan column-major layout,
- * identity initialization, matrix arithmetic, inversion, transposition, and equals.
- */
+// Column-major, matching Vulkan and Slang
 struct Mat4 {
   Vec4 cols[4]{
     Vec4(1.0f, 0.0f, 0.0f, 0.0f),
@@ -43,8 +34,6 @@ struct Mat4 {
 
   static const Mat4 Identity;
 
-  // --- Matrix & Vector Multiplication Operators ---
-
   constexpr Mat4 operator*(const Mat4& iM) const {
     Mat4 res;
     res.cols[0] = cols[0] * iM.cols[0].x + cols[1] * iM.cols[0].y + cols[2] * iM.cols[0].z + cols[3] * iM.cols[0].w;
@@ -62,8 +51,6 @@ struct Mat4 {
       cols[0].w * iV.x + cols[1].w * iV.y + cols[2].w * iV.z + cols[3].w * iV.w
     );
   }
-
-  // --- Linear Algebra Operations ---
 
   constexpr Mat4 transposed() const {
     return Mat4(

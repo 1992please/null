@@ -8,13 +8,6 @@
 
 namespace ne {
 
-/**
- * @class Instance
- * @brief Manages the Vulkan driver runtime, instance extensions, validation layers,
- * and debug messenger callbacks.
- *
- * Pinned resource (non-copyable, non-movable).
- */
 class Instance {
 public:
   struct Config {
@@ -33,9 +26,6 @@ public:
 
   VkInstance getInstance() const { return mInstance; }
   uint32_t getApiVersion() const { return API_VERSION; }
-
-  // True once the validation layer has reported any error (always false when validation is disabled)
-  bool hasValidationErrors() const { return mHasValidationErrors; }
 
 private:
   void createInstance(const Config& iConfig);

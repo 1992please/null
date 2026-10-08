@@ -7,15 +7,12 @@
 namespace ne::test {
 
 NE_TEST_CASE("math", "Scalar Math Utilities") {
-  // clamp
   NE_TEST_ASSERT(math::equals(math::clamp(5.0f, 0.0f, 10.0f), 5.0f), "clamp inside range.");
   NE_TEST_ASSERT(math::equals(math::clamp(-2.0f, 0.0f, 10.0f), 0.0f), "clamp below min.");
   NE_TEST_ASSERT(math::equals(math::clamp(15.0f, 0.0f, 10.0f), 10.0f), "clamp above max.");
 
-  // lerp
   NE_TEST_ASSERT(math::equals(math::lerp(0.0f, 100.0f, 0.25f), 25.0f), "scalar lerp.");
 
-  // min / max / abs
   NE_TEST_ASSERT(math::equals(math::min(3.0f, 7.0f), 3.0f), "scalar min.");
   NE_TEST_ASSERT(math::equals(math::max(3.0f, 7.0f), 7.0f), "scalar max.");
   NE_TEST_ASSERT(math::equals(math::abs(-42.0f), 42.0f), "scalar abs negative.");
@@ -37,13 +34,11 @@ NE_TEST_CASE("math", "Trigonometry & Angular Conversions") {
 }
 
 NE_TEST_CASE("math", "Optics: Reflect & Refract") {
-  // Reflection in 3D
   Vec3 incident(1.0f, 0.0f, -1.0f);
   Vec3 normal(0.0f, 0.0f, 1.0f);
   Vec3 reflected = math::reflect(incident, normal);
   NE_TEST_ASSERT(reflected.equals(Vec3(1.0f, 0.0f, 1.0f)), "3D reflection against flat plane.");
 
-  // Refraction normal transmission
   Vec3 normalIncident(0.0f, 0.0f, -1.0f);
   Vec3 refracted = math::refract(normalIncident, normal, 1.0f / 1.5f);
   NE_TEST_ASSERT(refracted.equals(normalIncident, 1e-4f), "Perpendicular incident ray passes through unbent.");
@@ -55,15 +50,12 @@ NE_TEST_CASE("math", "Optics: Reflect & Refract") {
 }
 
 NE_TEST_CASE("math", "Scalar math::equals & Member equals Tolerances") {
-  // Float scalar equals
   NE_TEST_ASSERT(math::equals(1.00001f, 1.00002f, 1e-4f), "math::equals float with custom tolerance.");
   NE_TEST_ASSERT(!math::equals(1.00001f, 1.00002f, 1e-6f), "math::equals float failure outside tolerance.");
 
-  // Double scalar equals
   NE_TEST_ASSERT(math::equals(1.00000001, 1.00000002, 1e-6), "math::equals double with custom tolerance.");
   NE_TEST_ASSERT(!math::equals(1.00000001, 1.00000002, 1e-9), "math::equals double failure outside tolerance.");
 
-  // Struct member .equals() checks
   Vec3 v1(1.0f, 2.0f, 3.0f);
   Vec3 v2(1.00005f, 2.00005f, 3.00005f);
   NE_TEST_ASSERT(v1.equals(v2, 1e-4f), "Vec3::equals member method.");

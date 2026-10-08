@@ -1,20 +1,10 @@
 #pragma once
 
-/**
- * @file vec3.h
- * @brief Standalone 3D Vector struct and mathematical operations.
- */
-
 #include "core/math/vec2.h"
 #include <string>
 
 namespace ne {
 
-/**
- * @struct Vec3
- * @brief Pure 3D float vector POD struct with zero external math library dependencies,
- * offering 100% binary compatibility with float[3].
- */
 struct Vec3 {
   float x{0.0f};
   float y{0.0f};
@@ -41,7 +31,7 @@ struct Vec3 {
     return &x;
   }
 
-  // Engine World Standard Basis Vectors (ROS REP-103: +X Forward, +Y Left, +Z Up)
+  // World basis: +X forward, +Y left, +Z up
   static const Vec3 Forward;
   static const Vec3 Left;
   static const Vec3 Up;
@@ -120,8 +110,6 @@ struct Vec3 {
       x * iOther.y - y * iOther.x
     );
   }
-
-  // --- Arithmetic Operators ---
 
   constexpr Vec3 operator+(const Vec3& iV) const {
     return Vec3(x + iV.x, y + iV.y, z + iV.z);
@@ -240,8 +228,6 @@ constexpr Vec3 operator+(float iBias, const Vec3& iV) {
   return Vec3(iV.x + iBias, iV.y + iBias, iV.z + iBias);
 }
 
-// --- Integer 3D Vector Structs ---
-
 struct IVec3 {
   int x{0};
   int y{0};
@@ -261,8 +247,6 @@ struct UVec3 {
   constexpr explicit UVec3(unsigned int iScalar) : x(iScalar), y(iScalar), z(iScalar) {}
   constexpr UVec3(unsigned int iX, unsigned int iY, unsigned int iZ) : x(iX), y(iY), z(iZ) {}
 };
-
-// --- Component-Wise Vector Math Utilities ---
 
 namespace math {
 

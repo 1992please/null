@@ -4,10 +4,7 @@
 
 namespace ne::MeshUtils {
 
-/**
- * @brief Generates a 24-vertex box with authentic face normals and [0, 1] texture coordinates per face.
- * @param size Total dimensions along X, Y, and Z axes.
- */
+// 24 vertices so every face has its own normals and [0, 1] UVs; size is the full extent
 MeshData createBoxMeshData(const Vec3& size = Vec3(1.0f));
 
 } // namespace ne::MeshUtils

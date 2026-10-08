@@ -41,7 +41,7 @@ void StagingManager::beginBatch() {
 VkDeviceSize StagingManager::stageData(const void* data, VkDeviceSize size) {
   NE_ASSERT(data && size > 0, "Invalid data or size for staging");
 
-  // Auto-Flush on Full: If this allocation exceeds remaining capacity, flush the pending batch
+  // Flush the pending batch when it is full
   if (!mStagingBuffer->canUpload(size)) {
     NE_LOG("StagingManager: Staging capacity reached. Auto-flushing batch...");
     flushBatch();
@@ -58,7 +58,7 @@ void StagingManager::stageBufferCopy(VkBuffer dstBuffer, const void* data, VkDev
     return;
   }
 
-  // Outlier Handling: If single payload is larger than the entire staging buffer capacity
+  // Larger than the whole staging buffer: upload through a temporary buffer
   if (size > mStagingBuffer->getConfig().size) {
     NE_LOG("StagingManager: Staging buffer copy of size {} exceeds capacity {}. Using transient staging buffer.",
            vk_utils::formatBytes(size), vk_utils::formatBytes(mStagingBuffer->getConfig().size));
@@ -96,7 +96,7 @@ void StagingManager::stageImageUpload(Image& dstImage, const void* pixelData, Vk
     return;
   }
 
-  // Outlier Handling: If single image is larger than the entire staging buffer capacity
+  // Larger than the whole staging buffer: upload through a temporary buffer
   if (size > mStagingBuffer->getConfig().size) {
     NE_LOG("StagingManager: Staging image upload of size {} exceeds capacity {}. Using transient staging buffer.",
            vk_utils::formatBytes(size), vk_utils::formatBytes(mStagingBuffer->getConfig().size));
@@ -149,7 +149,7 @@ void StagingManager::flushBatch() {
 
   VkCommandBuffer cmd = mDevice->beginOneTimeCommand();
 
-  // 1. Batched Pre-Copy Barriers: Transition all images to TRANSFER_DST_OPTIMAL
+  // One barrier batch before all copies and one after
   if (!mPendingImageUploads.empty()) {
     std::vector<VkImageMemoryBarrier2> preCopyBarriers;
     preCopyBarriers.reserve(mPendingImageUploads.size());
@@ -183,17 +183,14 @@ void StagingManager::flushBatch() {
     vkCmdPipelineBarrier2(cmd, &preDepInfo);
   }
 
-  // 2. Image copies (immediately following image pre-copy barriers)
   for (const auto& item : mPendingImageUploads) {
     recordImageCopy(cmd, mStagingBuffer->getBuffer(), item.image->getImage(), item.width, item.height, item.srcOffset);
   }
 
-  // 3. Buffer copies (all transfers grouped in COPY_BIT)
   for (const auto& copy : mPendingBufferCopies) {
     recordBufferCopy(cmd, mStagingBuffer->getBuffer(), copy.dstBuffer, copy.size, copy.srcOffset, copy.dstOffset);
   }
 
-  // 4. Batched Post-Copy Barriers: Transition all images to SHADER_READ_ONLY_OPTIMAL
   if (!mPendingImageUploads.empty()) {
     std::vector<VkImageMemoryBarrier2> postCopyBarriers;
     postCopyBarriers.reserve(mPendingImageUploads.size());
@@ -229,7 +226,6 @@ void StagingManager::flushBatch() {
 
   mDevice->endOneTimeCommand(cmd);
 
-  // Update layout tracking on all affected Image instances
   for (const auto& item : mPendingImageUploads) {
     item.image->setLayoutState(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_2_SHADER_READ_BIT,
                                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);

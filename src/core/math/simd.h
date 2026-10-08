@@ -1,10 +1,5 @@
 #pragma once
 
-/**
- * @file simd.h
- * @brief Platform-isolated SIMD hardware intrinsics and inverse square root utility.
- */
-
 #include <cmath>
 
 #if defined(__SSE__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
@@ -17,12 +12,7 @@
 
 namespace ne::math {
 
-/**
- * @brief High-precision, hardware-accelerated inverse square root (1.0f / sqrt(x)).
- * Uses hardware reciprocal square root with one Newton-Raphson refinement step:
- * y_1 = y_0 * (1.5 - 0.5 * x * y_0^2), yielding ~23 bits of single-precision IEEE float accuracy
- * at ~3-4x the performance of divss/sqrtss.
- */
+// 1 / sqrt(x): hardware reciprocal square root plus one Newton-Raphson step (~23 bits of precision)
 inline float invSqrt(float iVal) {
 #if defined(NE_MATH_USE_SSE)
   __m128 val = _mm_set_ss(iVal);

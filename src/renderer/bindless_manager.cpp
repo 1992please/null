@@ -12,9 +12,7 @@ BindlessManager::BindlessManager(VkDevice iDevice, SamplerManager* iSamplerManag
 
   const uint32_t samplerCount = static_cast<uint32_t>(iSamplerManager->getSamplers().size());
 
-  // 1. Create Bindless Descriptor Set Layout (Set 0)
-  // Binding 0: Immutable standard samplers (SamplerType::Count)
-  // Binding 1: Sampled image descriptor array (mMaxSampledImages)
+  // Set 0: binding 0 holds one immutable sampler per SamplerType, binding 1 the sampled image array
   std::array<VkDescriptorSetLayoutBinding, 2> bindings{};
 
   bindings[0].binding = 0;
@@ -48,7 +46,6 @@ BindlessManager::BindlessManager(VkDevice iDevice, SamplerManager* iSamplerManag
   VK_CHECK(vkCreateDescriptorSetLayout(mDevice, &layoutInfo, nullptr, &mDescriptorSetLayout));
   vk_utils::setDebugObjectName(mDevice, mDescriptorSetLayout, "Bindless_DescriptorSetLayout");
 
-  // 2. Create Descriptor Pool
   std::array<VkDescriptorPoolSize, 2> poolSizes{};
   poolSizes[0].type = VK_DESCRIPTOR_TYPE_SAMPLER;
   poolSizes[0].descriptorCount = samplerCount;
@@ -65,7 +62,6 @@ BindlessManager::BindlessManager(VkDevice iDevice, SamplerManager* iSamplerManag
   VK_CHECK(vkCreateDescriptorPool(mDevice, &poolInfo, nullptr, &mDescriptorPool));
   vk_utils::setDebugObjectName(mDevice, mDescriptorPool, "Bindless_DescriptorPool");
 
-  // 3. Allocate Descriptor Set
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
   allocInfo.descriptorPool = mDescriptorPool;

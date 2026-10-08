@@ -21,28 +21,23 @@ public:
   FrameRenderer(Device* iDevice, Window* iWindow);
   ~FrameRenderer();
 
-  // Not copyable or movable
   FrameRenderer(const FrameRenderer&) = delete;
   FrameRenderer& operator=(const FrameRenderer&) = delete;
   FrameRenderer(FrameRenderer&&) = delete;
   FrameRenderer& operator=(FrameRenderer&&) = delete;
 
-  // Frame execution
   VkCommandBuffer beginFrame();
   void endFrame();
 
-  // Core subsystems & resources
   Image* getDepthImage() const { return mDepthImage.get(); }
   VkFormat getColorFormat() const;
   VkFormat getDepthFormat() const;
   uint32_t getImageCount() const;
   VkExtent2D getExtent() const;
 
-  // Frame lifecycle state
   VkImage getActiveImage() const;
   VkImageView getActiveImageView() const;
 
-  // Frame upload buffers
   Buffer* getUploadBuffer() const { return mFrames[mFrameIndex].mUploadBuffer.get(); }
   void recreateUploadBuffer(VkDeviceSize newSize);
 
@@ -54,7 +49,7 @@ private:
 
   void recreateSwapChain(bool iForce = false);
 
-  static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2; // How far can the cpu go far ahead of the gpu
+  static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2; // Frames the CPU may record ahead of the GPU
 
   Device* mDevice = nullptr;
   Window* mWindow = nullptr;

@@ -78,7 +78,6 @@ NE_TEST_CASE("mat4", "Mat4 Memory Layout & POD Properties") {
   static_assert(sizeof(Mat4) == 64, "Mat4 must be 64 bytes in size.");
   static_assert(std::is_standard_layout_v<Mat4>, "Mat4 must be standard layout.");
 
-  // Compile-time constexpr verification
   constexpr Mat4 constDiag(
     Vec4(2.0f, 0.0f, 0.0f, 0.0f),
     Vec4(0.0f, 2.0f, 0.0f, 0.0f),

@@ -18,7 +18,7 @@ const std::vector<TestCase>& TestRegistry::getTests() const {
   return mTests;
 }
 
-int TestRegistry::runAll() {
+int TestRegistry::runAll(Application& ioApp) {
   NE_LOG("==================================================");
   NE_LOG("          STARTING NULL ENGINE TEST SUITE         ");
   NE_LOG("==================================================");
@@ -31,7 +31,7 @@ int TestRegistry::runAll() {
 
   for (const auto& [suiteName, tests] : suiteMap) {
     NE_LOG("[RUNNING SUITE] {}", suiteName);
-    TestContext suiteCtx;
+    TestContext suiteCtx{.mApp = &ioApp};
     for (const auto* testCase : tests) {
       NE_LOG("  [RUNNING TEST] {}", testCase->mTestName);
       testCase->mFunc(suiteCtx);
@@ -58,8 +58,8 @@ int TestRegistry::runAll() {
   }
 }
 
-int runAllTests() {
-  return TestRegistry::get().runAll();
+int runAllTests(Application& ioApp) {
+  return TestRegistry::get().runAll(ioApp);
 }
 
 } // namespace ne::test

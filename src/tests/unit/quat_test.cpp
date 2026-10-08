@@ -30,7 +30,6 @@ NE_TEST_CASE("quat", "Quat Angle-Axis & Vector Rotation") {
   Vec3 pitchedX = pitch90 * Vec3::Forward;
   NE_TEST_ASSERT(pitchedX.equals(Vec3::Up), "-90 deg rotation around +Y must rotate Forward (+X) into Up (+Z).");
 
-  // Rotating arbitrary vector by Identity leaves it unchanged
   Vec3 arbitrary(1.5f, -3.2f, 7.8f);
   NE_TEST_ASSERT((Quat::Identity * arbitrary).equals(arbitrary), "Identity quaternion leaves vector unchanged.");
 }
@@ -121,6 +120,24 @@ NE_TEST_CASE("quat", "Quat Dot, Length & Constexpr Verification") {
 
   Quat unitQ = Quat::Identity;
   NE_TEST_ASSERT(math::equals(unitQ.dot(unitQ), 1.0f), "Unit quaternion self-dot must equal 1.");
+}
+
+NE_TEST_CASE("quat", "Quat fromRotationMatrix Roundtrip") {
+  // Cover every branch: positive trace, and a 180 deg turn about each axis (largest diagonal X, Y, Z)
+  const Quat rotations[] = {
+      Quat::fromEuler(Vec3(25.0f, -40.0f, 15.0f)),
+      Quat::angleAxis(math::radians(180.0f), Vec3::Forward),
+      Quat::angleAxis(math::radians(180.0f), Vec3::Left),
+      Quat::angleAxis(math::radians(180.0f), Vec3::Up),
+      Quat::angleAxis(math::radians(170.0f), Vec3(1.0f, -2.0f, 0.5f)),
+  };
+
+  for (const Quat& q : rotations) {
+    Quat recovered = Quat::fromRotationMatrix(q.toMatrix());
+    Quat negated(-recovered.x, -recovered.y, -recovered.z, -recovered.w);
+    NE_TEST_ASSERT(recovered.equals(q, 1e-4f) || negated.equals(q, 1e-4f), "fromRotationMatrix(q.toMatrix()) must equal +/-q: {}",
+                   q.toString());
+  }
 }
 
 NE_TEST_CASE("quat", "Quat Memory Layout & POD Properties") {

@@ -1,20 +1,10 @@
 #pragma once
 
-/**
- * @file vec4.h
- * @brief Standalone 4D Vector struct and mathematical operations.
- */
-
 #include "core/math/vec3.h"
 #include <string>
 
 namespace ne {
 
-/**
- * @struct Vec4
- * @brief Pure 4D float vector POD struct with zero external math library dependencies,
- * offering 100% binary compatibility with float[4].
- */
 struct Vec4 {
   float x{0.0f};
   float y{0.0f};
@@ -113,8 +103,6 @@ struct Vec4 {
            math::abs(z - iOther.z) <= iTolerance &&
            math::abs(w - iOther.w) <= iTolerance;
   }
-
-  // --- Arithmetic Operators ---
 
   constexpr Vec4 operator+(const Vec4& iV) const {
     return Vec4(x + iV.x, y + iV.y, z + iV.z, w + iV.w);
@@ -238,8 +226,6 @@ constexpr Vec4 operator+(float iBias, const Vec4& iV) {
   return Vec4(iV.x + iBias, iV.y + iBias, iV.z + iBias, iV.w + iBias);
 }
 
-// --- Integer 4D Vector Structs ---
-
 struct IVec4 {
   int x{0};
   int y{0};
@@ -261,8 +247,6 @@ struct UVec4 {
   constexpr explicit UVec4(unsigned int iScalar) : x(iScalar), y(iScalar), z(iScalar), w(iScalar) {}
   constexpr UVec4(unsigned int iX, unsigned int iY, unsigned int iZ, unsigned int iW) : x(iX), y(iY), z(iZ), w(iW) {}
 };
-
-// --- Component-Wise Vector Math Utilities ---
 
 namespace math {
 

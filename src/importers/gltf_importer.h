@@ -5,10 +5,11 @@
 
 namespace ne {
 
-class GltfImporter {
-public:
-  // iPath should be relative to the content directory.
-  static ModelData importModel(const std::string& iPath);
-};
+namespace GltfImporter {
+
+// iPath should be relative to the content directory.
+ModelData importModel(const std::string& iPath);
+
+} // namespace GltfImporter
 
 } // namespace ne

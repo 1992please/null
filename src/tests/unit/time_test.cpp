@@ -30,7 +30,6 @@ NE_TEST_CASE("time", "Time Tick & Delta Progression") {
   NE_TEST_ASSERT(total >= 0.005f, "Total time must accumulate delta time.");
   NE_TEST_ASSERT(dt == total, "First frame total time must equal first frame delta time.");
 
-  // Second tick
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
   Time::tick();
 

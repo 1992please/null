@@ -13,32 +13,22 @@ namespace ne {
 
 class Window;
 
-/**
- * @class Input
- * @brief Zero-heap, high-performance static input subsystem for Null Engine.
- *
- * Provides frame-state edge detection (down, pressed, released), mouse cursor deltas
- * with discontinuity suppression, scroll deltas, modifier queries, and focus loss recovery.
- */
 class Input {
 public:
-  // Lifecycle
   static void init(Window* iWindow);
   static void update();
 
-  // Keyboard state queries (transparently gated by UI capture)
+  // Key and mouse queries report nothing while the UI captures that device
   static bool isKeyDown(KeyCode iKey);
   static bool isKeyPressed(KeyCode iKey);
   static bool isKeyReleased(KeyCode iKey);
   static KeyMods getActiveMods();
 
-  // Modifier convenience helpers (transparently gated by UI capture)
   static bool isShiftDown();
   static bool isControlDown();
   static bool isAltDown();
   static bool isSuperDown();
 
-  // Mouse state queries (transparently gated by UI capture)
   static bool isMouseButtonDown(MouseButton iButton);
   static bool isMouseButtonPressed(MouseButton iButton);
   static bool isMouseButtonReleased(MouseButton iButton);
@@ -47,23 +37,19 @@ public:
   static Vec2 getMouseDelta();
   static Vec2 getMouseScroll();
 
-  // Cursor Mode Management
   static void setCursorMode(CursorMode iMode);
   static CursorMode getCursorMode();
 
-  // UI Capture State
   static void setUICapture(bool iCaptureMouse, bool iCaptureKeyboard);
   static bool isMouseCapturedByUI();
   static bool isKeyboardCapturedByUI();
 
-  // State management
   static void resetState();
 
 private:
   static constexpr size_t kMaxKeys = 512;
   static constexpr size_t kMaxMouseButtons = 16;
 
-  // GLFW static event callbacks
   static void keyCallback(GLFWwindow* iWindow, int iKey, int iScancode, int iAction, int iMods);
   static void mouseButtonCallback(GLFWwindow* iWindow, int iButton, int iAction, int iMods);
   static void cursorPosCallback(GLFWwindow* iWindow, double iXpos, double iYpos);

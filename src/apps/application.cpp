@@ -13,6 +13,7 @@
 #include "renderer/resource_manager.h"
 #include "renderer/scene_renderer.h"
 #include "renderer/utils.h"
+#include "scene/transform_system.h"
 
 namespace ne {
 
@@ -20,10 +21,8 @@ Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t 
     : mWidth(static_cast<int32_t>(iWidth)), mHeight(static_cast<int32_t>(iHeight)), mAppName(iAppName) {
   Time::init();
 
-  // 1. Create Platform Window
   mWindow = std::make_unique<Window>(mWidth, mHeight, mAppName);
 
-  // 2. Initialize Vulkan Instance runtime
   Instance::Config instanceConfig{
       .engineName = mEngineName,
       .appName = mAppName,
@@ -31,26 +30,20 @@ Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t 
   };
   mInstance = std::make_unique<Instance>(instanceConfig);
 
-  // 3. Create Surface from Window & Instance
   VK_CHECK(mWindow->createSurface(mInstance->getInstance()));
 
-  // 4. Initialize Hardware Device passing Surface via Config
   Device::Config deviceConfig{
       .surface = mWindow->getSurface(),
   };
   mDevice = std::make_unique<Device>(mInstance.get(), deviceConfig);
 
-  // 5. Initialize Presentation / Frame Renderer
   mFrameRenderer = std::make_unique<FrameRenderer>(mDevice.get(), mWindow.get());
 
-  // 6. Initialize Resource Manager
   mResourceManager = std::make_unique<ResourceManager>(mDevice.get(), mFrameRenderer->getColorFormat(),
                                                        mFrameRenderer->getDepthFormat());
 
-  // 7. Initialize Input Subsystem
   Input::init(mWindow.get());
 
-  // 8. Initialize Scene Renderer
   SceneRenderer::Config sceneRendererConfig{
       .device = mDevice.get(),
       .geometryAllocator = mResourceManager->getGeometryAllocator(),
@@ -60,11 +53,9 @@ Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t 
   };
   mSceneRenderer = std::make_unique<SceneRenderer>(sceneRendererConfig);
 
-  // 9. Initialize ImGui Manager
   mImGuiManager =
       std::make_unique<ImGuiManager>(mWindow.get(), mInstance.get(), mDevice.get(), mFrameRenderer.get());
 
-  // 10. Initialize ECS Registry
   mRegistry = std::make_unique<Registry>();
 
   NE_LOG("Engine Application '{}' initialized successfully.", mAppName);
@@ -73,7 +64,7 @@ Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t 
 Application::~Application() {
   NE_LOG("Tearing down Engine Application '{}'...", mAppName);
 
-  // Teardown in strict reverse order of dependency
+  // Reverse order of creation
   mRegistry.reset();
   mImGuiManager.reset();
   mSceneRenderer.reset();
@@ -88,8 +79,6 @@ Application::~Application() {
 
   NE_LOG("Engine Application '{}' destroyed successfully.", mAppName);
 }
-
-bool Application::hasValidationErrors() const { return mInstance->hasValidationErrors(); }
 
 void Application::update(float iDeltaTime) { NE_UNUSED(iDeltaTime); }
 
@@ -108,6 +97,7 @@ void Application::stepFrame() {
   mImGuiManager->endFrame();
 
   update(Time::getDeltaTime());
+  TransformSystem::update(*mRegistry);
   render();
 }
 

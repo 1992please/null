@@ -47,7 +47,6 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
   viewportStateCreateInfo.scissorCount = 1;
   viewportStateCreateInfo.pScissors = nullptr;
 
-  // Rasterization
   VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo{};
   rasterizationStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
   rasterizationStateCreateInfo.depthClampEnable = VK_FALSE; // enabling requires a gpu feature
@@ -70,7 +69,6 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
   multisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
   multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
 
-  // Depth And Stencil
   VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo{};
   depthStencilStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
   depthStencilStateCreateInfo.depthTestEnable = iConfig.depthMode != DepthMode::Disabled ? VK_TRUE : VK_FALSE;
@@ -81,17 +79,6 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
   depthStencilStateCreateInfo.stencilTestEnable = iConfig.stencilMode != StencilMode::Disabled ? VK_TRUE : VK_FALSE;
   depthStencilStateCreateInfo.depthCompareOp =
       iConfig.depthMode != DepthMode::Disabled ? VK_COMPARE_OP_GREATER_OR_EQUAL : VK_COMPARE_OP_ALWAYS;
-
-  // Color blending (blends new color to the old color already in the frame buffer)
-  /*
-    if (blendEnable) {
-    finalColor.rgb = (srcColorBlendFactor * newColor.rgb) <colorBlendOp> (dstColorBlendFactor * oldColor.rgb);
-    finalColor.a = (srcAlphaBlendFactor * newColor.a) <alphaBlendOp> (dstAlphaBlendFactor * oldColor.a);
-    } else {
-      finalColor = newColor;
-    }
-    finalColor = finalColor & colorWriteMask;
-  */
 
   VkPipelineColorBlendAttachmentState colorBendAttachmentState{};
   colorBendAttachmentState.blendEnable = false;
@@ -110,17 +97,14 @@ Pipeline::Pipeline(VkDevice iDevice, const Config& iConfig) : mDevice(iDevice) {
   colorBlendStateCreateInfo.attachmentCount = 1;
   colorBlendStateCreateInfo.pAttachments = &colorBendAttachmentState;
 
-  // Assign pipeline layout from configuration
   NE_ASSERT(iConfig.layout != VK_NULL_HANDLE, "Pipeline layout must not be VK_NULL_HANDLE");
   mPipelineLayout = iConfig.layout;
 
-  // Dynamic Renderring
   std::vector<VkDynamicState> dynamicState = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
   VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo{};
   dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
   dynamicStateCreateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicState.size());
   dynamicStateCreateInfo.pDynamicStates = dynamicState.data();
-  // Also we need to specify the formats of the attachments that will be used during rendering
   VkPipelineRenderingCreateInfo renderingCreateInfo{};
   renderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
   renderingCreateInfo.colorAttachmentCount = (iConfig.colorAttachmentFormat != VK_FORMAT_UNDEFINED) ? 1 : 0;

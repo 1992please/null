@@ -5,10 +5,6 @@
 
 namespace ne {
 
-/**
- * @struct Transform
- * @brief Pure TRS (Translation, Rotation Quaternion, Scale) struct layout.
- */
 struct Transform {
   Vec3 position{Vec3::Zero};
   Quat rotation{Quat::Identity};
@@ -20,9 +16,7 @@ struct Transform {
   constexpr Transform(const Quat& iRotation, const Vec3& iPosition, const Vec3& iScale = Vec3::One)
     : position(iPosition), rotation(iRotation), scale(iScale) {}
 
-  /**
-   * @brief Constructs the 4x4 matrix representation: T * R * S in O(1) time without matrix-matrix multiplications.
-   */
+  // T * R * S
   constexpr Mat4 toMatrix() const {
     Mat4 res = rotation.toMatrix();
     res.cols[0] = res.cols[0] * scale.x;
@@ -32,29 +26,41 @@ struct Transform {
     return res;
   }
 
+  // Decomposes an affine matrix without shear. A mirroring matrix yields a negative X scale;
+  // a zero-scale axis yields Identity rotation.
+  static Transform fromMatrix(const Mat4& iMatrix) {
+    const Vec3 axisX(iMatrix[0].x, iMatrix[0].y, iMatrix[0].z);
+    const Vec3 axisY(iMatrix[1].x, iMatrix[1].y, iMatrix[1].z);
+    const Vec3 axisZ(iMatrix[2].x, iMatrix[2].y, iMatrix[2].z);
+    const Vec3 position(iMatrix[3].x, iMatrix[3].y, iMatrix[3].z);
+
+    Vec3 scale(axisX.length(), axisY.length(), axisZ.length());
+    if (scale.x < math::SMALL_NUMBER || scale.y < math::SMALL_NUMBER || scale.z < math::SMALL_NUMBER) {
+      return Transform(position, Quat::Identity, scale);
+    }
+    if (axisX.cross(axisY).dot(axisZ) < 0.0f) {
+      scale.x = -scale.x;
+    }
+
+    const Mat4 rotation(Vec4(axisX / scale.x, 0.0f), Vec4(axisY / scale.y, 0.0f), Vec4(axisZ / scale.z, 0.0f),
+                        Vec4(0.0f, 0.0f, 0.0f, 1.0f));
+    return Transform(position, Quat::fromRotationMatrix(rotation), scale);
+  }
+
   Transform inverseNoScale() const {
     Quat invRotation = rotation.conjugate();
     Vec3 invTranslation = invRotation * -position;
     return Transform(invRotation, invTranslation, scale);
   }
 
-  /**
-   * @brief Gets local forward unit vector (+X transformed by rotation).
-   */
   Vec3 getForward() const {
     return rotation * Vec3::Forward;
   }
 
-  /**
-   * @brief Gets local left unit vector (+Y transformed by rotation).
-   */
   Vec3 getLeft() const {
     return rotation * Vec3::Left;
   }
 
-  /**
-   * @brief Gets local up unit vector (+Z transformed by rotation).
-   */
   Vec3 getUp() const {
     return rotation * Vec3::Up;
   }
@@ -66,23 +72,14 @@ struct Transform {
     return std::string(buf);
   }
 
-  /**
-   * @brief Transforms a 3D point (applying Scale, Rotation, and Translation).
-   */
   Vec3 transformPoint(const Vec3& iPoint) const {
     return position + (rotation * (scale * iPoint));
   }
 
-  /**
-   * @brief Transforms a 3D direction vector (applying Scale and Rotation, omitting Translation).
-   */
   Vec3 transformVector(const Vec3& iVector) const {
     return rotation * (scale * iVector);
   }
 
-  /**
-   * @brief Computes the exact inverse transform.
-   */
   Transform inverse() const {
     Quat invRotation = rotation.conjugate();
     Vec3 invScale = Vec3::One / scale;
@@ -90,23 +87,15 @@ struct Transform {
     return Transform(invRotation, invPosition, invScale);
   }
 
-  /**
-   * @brief Sets rotation from Roll (X), Pitch (Y), Yaw (Z) Euler angles in degrees.
-   */
+  // Roll (X), pitch (Y), yaw (Z) in degrees
   void setEulerAngles(const Vec3& iEulerDegrees) {
     rotation = Quat::fromEuler(iEulerDegrees);
   }
 
-  /**
-   * @brief Returns Roll (X), Pitch (Y), Yaw (Z) Euler angles in degrees.
-   */
   Vec3 getEulerAngles() const {
     return rotation.toEuler();
   }
 
-  /**
-   * @brief Spherical-linear interpolation between two transforms.
-   */
   static Transform slerp(const Transform& iA, const Transform& iB, float iT) {
     Transform result;
     result.position = math::lerp(iA.position, iB.position, iT);
@@ -115,9 +104,6 @@ struct Transform {
     return result;
   }
 
-  /**
-   * @brief Combines a parent and child transform into a single world transform.
-   */
   static Transform combine(const Transform& iParent, const Transform& iChild) {
     Transform world;
     world.position = iParent.transformPoint(iChild.position);

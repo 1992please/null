@@ -2,165 +2,100 @@
 
 #include "tests/test_runner.h"
 #include "components/camera_component.h"
+#include "core/math/transform.h"
 
 namespace ne::test {
 
-NE_TEST_CASE("camera", "CameraComponent Default Constructor Invariant") {
-  CameraComponent camera;
+namespace {
 
-  // The default constructor must initialize valid perspective projection matrices matching default parameters
-  NE_TEST_ASSERT(camera.mProjectionType == CameraComponent::ProjectionType::Perspective, "Default projection type must be Perspective.");
-  NE_TEST_ASSERT(!camera.mProjectionMatrix.equals(Mat4::Identity), "Default projection matrix must not be Identity.");
-  NE_TEST_ASSERT(!camera.mInverseProjectionMatrix.equals(Mat4::Identity), "Default inverse projection matrix must not be Identity.");
-
-  // Test P * P^-1 = Identity
-  Mat4 identity = camera.mProjectionMatrix * camera.mInverseProjectionMatrix;
-  NE_TEST_ASSERT(identity.equals(Mat4::Identity, 1e-3f), "Default projection * inverse projection must equal Identity.");
-
-  // Near plane depth in Reverse-Z must map to 1.0
-  Vec4 nearPointClip = camera.mProjectionMatrix * Vec4(0.0f, 0.0f, camera.mNearClip, 1.0f);
-  float nearDepth = nearPointClip.z / nearPointClip.w;
-  NE_TEST_ASSERT(math::equals(nearDepth, 1.0f, 1e-4f), "Default near plane clip depth must map to 1.0.");
+float clipDepth(const Mat4& iProjection, float iViewDepth) {
+  Vec4 clip = iProjection * Vec4(0.0f, 0.0f, iViewDepth, 1.0f);
+  return clip.z / clip.w;
 }
 
-NE_TEST_CASE("camera", "CameraComponent Parameterized Constructors & Static Factories") {
-  // 1. Parameterized perspective constructor
-  CameraComponent camPersp(60.0f, 16.0f / 9.0f, 0.5f, 500.0f);
-  NE_TEST_ASSERT(camPersp.mProjectionType == CameraComponent::ProjectionType::Perspective, "Projection type is Perspective.");
-  NE_TEST_ASSERT(math::equals(camPersp.mFovDeg, 60.0f), "FOV matches constructor arg.");
-  NE_TEST_ASSERT(!camPersp.mProjectionMatrix.equals(Mat4::Identity), "Projection matrix must be calculated.");
+} // namespace
 
-  // 2. Static factory perspective
-  CameraComponent camFactoryPersp = CameraComponent::createPerspective(90.0f, 2.0f, 0.2f, 200.0f);
-  NE_TEST_ASSERT(math::equals(camFactoryPersp.mFovDeg, 90.0f), "FOV matches factory arg.");
-  NE_TEST_ASSERT(!camFactoryPersp.mProjectionMatrix.equals(Mat4::Identity), "Factory projection matrix must be calculated.");
+NE_TEST_CASE("camera", "CameraComponent Default Perspective Projection") {
+  CameraComponent camera;
+  NE_TEST_ASSERT(camera.mProjectionType == CameraComponent::ProjectionType::Perspective, "Default projection type must be Perspective.");
 
-  // 3. Parameterized orthographic constructor & factory
-  CameraComponent camOrtho = CameraComponent::createOrthographic(12.0f, 16.0f / 9.0f, 0.1f, 50.0f);
-  NE_TEST_ASSERT(camOrtho.mProjectionType == CameraComponent::ProjectionType::Orthographic, "Projection type is Orthographic.");
-  NE_TEST_ASSERT(math::equals(camOrtho.mOrthoSize, 12.0f), "Ortho size matches factory arg.");
-  NE_TEST_ASSERT(!camOrtho.mProjectionMatrix.equals(Mat4::Identity), "Ortho projection matrix must be calculated.");
+  Mat4 projection = camera.getProjectionMatrix();
+  NE_TEST_ASSERT((projection * projection.inversed()).equals(Mat4::Identity, 1e-3f), "Default projection must be invertible.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, camera.mNearClip), 1.0f, 1e-4f), "Default near plane must map to depth 1.0.");
 }
 
 NE_TEST_CASE("camera", "CameraComponent Perspective Reverse-Z Projection") {
-  CameraComponent camera;
-  camera.setPerspective(45.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+  CameraComponent camera{.mFovDeg = 45.0f, .mAspectRatio = 16.0f / 9.0f, .mNearClip = 0.1f, .mFarClip = 1000.0f};
+  Mat4 projection = camera.getProjectionMatrix();
 
-  NE_TEST_ASSERT(camera.mProjectionType == CameraComponent::ProjectionType::Perspective, "Projection type must be Perspective.");
-
-  const Mat4& proj = camera.mProjectionMatrix;
-
-  // Transform Near plane point (0, 0, 0.1, 1)
-  Vec4 nearPointClip = proj * Vec4(0.0f, 0.0f, 0.1f, 1.0f);
-  float nearDepth = nearPointClip.z / nearPointClip.w;
-  NE_TEST_ASSERT(math::equals(nearDepth, 1.0f, 1e-4f), "Near plane clip depth in Reverse-Z must map to 1.0.");
-
-  // Transform Far plane point (0, 0, 1000, 1)
-  Vec4 farPointClip = proj * Vec4(0.0f, 0.0f, 1000.0f, 1.0f);
-  float farDepth = farPointClip.z / farPointClip.w;
-  NE_TEST_ASSERT(math::equals(farDepth, 0.0f, 1e-4f), "Far plane clip depth in Reverse-Z must map to 0.0.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, 0.1f), 1.0f, 1e-4f), "Near plane clip depth in Reverse-Z must map to 1.0.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, 1000.0f), 0.0f, 1e-4f), "Far plane clip depth in Reverse-Z must map to 0.0.");
+  NE_TEST_ASSERT(math::equals(projection[1][1], 1.0f / math::tan(math::radians(22.5f)), 1e-4f), "Vertical scale must follow the FOV.");
+  NE_TEST_ASSERT(math::equals(projection[0][0], projection[1][1] / camera.mAspectRatio, 1e-4f), "Horizontal scale must follow the aspect.");
 }
 
 NE_TEST_CASE("camera", "CameraComponent Perspective Infinite Far Clip") {
-  CameraComponent camera;
-  camera.setPerspective(45.0f, 16.0f / 9.0f, 0.1f, 0.0f); // 0.0 far clip enables infinite far clip
+  CameraComponent camera{.mNearClip = 0.1f, .mFarClip = 0.0f}; // Far clip <= 0 selects the infinite far plane
+  Mat4 projection = camera.getProjectionMatrix();
 
-  NE_TEST_ASSERT(camera.mInfiniteFarClip, "Infinite far clip must be enabled when farClip <= 0.");
-
-  const Mat4& proj = camera.mProjectionMatrix;
-
-  // Transform Near plane point (0, 0, 0.1, 1)
-  Vec4 nearPointClip = proj * Vec4(0.0f, 0.0f, 0.1f, 1.0f);
-  float nearDepth = nearPointClip.z / nearPointClip.w;
-  NE_TEST_ASSERT(math::equals(nearDepth, 1.0f, 1e-4f), "Near plane clip depth in Infinite Far Reverse-Z must map to 1.0.");
-
-  // Transform distant point (0, 0, 1e6, 1)
-  Vec4 distantPointClip = proj * Vec4(0.0f, 0.0f, 1e6f, 1.0f);
-  float distantDepth = distantPointClip.z / distantPointClip.w;
-  NE_TEST_ASSERT(math::equals(distantDepth, 0.0f, 1e-3f), "Distant point depth in Infinite Far Reverse-Z must approach 0.0.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, 0.1f), 1.0f, 1e-4f), "Near plane clip depth in Infinite Far Reverse-Z must map to 1.0.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, 1e6f), 0.0f, 1e-3f), "Distant point depth in Infinite Far Reverse-Z must approach 0.0.");
 }
 
-NE_TEST_CASE("camera", "CameraComponent Orthographic Projection & Inversion") {
-  CameraComponent camera;
-  camera.setOrthographic(10.0f, 16.0f / 9.0f, 0.1f, 100.0f);
+NE_TEST_CASE("camera", "CameraComponent Orthographic Projection") {
+  CameraComponent camera{.mProjectionType = CameraComponent::ProjectionType::Orthographic,
+                         .mOrthoSize = 10.0f,
+                         .mAspectRatio = 16.0f / 9.0f,
+                         .mNearClip = 0.1f,
+                         .mFarClip = 100.0f};
+  Mat4 projection = camera.getProjectionMatrix();
 
-  NE_TEST_ASSERT(camera.mProjectionType == CameraComponent::ProjectionType::Orthographic, "Projection type must be Orthographic.");
-
-  // Verify inverse matrix consistency (P * P^-1 = Identity)
-  Mat4 identity = camera.mProjectionMatrix * camera.mInverseProjectionMatrix;
-  NE_TEST_ASSERT(identity.equals(Mat4::Identity, 1e-3f), "Projection times InverseProjection must equal Identity.");
-}
-
-NE_TEST_CASE("camera", "CameraComponent Dynamic Projection Update") {
-  CameraComponent camera;
-  camera.mFovDeg = 60.0f;
-  camera.mAspectRatio = 4.0f / 3.0f;
-  camera.updateProjection();
-
-  // Validate that recalculation updated projection matrix without reconstructing component
-  NE_TEST_ASSERT(!camera.mProjectionMatrix.equals(Mat4::Identity), "Projection matrix must be recalculated and non-identity.");
+  NE_TEST_ASSERT((projection * projection.inversed()).equals(Mat4::Identity, 1e-3f), "Orthographic projection must be invertible.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, 0.1f), 1.0f, 1e-4f), "Ortho near plane must map to depth 1.0.");
+  NE_TEST_ASSERT(math::equals(clipDepth(projection, 100.0f), 0.0f, 1e-4f), "Ortho far plane must map to depth 0.0.");
 }
 
 NE_TEST_CASE("camera", "CameraComponent View and View-Projection Matrix Calculation") {
-  CameraComponent camera;
-  camera.setPerspective(45.0f, 16.0f / 9.0f, 0.1f, 1000.0f);
+  CameraComponent camera{.mFovDeg = 45.0f, .mAspectRatio = 16.0f / 9.0f, .mNearClip = 0.1f, .mFarClip = 1000.0f};
 
-  // 1. Aligned camera
-  TransformComponent transform;
-  transform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
-  transform.setRotation(Quat::Identity); // Looking along +X, +Z up
+  // Aligned camera looking along +X, +Z up
+  Transform pose(Vec3(-4.0f, 0.0f, 0.0f));
+  Mat4 view = camera.getViewMatrix(pose.toMatrix());
 
-  Mat4 view = camera.getViewMatrix(transform);
-
-  // Camera eye position must map to view-space origin (0, 0, 0)
-  Vec4 eyeInView = view * Vec4(transform.getPosition(), 1.0f);
+  Vec4 eyeInView = view * Vec4(pose.position, 1.0f);
   NE_TEST_ASSERT(eyeInView.equals(Vec4(0.0f, 0.0f, 0.0f, 1.0f), 1e-4f), "Camera position must map to view-space origin.");
 
   // Null Engine world axes (+X Forward, +Y Left, +Z Up) map to the optical frame (+X Right, +Y Down, +Z Forward)
-  Vec4 leftInView = view * Vec4(transform.getLeft(), 0.0f);
-  Vec4 upInView = view * Vec4(transform.getUp(), 0.0f);
-  Vec4 forwardInView = view * Vec4(transform.getForward(), 0.0f);
-  NE_TEST_ASSERT(leftInView.equals(Vec4(-1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Camera Left (+Y) must map to View -X.");
-  NE_TEST_ASSERT(upInView.equals(Vec4(0.0f, -1.0f, 0.0f, 0.0f), 1e-4f), "Camera Up (+Z) must map to View -Y.");
-  NE_TEST_ASSERT(forwardInView.equals(Vec4(0.0f, 0.0f, 1.0f, 0.0f), 1e-4f), "Camera Forward (+X) must map to View +Z.");
+  NE_TEST_ASSERT((view * Vec4(pose.getLeft(), 0.0f)).equals(Vec4(-1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Camera Left (+Y) must map to View -X.");
+  NE_TEST_ASSERT((view * Vec4(pose.getUp(), 0.0f)).equals(Vec4(0.0f, -1.0f, 0.0f, 0.0f), 1e-4f), "Camera Up (+Z) must map to View -Y.");
+  NE_TEST_ASSERT((view * Vec4(pose.getForward(), 0.0f)).equals(Vec4(0.0f, 0.0f, 1.0f, 0.0f), 1e-4f), "Camera Forward (+X) must map to View +Z.");
 
-  Mat4 viewProj = camera.getViewProjectionMatrix(transform);
-  Mat4 expectedViewProj = camera.mProjectionMatrix * view;
-  NE_TEST_ASSERT(viewProj.equals(expectedViewProj), "CameraComponent::getViewProjectionMatrix must equal Projection * View.");
+  Mat4 viewProj = camera.getViewProjectionMatrix(pose.toMatrix());
+  NE_TEST_ASSERT(viewProj.equals(camera.getProjectionMatrix() * view), "getViewProjectionMatrix must equal Projection * View.");
 
-  // 2. Arbitrary 3D orientation (Yaw, Pitch, Roll)
-  transform.setPosition(Vec3(10.0f, -5.0f, 2.0f));
-  transform.setEulerAngles(Vec3(20.0f, 35.0f, -15.0f));
+  // Arbitrary orientation; world scale is ignored
+  Transform rotatedPose(Vec3(10.0f, -5.0f, 2.0f), Quat::fromEuler(Vec3(20.0f, 35.0f, -15.0f)), Vec3(3.0f));
+  Mat4 rotatedView = camera.getViewMatrix(rotatedPose.toMatrix());
 
-  Mat4 rotatedView = camera.getViewMatrix(transform);
+  NE_TEST_ASSERT((rotatedView * Vec4(rotatedPose.position, 1.0f)).equals(Vec4(0.0f, 0.0f, 0.0f, 1.0f), 1e-4f),
+                 "Rotated camera position must map to view-space origin.");
+  NE_TEST_ASSERT((rotatedView * Vec4(rotatedPose.getLeft(), 0.0f)).equals(Vec4(-1.0f, 0.0f, 0.0f, 0.0f), 1e-4f),
+                 "Rotated Camera Left must map to View -X.");
+  NE_TEST_ASSERT((rotatedView * Vec4(rotatedPose.getUp(), 0.0f)).equals(Vec4(0.0f, -1.0f, 0.0f, 0.0f), 1e-4f),
+                 "Rotated Camera Up must map to View -Y.");
 
-  Vec4 rotEyeInView = rotatedView * Vec4(transform.getPosition(), 1.0f);
-  NE_TEST_ASSERT(rotEyeInView.equals(Vec4(0.0f, 0.0f, 0.0f, 1.0f), 1e-4f), "Rotated camera position must map to view-space origin.");
-
-  Vec4 rotLeftInView = rotatedView * Vec4(transform.getLeft(), 0.0f);
-  Vec4 rotUpInView = rotatedView * Vec4(transform.getUp(), 0.0f);
-  Vec4 rotForwardInView = rotatedView * Vec4(transform.getForward(), 0.0f);
-  NE_TEST_ASSERT(rotLeftInView.equals(Vec4(-1.0f, 0.0f, 0.0f, 0.0f), 1e-4f), "Rotated Camera Left must map to View -X.");
-  NE_TEST_ASSERT(rotUpInView.equals(Vec4(0.0f, -1.0f, 0.0f, 0.0f), 1e-4f), "Rotated Camera Up must map to View -Y.");
-  NE_TEST_ASSERT(rotForwardInView.equals(Vec4(0.0f, 0.0f, 1.0f, 0.0f), 1e-4f), "Rotated Camera Forward must map to View +Z.");
-
-  // 3. World point in front of camera maps to positive Z in view space
-  Vec3 targetWorld = transform.getPosition() + transform.getForward() * 5.0f;
-  Vec4 targetView = rotatedView * Vec4(targetWorld.x, targetWorld.y, targetWorld.z, 1.0f);
-  NE_TEST_ASSERT(math::equals(targetView.x, 0.0f, 1e-4f), "Point directly forward must have view X = 0.");
-  NE_TEST_ASSERT(math::equals(targetView.y, 0.0f, 1e-4f), "Point directly forward must have view Y = 0.");
-  NE_TEST_ASSERT(math::equals(targetView.z, 5.0f, 1e-4f), "Point 5 units forward must have view Z = 5.");
+  // World point in front of camera maps to positive Z in view space
+  Vec3 targetWorld = rotatedPose.position + rotatedPose.getForward() * 5.0f;
+  Vec4 targetView = rotatedView * Vec4(targetWorld, 1.0f);
+  NE_TEST_ASSERT(targetView.equals(Vec4(0.0f, 0.0f, 5.0f, 1.0f), 1e-4f), "Point 5 units forward must have view (0, 0, 5).");
 }
 
 NE_TEST_CASE("camera", "CameraComponent Screen Orientation Is Not Mirrored") {
-  CameraComponent camera;
-  camera.setPerspective(60.0f, 16.0f / 9.0f, 0.1f, 100.0f);
-
-  TransformComponent transform;
-  transform.setPosition(Vec3(-4.0f, 0.0f, 0.0f));
-  Mat4 viewProj = camera.getViewProjectionMatrix(transform);
+  CameraComponent camera{.mFovDeg = 60.0f, .mAspectRatio = 16.0f / 9.0f, .mNearClip = 0.1f, .mFarClip = 100.0f};
+  Mat4 pose = Transform(Vec3(-4.0f, 0.0f, 0.0f)).toMatrix();
 
   // Vulkan NDC: +X right, +Y down. World +Y (Left) must land on the left half, world +Z (Up) on the top half.
+  Mat4 viewProj = camera.getViewProjectionMatrix(pose);
   Vec4 leftClip = viewProj * Vec4(0.0f, 1.0f, 0.0f, 1.0f);
   Vec4 upClip = viewProj * Vec4(0.0f, 0.0f, 1.0f, 1.0f);
   NE_TEST_ASSERT(leftClip.x / leftClip.w < 0.0f, "World +Y (Left) must project to NDC -X (screen left).");
@@ -169,8 +104,9 @@ NE_TEST_CASE("camera", "CameraComponent Screen Orientation Is Not Mirrored") {
   NE_TEST_ASSERT(math::equals(upClip.x / upClip.w, 0.0f, 1e-4f), "World +Z must stay on the vertical center line.");
 
   // Orthographic projection must keep the same orientation
-  camera.setOrthographic(10.0f, 16.0f / 9.0f, 0.1f, 100.0f);
-  viewProj = camera.getViewProjectionMatrix(transform);
+  camera.mProjectionType = CameraComponent::ProjectionType::Orthographic;
+  camera.mOrthoSize = 10.0f;
+  viewProj = camera.getViewProjectionMatrix(pose);
   leftClip = viewProj * Vec4(0.0f, 1.0f, 0.0f, 1.0f);
   upClip = viewProj * Vec4(0.0f, 0.0f, 1.0f, 1.0f);
   NE_TEST_ASSERT(leftClip.x / leftClip.w < 0.0f, "Ortho: World +Y (Left) must project to NDC -X (screen left).");
