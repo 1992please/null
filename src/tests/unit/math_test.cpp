@@ -20,17 +20,17 @@ NE_TEST_CASE("math", "Scalar Math Utilities") {
 }
 
 NE_TEST_CASE("math", "Trigonometry & Angular Conversions") {
-  NE_TEST_ASSERT(math::equals(math::radians(180.0f), math::PI), "180 deg in rad.");
-  NE_TEST_ASSERT(math::equals(math::radians(90.0f), math::HALF_PI), "90 deg in rad.");
-  NE_TEST_ASSERT(math::equals(math::degrees(math::PI), 180.0f), "PI in deg.");
+  NE_TEST_ASSERT(math::equals(math::radians(180.0f), math::kPi), "180 deg in rad.");
+  NE_TEST_ASSERT(math::equals(math::radians(90.0f), math::kHalfPi), "90 deg in rad.");
+  NE_TEST_ASSERT(math::equals(math::degrees(math::kPi), 180.0f), "pi in deg.");
 
   NE_TEST_ASSERT(math::equals(math::sin(0.0f), 0.0f), "sin(0).");
-  NE_TEST_ASSERT(math::equals(math::sin(math::HALF_PI), 1.0f), "sin(pi/2).");
+  NE_TEST_ASSERT(math::equals(math::sin(math::kHalfPi), 1.0f), "sin(pi/2).");
   NE_TEST_ASSERT(math::equals(math::cos(0.0f), 1.0f), "cos(0).");
-  NE_TEST_ASSERT(math::equals(math::cos(math::PI), -1.0f), "cos(pi).");
+  NE_TEST_ASSERT(math::equals(math::cos(math::kPi), -1.0f), "cos(pi).");
   NE_TEST_ASSERT(math::equals(math::tan(0.0f), 0.0f), "tan(0).");
 
-  NE_TEST_ASSERT(math::equals(math::PI * math::INV_PI, 1.0f), "PI * INV_PI == 1.0.");
+  NE_TEST_ASSERT(math::equals(math::kPi * math::kInvPi, 1.0f), "pi * (1 / pi) == 1.0.");
 }
 
 NE_TEST_CASE("math", "Optics: Reflect & Refract") {

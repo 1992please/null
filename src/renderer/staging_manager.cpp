@@ -14,7 +14,7 @@ StagingManager::StagingManager(Device* iDevice) : mDevice(iDevice) {
   NE_ASSERT(mDevice, "Device must not be null");
 
   Buffer::Config stagingConfig{
-      .size = vk_utils::STAGING_BUFFER_SIZE,
+      .size = vk_utils::kStagingBufferSize,
       .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
       .memoryUsage = MemoryUsage::Upload,
       .debugName = "StagingManager_StagingBuffer",

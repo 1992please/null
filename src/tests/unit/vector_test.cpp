@@ -12,7 +12,7 @@ NE_TEST_CASE("vector", "Vec2 Operations & Member Functions") {
   NE_TEST_ASSERT(math::equals(a.length(), 5.0f), "Vec2 member length of (3,4) must be 5.");
   NE_TEST_ASSERT(math::equals(a.lengthSquared(), 25.0f), "Vec2 member lengthSquared must be 25.");
   NE_TEST_ASSERT(a.getUnsafeNormal().isNormalized(), "Vec2 getUnsafeNormal must be normalized.");
-  NE_TEST_ASSERT(Vec2::Zero.getSafeNormal(math::SMALL_NUMBER, Vec2::UnitX).equals(Vec2::UnitX), "Safe normalize zero vector must return fallback.");
+  NE_TEST_ASSERT(Vec2::Zero.getSafeNormal(math::kSmallNumber, Vec2::UnitX).equals(Vec2::UnitX), "Safe normalize zero vector must return fallback.");
   NE_TEST_ASSERT(math::equals(Vec2(1.0f, 0.0f).dot(Vec2(0.0f, 1.0f)), 0.0f), "Member dot product of orthogonal vectors must be 0.");
 
   NE_TEST_ASSERT(math::equals(a[0], 3.0f) && math::equals(a[1], 4.0f), "Vec2 operator[] indexing.");
@@ -48,7 +48,7 @@ NE_TEST_CASE("vector", "Vec2 Operations & Member Functions") {
 
   Vec2 deg(180.0f, 90.0f);
   Vec2 rad = math::radians(deg);
-  NE_TEST_ASSERT(math::equals(rad.x, math::PI), "180 deg in rad must be ~pi.");
+  NE_TEST_ASSERT(math::equals(rad.x, math::kPi), "180 deg in rad must be ~pi.");
 
   Vec2 degBack = math::degrees(rad);
   NE_TEST_ASSERT(degBack.equals(deg), "Degrees-radians roundtrip must match.");
@@ -73,7 +73,7 @@ NE_TEST_CASE("vector", "Vec3 Operations & Member Functions") {
   NE_TEST_ASSERT(math::equals(a.lengthSquared(), 9.0f), "Vec3 member lengthSquared must be 9.");
   NE_TEST_ASSERT(a.getUnsafeNormal().isNormalized(), "Vec3 getUnsafeNormal must be normalized.");
   NE_TEST_ASSERT(Vec3::Forward.cross(Vec3::Left).equals(Vec3::Up), "Forward x Left in member cross must equal Up (+Z).");
-  NE_TEST_ASSERT(Vec3::Zero.getSafeNormal(math::SMALL_NUMBER, Vec3::Up).equals(Vec3::Up), "Vec3 getSafeNormal zero fallback.");
+  NE_TEST_ASSERT(Vec3::Zero.getSafeNormal(math::kSmallNumber, Vec3::Up).equals(Vec3::Up), "Vec3 getSafeNormal zero fallback.");
 
   NE_TEST_ASSERT(math::equals(a[0], 1.0f) && math::equals(a[1], 2.0f) && math::equals(a[2], 2.0f), "Vec3 operator[] indexing.");
   NE_TEST_ASSERT(a.data() == &a.x, "Vec3 data() pointer points to x component.");
@@ -126,7 +126,7 @@ NE_TEST_CASE("vector", "Vec4 Operations & Member Functions") {
   NE_TEST_ASSERT(math::equals(a.length(), 5.0f), "Vec4 member length of (0,3,0,4) must be 5.");
   NE_TEST_ASSERT(math::equals(a.lengthSquared(), 25.0f), "Vec4 member lengthSquared must be 25.");
   NE_TEST_ASSERT(a.getUnsafeNormal().isNormalized(), "Vec4 getUnsafeNormal must be normalized.");
-  NE_TEST_ASSERT(Vec4::Zero.getSafeNormal(math::SMALL_NUMBER, Vec4::One).equals(Vec4::One), "Vec4 getSafeNormal zero fallback.");
+  NE_TEST_ASSERT(Vec4::Zero.getSafeNormal(math::kSmallNumber, Vec4::One).equals(Vec4::One), "Vec4 getSafeNormal zero fallback.");
 
   NE_TEST_ASSERT(math::equals(a[1], 3.0f) && math::equals(a[3], 4.0f), "Vec4 operator[] indexing.");
   NE_TEST_ASSERT(a.data() == &a.x, "Vec4 data() pointer points to x component.");

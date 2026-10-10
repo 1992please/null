@@ -10,7 +10,6 @@
 #include "core/time.h"
 #include "importers/gltf_importer.h"
 #include "importers/image_importer.h"
-#include "platform/window.h"
 #include "renderer/material.h"
 #include "renderer/mesh.h"
 #include "renderer/mesh_utils.h"
@@ -40,14 +39,10 @@ BasicApp::BasicApp() : Application("Basic App (MDI Showcase)", 1200, 1000) {
   mCube2Material = getResourceManager()->createMaterial();
   mCube2Material->setTexture(checkerTextureId, SamplerType::NearestRepeat);
 
-  int32_t width = 0, height = 0;
-  getWindow()->getFrameBufferSize(&width, &height);
-  float aspect = (height > 0) ? (static_cast<float>(width) / static_cast<float>(height)) : (16.0f / 9.0f);
-
   mCameraEntity = getRegistry()->createEntity();
   getRegistry()->addComponent<TransformComponent>(mCameraEntity, Transform(Vec3(-4.0f, 0.0f, 0.0f)));
   getRegistry()->addComponent<CameraComponent>(
-      mCameraEntity, CameraComponent{.mFovDeg = 45.0f, .mAspectRatio = aspect, .mNearClip = 0.1f, .mFarClip = 100.0f});
+      mCameraEntity, CameraComponent{.mFov = math::radians(45.0f), .mNearClip = 0.1f, .mFarClip = 100.0f});
   getRegistry()->addComponent<NameComponent>(mCameraEntity, "Camera");
 
   // Left (+Y)
@@ -75,12 +70,7 @@ BasicApp::~BasicApp() = default;
 void BasicApp::renderUI() { mMainUI.draw(*this); }
 
 void BasicApp::update(float iDeltaTime) {
-  int32_t width = 0, height = 0;
-  getWindow()->getFrameBufferSize(&width, &height);
-  if (width > 0 && height > 0 && getRegistry()->isValid(mCameraEntity)) {
-    getRegistry()->getComponent<CameraComponent>(mCameraEntity).mAspectRatio =
-        static_cast<float>(width) / static_cast<float>(height);
-
+  if (getRegistry()->isValid(mCameraEntity)) {
     mCameraController.update(Time::getUnscaledDeltaTime(), getRegistry()->getComponent<TransformComponent>(mCameraEntity));
   }
 

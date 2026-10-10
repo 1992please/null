@@ -19,6 +19,7 @@
 
 // std
 #include <algorithm>
+#include <optional>
 
 namespace ne {
 
@@ -101,14 +102,14 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
 
   mBindlessManager->bind(iCommandBuffer, mScenePipelineLayout);
 
-  Mat4 viewProj{1.0f};
-  iRegistry->view<TransformComponent, CameraComponent>().each(
-      [&](Entity entity, const TransformComponent& transform, const CameraComponent& camera) {
-        NE_UNUSED(entity);
-        if (camera.mIsPrimary) {
-          viewProj = camera.getViewProjectionMatrix(transform.getWorldMatrix());
-        }
-      });
+  const float aspectRatio = static_cast<float>(extent.width) / static_cast<float>(extent.height);
+  std::optional<Mat4> viewProj;
+  iRegistry->view<TransformComponent, CameraComponent>().each([&](const TransformComponent& transform, const CameraComponent& camera) {
+    if (camera.mIsPrimary) {
+      NE_ASSERT(!viewProj, "At most one camera may be primary");
+      viewProj = camera.getViewProjectionMatrix(transform.getWorldMatrix(), aspectRatio);
+    }
+  });
 
   iRegistry->view<TransformComponent, MeshComponent>().each(
       [&](Entity entity, const TransformComponent& transform, const MeshComponent& mesh) {
@@ -131,7 +132,10 @@ void SceneRenderer::render(VkCommandBuffer iCommandBuffer, Registry* iRegistry, 
         }
       });
 
-  submit(iCommandBuffer, viewProj);
+  // Without a primary camera only the UI is drawn
+  if (viewProj) {
+    submit(iCommandBuffer, *viewProj);
+  }
 
   if (iGuiManager) {
     iGuiManager->draw(iCommandBuffer);

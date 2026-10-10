@@ -5,7 +5,7 @@
 // std
 #include <algorithm>
 
-namespace ne::TransformSystem {
+namespace ne {
 
 namespace {
 
@@ -20,7 +20,7 @@ Mat4 computeWorldMatrix(const Registry& iRegistry, Entity iEntity) {
 
 } // namespace
 
-void setParent(Registry& ioRegistry, Entity iChild, Entity iParent, AttachRule iRule) {
+void TransformSystem::setParent(Registry& ioRegistry, Entity iChild, Entity iParent, AttachRule iRule) {
   NE_ASSERT(ioRegistry.isValid(iChild) && ioRegistry.hasComponent<TransformComponent>(iChild),
             "Child must be a valid entity with a TransformComponent");
 
@@ -55,45 +55,36 @@ void setParent(Registry& ioRegistry, Entity iChild, Entity iParent, AttachRule i
   }
 }
 
-void destroyRecursive(Registry& ioRegistry, Entity iEntity) {
-  NE_ASSERT(ioRegistry.isValid(iEntity));
+void TransformComponent::onRemove(Registry& ioRegistry, Entity iEntity) {
+  TransformSystem::setParent(ioRegistry, iEntity, Entity::Null);
 
-  if (ioRegistry.hasComponent<TransformComponent>(iEntity)) {
-    setParent(ioRegistry, iEntity, NullEntity);
-
-    // Each child detaches itself as it is destroyed. Destruction moves components inside the pool,
-    // so the component is looked up again on every iteration.
-    while (!ioRegistry.getComponent<TransformComponent>(iEntity).getChildren().empty()) {
-      destroyRecursive(ioRegistry, ioRegistry.getComponent<TransformComponent>(iEntity).getChildren().back());
-    }
+  // Each child detaches itself in its own onRemove(). Destruction moves components inside the pool,
+  // so the component is looked up again on every iteration.
+  while (!ioRegistry.getComponent<TransformComponent>(iEntity).mChildren.empty()) {
+    ioRegistry.destroyEntity(ioRegistry.getComponent<TransformComponent>(iEntity).mChildren.back());
   }
-
-  ioRegistry.destroyEntity(iEntity);
 }
 
-void update(Registry& ioRegistry) {
-  auto propagate = [&](auto& iSelf, TransformComponent& ioTransform, const Mat4& iParentWorld, bool iParentChanged) -> void {
-    const bool changed = iParentChanged || ioTransform.mDirty;
-    if (changed) {
-      ioTransform.mWorldMatrix = iParentWorld * ioTransform.mLocal.toMatrix();
-      ioTransform.mDirty = false;
-    }
-
-    for (Entity child : ioTransform.mChildren) {
-      NE_ASSERT(ioRegistry.isValid(child),
-                "Stale child link: destroy hierarchy members with TransformSystem::destroyRecursive()");
-      iSelf(iSelf, ioRegistry.getComponent<TransformComponent>(child), ioTransform.mWorldMatrix, changed);
-    }
-  };
-
+void TransformSystem::update(Registry& ioRegistry) {
   ioRegistry.view<TransformComponent>().each([&](TransformComponent& ioTransform) {
     if (ioTransform.mParent.isValid()) {
-      NE_ASSERT(ioRegistry.isValid(ioTransform.mParent),
-                "Stale parent link: destroy hierarchy members with TransformSystem::destroyRecursive()");
       return; // Reached from its root
     }
-    propagate(propagate, ioTransform, Mat4::Identity, false);
+    propagate(ioRegistry, ioTransform, Mat4::Identity, false);
   });
 }
 
-} // namespace ne::TransformSystem
+void TransformSystem::propagate(Registry& ioRegistry, TransformComponent& ioTransform, const Mat4& iParentWorld,
+                                bool iParentChanged) {
+  const bool changed = iParentChanged || ioTransform.mDirty;
+  if (changed) {
+    ioTransform.mWorldMatrix = iParentWorld * ioTransform.mLocal.toMatrix();
+    ioTransform.mDirty = false;
+  }
+
+  for (Entity child : ioTransform.mChildren) {
+    propagate(ioRegistry, ioRegistry.getComponent<TransformComponent>(child), ioTransform.mWorldMatrix, changed);
+  }
+}
+
+} // namespace ne

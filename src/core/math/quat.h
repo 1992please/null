@@ -38,7 +38,7 @@ struct Quat {
 
   static inline Quat angleAxis(float iAngleRad, const Vec3& iAxis) {
     float lenSq = iAxis.lengthSquared();
-    if (lenSq < math::SMALL_NUMBER) {
+    if (lenSq < math::kSmallNumber) {
       return Identity;
     }
     float invLen = math::invSqrt(lenSq);
@@ -47,11 +47,11 @@ struct Quat {
     return Quat(iAxis.x * invLen * s, iAxis.y * invLen * s, iAxis.z * invLen * s, math::cos(halfAngle));
   }
 
-  // Roll (X), pitch (Y), yaw (Z) in degrees, composed as Rz * Ry * Rx (ROS RPY)
-  static inline Quat fromEuler(const Vec3& iEulerDegrees) {
-    float radX = math::radians(iEulerDegrees.x) * 0.5f;
-    float radY = math::radians(iEulerDegrees.y) * 0.5f;
-    float radZ = math::radians(iEulerDegrees.z) * 0.5f;
+  // Roll (X), pitch (Y), yaw (Z) in radians, composed as Rz * Ry * Rx (ROS RPY)
+  static inline Quat fromEuler(const Vec3& iEulerRadians) {
+    float radX = iEulerRadians.x * 0.5f;
+    float radY = iEulerRadians.y * 0.5f;
+    float radZ = iEulerRadians.z * 0.5f;
 
     float cx = math::cos(radX);
     float sx = math::sin(radX);
@@ -166,7 +166,7 @@ struct Quat {
 
   inline Quat inverse() const {
     float lenSq = lengthSquared();
-    if (lenSq > math::SMALL_NUMBER) {
+    if (lenSq > math::kSmallNumber) {
       float invLenSq = 1.0f / lenSq;
       return Quat(-x * invLenSq, -y * invLenSq, -z * invLenSq, w * invLenSq);
     }
@@ -178,7 +178,7 @@ struct Quat {
     float rollY = 2.0f * (y * z + w * x);
     float rollX = w * w - x * x - y * y + z * z;
     float rollRad = 0.0f;
-    if (math::abs(rollX) < math::SMALL_NUMBER && math::abs(rollY) < math::SMALL_NUMBER) {
+    if (math::abs(rollX) < math::kSmallNumber && math::abs(rollY) < math::kSmallNumber) {
       rollRad = 2.0f * math::atan2(x, w);
     } else {
       rollRad = math::atan2(rollY, rollX);
@@ -190,17 +190,17 @@ struct Quat {
     float yawY = 2.0f * (x * y + w * z);
     float yawX = w * w + x * x - y * y - z * z;
     float yawRad = 0.0f;
-    if (math::abs(yawX) < math::SMALL_NUMBER && math::abs(yawY) < math::SMALL_NUMBER) {
+    if (math::abs(yawX) < math::kSmallNumber && math::abs(yawY) < math::kSmallNumber) {
       yawRad = 0.0f;
     } else {
       yawRad = math::atan2(yawY, yawX);
     }
 
-    return Vec3(math::degrees(rollRad), math::degrees(pitchRad), math::degrees(yawRad));
+    return Vec3(rollRad, pitchRad, yawRad);
   }
 
   // Resets to Identity when the length is near zero
-  inline bool normalize(float iTolerance = math::SMALL_NUMBER) {
+  inline bool normalize(float iTolerance = math::kSmallNumber) {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
       float invLen = math::invSqrt(lenSq);
@@ -217,7 +217,7 @@ struct Quat {
     return false;
   }
 
-  inline bool equals(const Quat& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+  inline bool equals(const Quat& iOther, float iTolerance = math::kKindaSmallNumber) const {
     return math::abs(x - iOther.x) <= iTolerance &&
            math::abs(y - iOther.y) <= iTolerance &&
            math::abs(z - iOther.z) <= iTolerance &&

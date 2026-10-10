@@ -50,7 +50,7 @@ void Instance::createInstance(const Config& iConfig) {
   appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
   appInfo.pEngineName = iConfig.engineName.c_str();
   appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-  appInfo.apiVersion = API_VERSION;
+  appInfo.apiVersion = kApiVersion;
 
   uint32_t availableExtensionCount = 0;
   vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
@@ -84,16 +84,16 @@ void Instance::createInstance(const Config& iConfig) {
     std::vector<VkLayerProperties> availableLayers(availableLayerCount);
     vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
     const bool layerFound = std::any_of(availableLayers.begin(), availableLayers.end(), [](const VkLayerProperties& iLayer) {
-      return strcmp(iLayer.layerName, VALIDATION_LAYER_NAME) == 0;
+      return strcmp(iLayer.layerName, kValidationLayerName) == 0;
     });
-    NE_ASSERT(layerFound, "Required validation layer not supported: {}", VALIDATION_LAYER_NAME);
+    NE_ASSERT(layerFound, "Required validation layer not supported: {}", kValidationLayerName);
     createInfo.enabledLayerCount = 1;
-    createInfo.ppEnabledLayerNames = &VALIDATION_LAYER_NAME;
+    createInfo.ppEnabledLayerNames = &kValidationLayerName;
 
     // Synchronization validation reports hazards from missing barriers or semaphores
     const VkBool32 validateSync = VK_TRUE;
     VkLayerSettingEXT validateSyncSetting{};
-    validateSyncSetting.pLayerName = VALIDATION_LAYER_NAME;
+    validateSyncSetting.pLayerName = kValidationLayerName;
     validateSyncSetting.pSettingName = "validate_sync";
     validateSyncSetting.type = VK_LAYER_SETTING_TYPE_BOOL32_EXT;
     validateSyncSetting.valueCount = 1;

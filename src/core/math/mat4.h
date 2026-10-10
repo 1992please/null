@@ -83,7 +83,7 @@ struct Mat4 {
 
     const float det = s0 * c5 - s1 * c4 + s2 * c3 + s3 * c2 - s4 * c1 + s5 * c0;
 
-    if (math::abs(det) <= math::SMALL_NUMBER) {
+    if (math::abs(det) <= math::kSmallNumber) {
       return Mat4::Identity;
     }
 
@@ -117,7 +117,7 @@ struct Mat4 {
     return res;
   }
 
-  inline bool equals(const Mat4& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+  inline bool equals(const Mat4& iOther, float iTolerance = math::kKindaSmallNumber) const {
     return cols[0].equals(iOther.cols[0], iTolerance) &&
            cols[1].equals(iOther.cols[1], iTolerance) &&
            cols[2].equals(iOther.cols[2], iTolerance) &&

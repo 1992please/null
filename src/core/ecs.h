@@ -12,17 +12,18 @@ namespace ne {
 
 // The version changes whenever an id is recycled, so stale handles stay invalid
 struct Entity {
-  static constexpr uint32_t INVALID_ID = ~0U;
+  static constexpr uint32_t kInvalidId = ~0U;
+  static const Entity Null; // Also the default value
 
-  uint32_t mId{INVALID_ID};
+  uint32_t mId{kInvalidId};
   uint32_t mVersion{0};
 
-  constexpr bool isValid() const { return mId != INVALID_ID; }
+  constexpr bool isValid() const { return mId != kInvalidId; }
   constexpr bool operator==(const Entity& iOther) const { return mId == iOther.mId && mVersion == iOther.mVersion; }
   constexpr bool operator!=(const Entity& iOther) const { return !(*this == iOther); }
 };
 
-constexpr Entity NullEntity{Entity::INVALID_ID, 0};
+inline constexpr Entity Entity::Null{};
 
 } // namespace ne
 
@@ -37,9 +38,17 @@ struct hash<ne::Entity> {
 
 namespace ne {
 
+class Registry;
+
+// A component type may define `static void onRemove(Registry&, Entity)`. The registry calls it before the component is
+// removed by removeComponent() or destroyEntity(), while the entity and all its components are still intact.
+template <typename ComponentType>
+concept HasRemoveHook = requires(Registry& ioRegistry, Entity iEntity) { ComponentType::onRemove(ioRegistry, iEntity); };
+
 class IComponentPool {
 public:
   virtual ~IComponentPool() = default;
+  virtual void invokeRemoveHook(Registry& ioRegistry, Entity iEntity) = 0;
   virtual void removeIfExists(Entity iEntity) = 0;
   virtual bool has(Entity iEntity) const = 0;
   virtual void clear() = 0;
@@ -63,19 +72,13 @@ public:
     mSparse.reserve(reserveEntities > 0 ? reserveEntities : reserveComponents);
   }
 
-  // Replaces the component if the entity already has one
   template <typename... Args>
   ComponentType& emplace(Entity iEntity, Args&&... iArgs) {
     NE_ASSERT(iEntity.isValid(), "Entity handle is invalid.");
     if (iEntity.mId >= mSparse.size()) {
-      mSparse.resize(iEntity.mId + 1, INVALID_INDEX);
+      mSparse.resize(iEntity.mId + 1, kInvalidIndex);
     }
-
-    if (mSparse[iEntity.mId] != INVALID_INDEX) {
-      uint32_t denseIdx = mSparse[iEntity.mId];
-      mDenseComponents[denseIdx] = ComponentType(std::forward<Args>(iArgs)...);
-      return mDenseComponents[denseIdx];
-    }
+    NE_ASSERT(mSparse[iEntity.mId] == kInvalidIndex, "Entity already has this component.");
 
     uint32_t denseIdx = static_cast<uint32_t>(mDenseComponents.size());
     mSparse[iEntity.mId] = denseIdx;
@@ -110,7 +113,15 @@ public:
 
     mDenseComponents.pop_back();
     mDenseEntities.pop_back();
-    mSparse[iEntity.mId] = INVALID_INDEX;
+    mSparse[iEntity.mId] = kInvalidIndex;
+  }
+
+  void invokeRemoveHook([[maybe_unused]] Registry& ioRegistry, [[maybe_unused]] Entity iEntity) override {
+    if constexpr (HasRemoveHook<ComponentType>) {
+      if (has(iEntity)) {
+        ComponentType::onRemove(ioRegistry, iEntity);
+      }
+    }
   }
 
   void removeIfExists(Entity iEntity) override {
@@ -119,8 +130,10 @@ public:
     }
   }
 
+  // Compares the full handle, so a stale handle never matches the entity that recycled its id
   bool has(Entity iEntity) const override {
-    return iEntity.isValid() && iEntity.mId < mSparse.size() && mSparse[iEntity.mId] != INVALID_INDEX;
+    return iEntity.isValid() && iEntity.mId < mSparse.size() && mSparse[iEntity.mId] != kInvalidIndex &&
+           mDenseEntities[mSparse[iEntity.mId]] == iEntity;
   }
 
   ComponentType& get(Entity iEntity) {
@@ -157,7 +170,7 @@ public:
   auto end() const { return mDenseComponents.cend(); }
 
 private:
-  static constexpr uint32_t INVALID_INDEX = ~0U;
+  static constexpr uint32_t kInvalidIndex = ~0U;
   std::vector<uint32_t> mSparse;
   std::vector<Entity> mDenseEntities;
   std::vector<ComponentType> mDenseComponents;
@@ -237,6 +250,14 @@ public:
     if (!isValid(iEntity))
       return;
 
+    // Hooks may destroy other entities or create pools, so the pools are indexed rather than iterated
+    for (size_t i = 0; i < mPools.size(); ++i) {
+      if (mPools[i]) {
+        mPools[i]->invokeRemoveHook(*this, iEntity);
+      }
+    }
+    NE_ASSERT(isValid(iEntity), "A remove hook destroyed the entity it was called for.");
+
     for (auto& pool : mPools) {
       if (pool) {
         pool->removeIfExists(iEntity);
@@ -258,11 +279,17 @@ public:
 
   template <typename ComponentType, typename... Args>
   ComponentType& addComponent(Entity iEntity, Args&&... iArgs) {
+    NE_ASSERT(isValid(iEntity), "Entity is not alive.");
     return getPool<ComponentType>().emplace(iEntity, std::forward<Args>(iArgs)...);
   }
 
   template <typename ComponentType>
   void removeComponent(Entity iEntity) {
+    NE_ASSERT(isValid(iEntity), "Entity is not alive.");
+    NE_ASSERT(hasComponent<ComponentType>(iEntity), "Entity does not have specified component.");
+    if constexpr (HasRemoveHook<ComponentType>) {
+      ComponentType::onRemove(*this, iEntity);
+    }
     getPool<ComponentType>().remove(iEntity);
   }
 
@@ -274,11 +301,13 @@ public:
 
   template <typename ComponentType>
   ComponentType& getComponent(Entity iEntity) {
+    NE_ASSERT(isValid(iEntity), "Entity is not alive.");
     return getPool<ComponentType>().get(iEntity);
   }
 
   template <typename ComponentType>
   const ComponentType& getComponent(Entity iEntity) const {
+    NE_ASSERT(isValid(iEntity), "Entity is not alive.");
     const auto* pool = getPoolIfExists<ComponentType>();
     NE_ASSERT(pool != nullptr, "Component pool does not exist.");
     return pool->get(iEntity);
@@ -310,14 +339,19 @@ public:
     return nullptr;
   }
 
+  // Destroys every entity without running remove hooks. Versions are bumped rather than cleared, so handles from before
+  // the reset stay invalid once their ids are reused.
   void reset() {
     for (auto& pool : mPools) {
       if (pool) {
         pool->clear();
       }
     }
-    mGenerations.clear();
     mFreeEntities.clear();
+    for (uint32_t id = 0; id < mGenerations.size(); ++id) {
+      mGenerations[id]++;
+      mFreeEntities.push_back(id);
+    }
   }
 
   size_t size() const { return mGenerations.size() - mFreeEntities.size(); }

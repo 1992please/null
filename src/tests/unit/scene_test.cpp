@@ -17,7 +17,7 @@ namespace ne::test {
 
 namespace {
 
-Entity makeNode(Registry& ioRegistry, const Transform& iLocal = Transform{}, Entity iParent = NullEntity) {
+Entity makeNode(Registry& ioRegistry, const Transform& iLocal = Transform{}, Entity iParent = Entity::Null) {
   Entity entity = ioRegistry.createEntity();
   ioRegistry.addComponent<TransformComponent>(entity, iLocal);
   if (iParent.isValid()) {
@@ -110,28 +110,41 @@ NE_TEST_CASE("scene", "TransformSystem Re-parenting & Detaching") {
                  "KeepWorld recomputes the local transform relative to A.");
 
   // Detaching with KeepWorld makes the local transform the world transform
-  TransformSystem::setParent(registry, child, NullEntity, TransformSystem::AttachRule::KeepWorld);
+  TransformSystem::setParent(registry, child, Entity::Null, TransformSystem::AttachRule::KeepWorld);
   NE_TEST_ASSERT(!transformOf(registry, child).getParent().isValid(), "Detached child has no parent.");
   NE_TEST_ASSERT(transformOf(registry, parentA).getChildren().empty(), "A must have no children after detach.");
   TransformSystem::update(registry);
   NE_TEST_ASSERT(transformOf(registry, child).getWorldMatrix().equals(worldBefore, 1e-4f), "Detached child keeps its world matrix.");
 }
 
-NE_TEST_CASE("scene", "TransformSystem Recursive Destruction") {
+NE_TEST_CASE("scene", "Destroying A Node Destroys Its Subtree") {
   Registry registry;
   Entity root = makeNode(registry);
   Entity mid = makeNode(registry, Transform{}, root);
   Entity leaf = makeNode(registry, Transform{}, mid);
   Entity sibling = makeNode(registry, Transform{}, root);
 
-  TransformSystem::destroyRecursive(registry, mid);
+  registry.destroyEntity(mid);
   NE_TEST_ASSERT(!registry.isValid(mid) && !registry.isValid(leaf), "Destroyed node and its descendants must be invalid.");
   NE_TEST_ASSERT(registry.isValid(root) && registry.isValid(sibling), "Ancestors and siblings must survive.");
   NE_TEST_ASSERT(transformOf(registry, root).getChildren() == std::vector<Entity>{sibling}, "Parent must only list the surviving sibling.");
   TransformSystem::update(registry); // Must not hit stale links
 
-  TransformSystem::destroyRecursive(registry, root);
+  registry.destroyEntity(root);
   NE_TEST_ASSERT(registry.size() == 0, "Destroying the root must destroy the whole tree.");
+}
+
+NE_TEST_CASE("scene", "Removing A Node's Transform Detaches It And Destroys Its Children") {
+  Registry registry;
+  Entity root = makeNode(registry);
+  Entity mid = makeNode(registry, Transform{}, root);
+  Entity leaf = makeNode(registry, Transform{}, mid);
+
+  registry.removeComponent<TransformComponent>(mid);
+  NE_TEST_ASSERT(registry.isValid(mid) && !registry.hasComponent<TransformComponent>(mid), "The entity survives without its transform.");
+  NE_TEST_ASSERT(!registry.isValid(leaf), "Its children are destroyed.");
+  NE_TEST_ASSERT(transformOf(registry, root).getChildren().empty(), "Its parent no longer lists it.");
+  TransformSystem::update(registry); // Must not hit stale links
 }
 
 NE_TEST_CASE("scene", "Parented Camera Uses World Pose") {

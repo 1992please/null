@@ -21,6 +21,7 @@ public:
   // Seconds since init(), read now
   static double getTimeNow() { return std::chrono::duration<double>(Clock::now() - sState.mStartTime).count(); }
 
+  // Restarts the clocks; the time scale is kept
   static void init();
   static void tick();
   static void reset();

@@ -35,23 +35,23 @@ NE_TEST_CASE("quat", "Quat Angle-Axis & Vector Rotation") {
 }
 
 NE_TEST_CASE("quat", "Quat fromEuler & toEuler Roundtrip") {
-  Vec3 originalEuler(30.0f, 45.0f, 60.0f);
+  Vec3 originalEuler = math::radians(Vec3(30.0f, 45.0f, 60.0f));
   Quat q = Quat::fromEuler(originalEuler);
   Vec3 recoveredEuler = q.toEuler();
 
-  NE_TEST_ASSERT(recoveredEuler.equals(originalEuler, 1e-3f), "Quat fromEuler -> toEuler roundtrip.");
+  NE_TEST_ASSERT(recoveredEuler.equals(originalEuler, 1e-4f), "Quat fromEuler -> toEuler roundtrip.");
 }
 
 NE_TEST_CASE("quat", "Quat fromEuler Matches ROS Roll-Pitch-Yaw") {
   const float roll = 30.0f, pitch = 45.0f, yaw = 60.0f;
-  Quat q = Quat::fromEuler(Vec3(roll, pitch, yaw));
+  Quat q = Quat::fromEuler(math::radians(Vec3(roll, pitch, yaw)));
   Quat expected = Quat::angleAxis(math::radians(yaw), Vec3::Up) * Quat::angleAxis(math::radians(pitch), Vec3::Left) *
                   Quat::angleAxis(math::radians(roll), Vec3::Forward);
   NE_TEST_ASSERT(q.equals(expected, 1e-4f), "fromEuler(roll, pitch, yaw) must equal Rz(yaw) * Ry(pitch) * Rx(roll).");
 }
 
 NE_TEST_CASE("quat", "Quat Conjugate & Inversion") {
-  Quat q = Quat::fromEuler(Vec3(25.0f, -40.0f, 15.0f));
+  Quat q = Quat::fromEuler(math::radians(Vec3(25.0f, -40.0f, 15.0f)));
   Quat qConj = q.conjugate();
 
   Vec3 original(4.0f, -6.0f, 2.0f);
@@ -84,7 +84,7 @@ NE_TEST_CASE("quat", "Quat Normalization") {
 }
 
 NE_TEST_CASE("quat", "Quat toMatrix & Vector Rotation Equivalence") {
-  Quat q = Quat::fromEuler(Vec3(30.0f, 45.0f, 60.0f));
+  Quat q = Quat::fromEuler(math::radians(Vec3(30.0f, 45.0f, 60.0f)));
   Mat4 matFromQuat = q.toMatrix();
 
   Vec3 testVec(2.0f, -3.0f, 5.0f);
@@ -125,7 +125,7 @@ NE_TEST_CASE("quat", "Quat Dot, Length & Constexpr Verification") {
 NE_TEST_CASE("quat", "Quat fromRotationMatrix Roundtrip") {
   // Cover every branch: positive trace, and a 180 deg turn about each axis (largest diagonal X, Y, Z)
   const Quat rotations[] = {
-      Quat::fromEuler(Vec3(25.0f, -40.0f, 15.0f)),
+      Quat::fromEuler(math::radians(Vec3(25.0f, -40.0f, 15.0f))),
       Quat::angleAxis(math::radians(180.0f), Vec3::Forward),
       Quat::angleAxis(math::radians(180.0f), Vec3::Left),
       Quat::angleAxis(math::radians(180.0f), Vec3::Up),

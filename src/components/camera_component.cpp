@@ -3,15 +3,15 @@
 
 namespace ne {
 
-Mat4 CameraComponent::getProjectionMatrix() const {
-  NE_ASSERT(mAspectRatio > math::SMALL_NUMBER);
-  NE_ASSERT(mNearClip > math::SMALL_NUMBER);
+Mat4 CameraComponent::getProjectionMatrix(float iAspectRatio) const {
+  NE_ASSERT(iAspectRatio > math::kSmallNumber);
+  NE_ASSERT(mNearClip > math::kSmallNumber);
 
   Mat4 projection(0.0f);
   if (mProjectionType == ProjectionType::Perspective) {
-    const float tanHalfFovy = math::tan(math::radians(mFovDeg) * 0.5f);
+    const float tanHalfFovy = math::tan(mFov * 0.5f);
 
-    projection[0][0] = 1.0f / (mAspectRatio * tanHalfFovy);
+    projection[0][0] = 1.0f / (iAspectRatio * tanHalfFovy);
     projection[1][1] = 1.0f / tanHalfFovy; // View +Y (down) already matches Vulkan NDC +Y (down)
     projection[2][3] = 1.0f;               // Clip w = view depth (+Z forward)
 
@@ -25,10 +25,10 @@ Mat4 CameraComponent::getProjectionMatrix() const {
       projection[3][2] = (mFarClip * mNearClip) / (mFarClip - mNearClip);
     }
   } else {
-    NE_ASSERT(mOrthoSize > math::SMALL_NUMBER);
+    NE_ASSERT(mOrthoSize > math::kSmallNumber);
     NE_ASSERT(mFarClip > mNearClip);
     const float halfHeight = mOrthoSize * 0.5f;
-    const float halfWidth = halfHeight * mAspectRatio;
+    const float halfWidth = halfHeight * iAspectRatio;
 
     projection[0][0] = 1.0f / halfWidth;
     projection[1][1] = 1.0f / halfHeight; // View +Y (down) already matches Vulkan NDC +Y (down)

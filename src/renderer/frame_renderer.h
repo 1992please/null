@@ -49,7 +49,7 @@ private:
 
   void recreateSwapChain(bool iForce = false);
 
-  static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2; // Frames the CPU may record ahead of the GPU
+  static constexpr uint32_t kMaxFramesInFlight = 2; // Frames the CPU may record ahead of the GPU
 
   Device* mDevice = nullptr;
   Window* mWindow = nullptr;

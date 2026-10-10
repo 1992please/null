@@ -29,10 +29,10 @@ public:
   MainUI& getMainUI() { return mMainUI; }
 
 private:
-  Entity mCameraEntity{NullEntity};
-  Entity mCubeEntity1{NullEntity};
-  Entity mCubeEntity2{NullEntity};
-  Entity mHelmetEntity{NullEntity};
+  Entity mCameraEntity;
+  Entity mCubeEntity1;
+  Entity mCubeEntity2;
+  Entity mHelmetEntity;
 
   CameraController mCameraController;
 

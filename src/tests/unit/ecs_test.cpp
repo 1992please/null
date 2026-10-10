@@ -20,6 +20,16 @@ struct TagComponent {
   int tag{0};
 };
 
+struct HookedComponent {
+  static inline int sRemoveCount = 0;
+
+  static void onRemove(Registry& ioRegistry, Entity iEntity) {
+    if (ioRegistry.hasComponent<HookedComponent>(iEntity)) {
+      sRemoveCount++;
+    }
+  }
+};
+
 NE_TEST_CASE("ecs", "Entity Handle Allocation & Recycling") {
   Registry registry;
 
@@ -187,6 +197,41 @@ NE_TEST_CASE("ecs", "Registry Reset") {
   NE_TEST_ASSERT(!registry.isValid(e1), "e1 invalid after reset.");
   NE_TEST_ASSERT(!registry.isValid(e2), "e2 invalid after reset.");
   NE_TEST_ASSERT(registry.getPool<PositionComponent>().size() == 0, "Position pool cleared after reset.");
+
+  registry.createEntity();
+  registry.createEntity();
+  NE_TEST_ASSERT(!registry.isValid(e1) && !registry.isValid(e2), "Handles from before the reset stay invalid once their ids are reused.");
+}
+
+NE_TEST_CASE("ecs", "Stale Handles Do Not Alias Recycled Entities") {
+  Registry registry;
+  Entity stale = registry.createEntity();
+  registry.destroyEntity(stale);
+
+  Entity recycled = registry.createEntity();
+  registry.addComponent<TagComponent>(recycled, 7);
+  NE_TEST_ASSERT(recycled.mId == stale.mId, "The id is recycled.");
+  NE_TEST_ASSERT(registry.hasComponent<TagComponent>(recycled), "The new entity has its component.");
+  NE_TEST_ASSERT(!registry.hasComponent<TagComponent>(stale), "A stale handle must not see the recycled entity's components.");
+}
+
+NE_TEST_CASE("ecs", "Remove Hooks Run Before Removal") {
+  HookedComponent::sRemoveCount = 0;
+  Registry registry;
+
+  Entity e1 = registry.createEntity();
+  registry.addComponent<HookedComponent>(e1);
+  registry.removeComponent<HookedComponent>(e1);
+  NE_TEST_ASSERT(HookedComponent::sRemoveCount == 1, "removeComponent() runs the hook while the component still exists.");
+
+  Entity e2 = registry.createEntity();
+  registry.addComponent<TagComponent>(e2, 1);
+  registry.addComponent<HookedComponent>(e2);
+  registry.destroyEntity(e2);
+  NE_TEST_ASSERT(HookedComponent::sRemoveCount == 2, "destroyEntity() runs the hook while the component still exists.");
+
+  registry.destroyEntity(registry.createEntity());
+  NE_TEST_ASSERT(HookedComponent::sRemoveCount == 2, "Entities without the component do not run its hook.");
 }
 
 NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
@@ -206,7 +251,7 @@ NE_TEST_CASE("ecs", "Camera and Mesh Component View Queries") {
   registry.view<TransformComponent, CameraComponent>().each([&](Entity e, const TransformComponent& t, const CameraComponent& c) {
     NE_UNUSED(e);
     if (c.mIsPrimary) {
-      resolvedViewProj = c.getViewProjectionMatrix(t.getLocal().toMatrix());
+      resolvedViewProj = c.getViewProjectionMatrix(t.getLocal().toMatrix(), 16.0f / 9.0f);
       camCount++;
     }
   });
@@ -236,8 +281,8 @@ NE_TEST_CASE("ecs", "In-Place Component Construction") {
 
   // Aggregate component through designated initializers
   Entity e2 = registry.createEntity();
-  auto& camera = registry.addComponent<CameraComponent>(e2, CameraComponent{.mFovDeg = 60.0f, .mNearClip = 0.5f});
-  NE_TEST_ASSERT(math::equals(camera.mFovDeg, 60.0f) && math::equals(camera.mNearClip, 0.5f), "Initialized fields forwarded correctly.");
+  auto& camera = registry.addComponent<CameraComponent>(e2, CameraComponent{.mFov = math::radians(60.0f), .mNearClip = 0.5f});
+  NE_TEST_ASSERT(math::equals(camera.mFov, math::radians(60.0f)) && math::equals(camera.mNearClip, 0.5f), "Initialized fields forwarded correctly.");
   NE_TEST_ASSERT(math::equals(camera.mFarClip, 1000.0f), "Omitted fields keep their defaults.");
 }
 

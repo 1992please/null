@@ -1,6 +1,6 @@
 # Null Engine
 
-A high-performance, modular 3D rendering engine built with modern C++20 and Vulkan 1.4.
+A high-performance, modular 3D rendering engine built with modern C++20 and Vulkan 1.4. It is heading toward a robotics digital twin (see Step 5), so design choices favor ROS conventions, headless rendering, and sensor simulation.
 
 <p align="center">
   <a href="https://en.cppreference.com/w/cpp/20"><img src="https://img.shields.io/badge/C%2B%2B-20-blue.svg?logo=cplusplus&logoColor=white&style=flat-square" alt="C++ Standard"></a>
@@ -16,80 +16,57 @@ A high-performance, modular 3D rendering engine built with modern C++20 and Vulk
 ## 📌 Engine Roadmap & Task Board
 
 ### Step 1: Foundational Modernization & RHI Core
-- [x] **Debug Utils Instrumentation**: Tag all Vulkan resources (Buffers, Images, Views, Pipelines, Layouts, Pools, Queues, Semaphores, Fences) with `vkSetDebugUtilsObjectNameEXT` for RenderDoc and validation logging.
-- [x] **Vulkan 1.3/1.4 Memory2 & Transfer Core**: Convert memory allocations to `vkGetBufferMemoryRequirements2`, `vkBindBufferMemory2`, `vkGetImageMemoryRequirements2`, `vkBindImageMemory2`, and copies to `vkCmdCopyBuffer2` (`VkCopyBufferInfo2`).
+- [x] **Debug Utils Instrumentation**: Name every Vulkan object for RenderDoc and validation messages.
+- [x] **Vulkan 1.3/1.4 Memory2 & Transfer Core**: Memory binding and buffer copies use the newer `*2` Vulkan APIs.
 
 ### Step 2: Interactive Camera & GUI
-- [x] **Asset Pipeline**: glTF/GLB parser via `cgltf` with automatic GPU geometry allocation.
-- [x] **Input Abstraction**: Strongly-typed GLFW events (`KeyCode`, `MouseButton`, `InputAction`) and multicast delegate system (`ne::Event`).
-- [x] **Camera & Transform Math**: Projection matrix generator (Perspective, Orthographic, Reverse-Z, Infinite Far) and TRS `TransformComponent` with dirty caching.
-- [x] **Scene & ECS Integration**: Connect `CameraComponent` and `TransformComponent` to `Registry` and `RenderManager`.
-- [x] **Reverse-Z Pipeline Integration**: Switch pipeline depth comparison (`VK_COMPARE_OP_GREATER_OR_EQUAL`) and `0.0f` depth clear matching `CameraComponent`.
-- [x] **CameraController**: Interactive Free-Fly camera (WASD + QE + Mouse Look) driving `TransformComponent`.
-- [x] **Dear ImGui Overlay**: Real-time engine diagnostics, frame statistics, and camera parameter controls.
-- [x] **Simulation Time Controls & UI Toggle**: Scalable `timeScale` (0x-3x), unscaled frame metrics, UI input isolation, and `H` overlay toggle.
-- [x] **Right-Handed Z-Up Convention (ROS REP-103)**: Switch from the Unreal convention (see Engine Conventions) so glTF, URDF, ROS tf, and USD imports are pure rotations instead of mirrors.
-- [x] **Transform Hierarchy & glTF Scene Import**: Parent/children links in `TransformComponent` with world-matrix propagation that skips unchanged subtrees and keep-local / keep-world re-parenting (`TransformSystem`), `NameComponent`, meshes with per-submesh materials, and glTF node-tree import (node TRS / matrix, Y-up → Z-up axis permutation baked at import) into reusable `Prefab`s spawned with `Prefab::instantiate()`.
+- [x] **Asset Pipeline**: Load glTF / GLB models straight into GPU memory.
+- [x] **Input Abstraction**: Typed keyboard and mouse input with multicast events.
+- [x] **Camera & Transform Math**: Perspective and orthographic projections, and position / rotation / scale transforms.
+- [x] **Scene & ECS Integration**: Cameras and transforms are ECS components drawn by the renderer.
+- [x] **Reverse-Z Pipeline Integration**: Reverse-Z depth for better precision at a distance.
+- [x] **CameraController**: Free-fly camera (WASD + QE, right-click to look).
+- [x] **Dear ImGui Overlay**: Diagnostics, frame stats, and camera controls.
+- [x] **Simulation Time Controls & UI Toggle**: Time scale (0-3x), UI blocks 3D input while in use, `H` toggles the overlay.
+- [x] **Right-Handed Z-Up Convention (ROS REP-103)**: glTF, URDF, ROS, and USD data import without mirroring.
+- [x] **Transform Hierarchy & glTF Scene Import**: Parent / child transforms, glTF node trees, and reusable prefabs.
 
 ### Step 3: Materials & Bindless Resources
-- [x] **Transient Per-Draw Data Core**: Zero-overhead 64-bit Buffer Device Address (BDA) pointers and per-draw metadata dispatched via `vkCmdPushConstants` directly into Multi-Draw Indirect (MDI).
-- [x] **Vertex Attribute Modernization**: Expand vertex attributes (`Position`, `Normal`, `TexCoord`, `Color/Tangent`) for BDA vertex pulling in Slang shaders.
-- [x] **RHI Texture & Sampler Core**: Vulkan 1.4 image allocation, `Synchronization2` layout transitions, staging buffer uploads (`vkCmdCopyBufferToImage2`), and sampler states.
-- [x] **Vulkan Feature Enablement**: Enable `samplerAnisotropy` and descriptor indexing features on `VkDeviceCreateInfo` with hardware limit validation.
-- [x] **Bindless Texture Architecture**: Unsized texture arrays (`Texture2D gTextures[]` in Slang) with Vulkan 1.4 descriptor indexing (`partiallyBound`, `updateAfterBind`).
-- [x] **Vulkan Memory Allocator (VMA) Integration**: Sub-allocate all buffers and images from unified device-local and host-visible memory pools to eliminate discrete `vkAllocateMemory` calls and prevent `maxMemoryAllocationCount` exhaustion.
-- [ ] **Mipmap Generation & Subresource Ranges**: GPU blit mip generation (`vkCmdBlitImage2`) and subresource range handling (`VK_REMAINING_MIP_LEVELS`) in view and transition helpers.
-- [ ] **glTF PBR Material Pipeline**: GPU material buffer (BDA) indexed by a per-instance `materialIndex`, glTF metallic-roughness factors and textures (embedded images via `ImageImporter::importFromMemory`), MikkTSpace tangent generation, alpha-mode / double-sided pipeline variants, hemisphere ambient, and Khronos PBR Neutral tonemapping.
-- [ ] **GPU Timeline & Deferred Destruction**: Replace per-frame fences with a `Device`-owned timeline semaphore, defer `Buffer`/`Image` destruction until the GPU passes the submit that last used them, and remove `vkQueueWaitIdle` from staging uploads.
+- [x] **Transient Per-Draw Data Core**: Per-draw data reaches shaders through GPU pointers, drawn with multi-draw indirect.
+- [x] **Vertex Attribute Modernization**: Position, normal, UV, and color, fetched by the vertex shader itself.
+- [x] **RHI Texture & Sampler Core**: Textures, staging uploads, layout transitions, and samplers.
+- [x] **Vulkan Feature Enablement**: Anisotropic filtering and descriptor indexing, checked against hardware limits.
+- [x] **Bindless Texture Architecture**: All textures live in one shader array, indexed per draw.
+- [x] **Vulkan Memory Allocator (VMA) Integration**: Every buffer and image is sub-allocated through VMA.
+- [ ] **Mipmap Generation & Subresource Ranges**: Generate mipmaps on the GPU and support mip ranges in views and barriers.
+- [ ] **glTF PBR Material Pipeline**: glTF metal-roughness materials with textures, transparency, and tonemapping (per-instance material index, MikkTSpace tangents, Khronos PBR Neutral).
+- [ ] **GPU Timeline & Deferred Destruction**: Free GPU resources only once the GPU is done with them, and stop uploads from stalling (one timeline semaphore on `Device` plus a deletion queue; no resource handles until something needs them).
 
 ### Step 4: GPU-Driven Pipeline & Optimization
-- [ ] **Render Views & Offscreen Targets**: A render view = camera + offscreen HDR target; multiple simultaneous views, headless operation (no window required), GPU → CPU readback, and tonemapping as a post pass. The ImGui Viewport panel (`ImGui::Image` with dynamic aspect-ratio resizing) is one consumer.
-- [ ] **Push Descriptors for Utility Passes**: Integrate `VK_KHR_push_descriptor` (Vulkan 1.4 core `pushDescriptors`) for single-pass post-processing and compute passes without descriptor pool overhead.
-- [ ] **GPU Profiling**: Vulkan Timestamp Query Pools (`VK_QUERY_TYPE_TIMESTAMP`) to measure compute/draw passes.
-- [ ] **Context-Driven Encoder Pattern & RHI Decoupling**: Stateless `RenderContext` and `RenderPassEncoder` for multi-pass scalability, formalizing the boundary between low-level hardware abstraction (`RHI` / `Device` / resources) and high-level scene passes.
-- [ ] **Compute Frustum & Occlusion Culling**: GPU-side indirect draw command generation via compute shaders.
-- [ ] **Texture Streaming**: KTX / compressed texture loading with asynchronous staging transfers.
+- [ ] **Scene Extraction**: Copy cameras and draw lists out of the ECS before rendering, so the renderer stops reading components directly.
+- [ ] **Frame Orchestration & UI Pass**: One place runs the whole frame; the UI gets its own pass after the scene and tonemapping.
+- [ ] **Render Views & Offscreen Targets**: Several cameras rendering offscreen at once, headless mode, GPU → CPU readback, and an ImGui viewport panel.
+- [ ] **Push Descriptors for Utility Passes**: Simple post-processing and compute passes without descriptor pools.
+- [ ] **GPU Profiling**: GPU timings per render pass.
+- [ ] **Context-Driven Encoder Pattern & RHI Decoupling**: A clean boundary between the low-level Vulkan layer and the render passes.
+- [ ] **Compute Frustum & Occlusion Culling**: Cull on the GPU and build draw commands in compute shaders.
+- [ ] **Texture Streaming**: Compressed (KTX) textures loaded in the background (staging ring buffer, reusable bindless slots).
 
 ### Step 5: Robotics Digital Twin (Future)
 > Null stays the renderer, visualizer, and sensor simulator. Physics comes from an external source of truth (MuJoCo, Isaac Sim, Gazebo, or the real robot).
-- [ ] **URDF Import**: Links and joints mapped onto the transform hierarchy, with STL / DAE / OBJ mesh loading.
-- [ ] **Debug Draw**: Lines, tf coordinate frames, trajectories, and point clouds.
-- [ ] **External State Bridge**: ROS 2 / Zenoh bridge kept outside the engine core, writing timestamped joint states and poses into the ECS with interpolation.
-- [ ] **Camera Sensor Simulation**: RGB, depth, and instance / semantic ID outputs from render views with readback.
-- [ ] **Picking & Gizmos**: Entity selection and transform manipulation in the viewport.
-- [ ] **Ray-Query LiDAR**: Acceleration structures (`VK_KHR_acceleration_structure`) and `VK_KHR_ray_query` for LiDAR and depth sensor simulation.
+- [ ] **URDF Import**: Robot links and joints as a transform hierarchy, with STL / DAE / OBJ meshes.
+- [ ] **Debug Draw**: Lines, coordinate frames, trajectories, and point clouds.
+- [ ] **External State Bridge**: A ROS 2 / Zenoh bridge, outside the engine core, that streams timestamped, interpolated joint states and poses into the scene.
+- [ ] **Camera Sensor Simulation**: RGB, depth, and segmentation images from simulated cameras.
+- [ ] **Picking & Gizmos**: Select entities and move them in the viewport.
+- [ ] **Ray-Query LiDAR**: Hardware ray tracing for LiDAR and depth sensors.
 
 ---
 
 ## 📐 Engine Conventions
 
-* **Coordinates (ROS REP-103)**: Right-handed (`+X` Forward, `+Y` Left, `+Z` Up). Positive rotations are counter-clockwise about the axis; Euler angles are Roll (X), Pitch (Y), Yaw (Z), composed as `Rz * Ry * Rx`.
-* **Camera View Space**: ROS camera optical frame (`+X` Right, `+Y` Down, `+Z` Forward), which matches Vulkan NDC without a projection Y-flip.
-* **Winding**: Counter-clockwise front faces (glTF convention).
-* **Reverse-Z Depth**: Floating-point depth (`VK_FORMAT_D32_SFLOAT_S8_UINT`, `0.0` far clear, `VK_COMPARE_OP_GREATER_OR_EQUAL`).
-* **Memory & Shaders**: Unified sub-allocation via Vulkan Memory Allocator (VMA), Buffer Device Address (BDA) vertex pulling, and Slang shaders compiled to SPIR-V.
-* **Types**: `struct` with public fields for plain data (no getters/setters, aggregate initialization); `class` with private data when there is an invariant to protect (C++ Core Guidelines C.2, C.131). Stateless helpers and systems are free functions in a namespace, not classes of static members.
-
----
-
-## 📂 Project Structure
-
-```
-null/
-├── content/              # 3D models and test assets
-├── shaders/              # Slang shader sources (.slang, .comp)
-├── src/
-│   ├── apps/             # Application entrypoints (BasicApp)
-│   ├── components/       # ECS components (Camera, Transform, Mesh, Name)
-│   ├── core/             # Math (Vec, Mat4, Quat, Transform), Logger, Assert, Events, ECS, Filesystem
-│   ├── importers/        # glTF / asset importers
-│   ├── platform/         # Window abstraction & input handling
-│   ├── renderer/         # Vulkan RHI, buffers, pipeline, scene & render manager
-│   ├── scene/            # Scene systems & assets (TransformSystem, Prefab, CameraController)
-│   └── tests/            # Automated unit testing suite
-├── CMakeLists.txt        # Build system configuration
-└── CMakePresets.json     # Standardized build presets
-```
+* **Coordinates**: ROS REP-103: right-handed, `+X` forward, `+Y` left, `+Z` up; roll / pitch / yaw follow ROS (`Rz * Ry * Rx`).
+* **Units**: SI (meters, seconds), angles in radians.
 
 ---
 

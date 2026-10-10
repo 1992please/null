@@ -45,12 +45,12 @@
 
 namespace ne::vk_utils {
 
-constexpr VkDeviceSize VERTEX_POOL_SIZE = 64 * 1024 * 1024;
-constexpr VkDeviceSize INDEX_POOL_SIZE = 32 * 1024 * 1024;
-constexpr VkDeviceSize UPLOAD_BUFFER_SIZE = 16 * 1024 * 1024;
-constexpr VkDeviceSize STAGING_BUFFER_SIZE = 64 * 1024 * 1024;
-constexpr uint32_t MAX_SAMPLED_IMAGES = 4096;
-constexpr const char* DEFAULT_SHADER = "base_shader";
+constexpr VkDeviceSize kVertexPoolSize = 64 * 1024 * 1024;
+constexpr VkDeviceSize kIndexPoolSize = 32 * 1024 * 1024;
+constexpr VkDeviceSize kUploadBufferSize = 16 * 1024 * 1024;
+constexpr VkDeviceSize kStagingBufferSize = 64 * 1024 * 1024;
+constexpr uint32_t kMaxSampledImages = 4096;
+constexpr const char* kDefaultShader = "base_shader";
 
 inline void setDebugUtilsObjectName(VkDevice device, VkObjectType objectType, uint64_t objectHandle, const char* name) {
 #ifndef NE_BUILD_SHIPPING
@@ -129,16 +129,16 @@ constexpr T alignUp(T value, T alignment) {
 }
 
 inline std::string formatBytes(VkDeviceSize bytes) {
-  constexpr double KB = 1024.0;
-  constexpr double MB = 1024.0 * 1024.0;
-  constexpr double GB = 1024.0 * 1024.0 * 1024.0;
+  constexpr double kKilobyte = 1024.0;
+  constexpr double kMegabyte = 1024.0 * 1024.0;
+  constexpr double kGigabyte = 1024.0 * 1024.0 * 1024.0;
 
-  if (bytes >= GB) {
-    return std::format("{:.2f} GB", bytes / GB);
-  } else if (bytes >= MB) {
-    return std::format("{:.2f} MB", bytes / MB);
-  } else if (bytes >= KB) {
-    return std::format("{:.2f} KB", bytes / KB);
+  if (bytes >= kGigabyte) {
+    return std::format("{:.2f} GB", bytes / kGigabyte);
+  } else if (bytes >= kMegabyte) {
+    return std::format("{:.2f} MB", bytes / kMegabyte);
+  } else if (bytes >= kKilobyte) {
+    return std::format("{:.2f} KB", bytes / kKilobyte);
   } else {
     return std::format("{} B", bytes);
   }

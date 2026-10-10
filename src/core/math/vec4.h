@@ -52,7 +52,7 @@ struct Vec4 {
     return lengthSquared();
   }
 
-  inline bool normalize(float iTolerance = math::SMALL_NUMBER) {
+  inline bool normalize(float iTolerance = math::kSmallNumber) {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
       float invLen = math::invSqrt(lenSq);
@@ -69,7 +69,7 @@ struct Vec4 {
     return false;
   }
 
-  inline bool isNormalized(float iTolerance = math::KINDA_SMALL_NUMBER) const {
+  inline bool isNormalized(float iTolerance = math::kKindaSmallNumber) const {
     return math::abs(lengthSquared() - 1.0f) <= iTolerance;
   }
 
@@ -78,7 +78,7 @@ struct Vec4 {
     return Vec4(x * invLen, y * invLen, z * invLen, w * invLen);
   }
 
-  inline Vec4 getSafeNormal(float iTolerance = math::SMALL_NUMBER, const Vec4& iFallback = Vec4::Zero) const {
+  inline Vec4 getSafeNormal(float iTolerance = math::kSmallNumber, const Vec4& iFallback = Vec4::Zero) const {
     float lenSq = lengthSquared();
     if (lenSq > iTolerance) {
       float invLen = math::invSqrt(lenSq);
@@ -97,7 +97,7 @@ struct Vec4 {
     return x * iOther.x + y * iOther.y + z * iOther.z + w * iOther.w;
   }
 
-  constexpr bool equals(const Vec4& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+  constexpr bool equals(const Vec4& iOther, float iTolerance = math::kKindaSmallNumber) const {
     return math::abs(x - iOther.x) <= iTolerance &&
            math::abs(y - iOther.y) <= iTolerance &&
            math::abs(z - iOther.z) <= iTolerance &&

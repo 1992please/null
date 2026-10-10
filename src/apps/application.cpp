@@ -19,8 +19,6 @@ namespace ne {
 
 Application::Application(const std::string& iAppName, uint32_t iWidth, uint32_t iHeight)
     : mWidth(static_cast<int32_t>(iWidth)), mHeight(static_cast<int32_t>(iHeight)), mAppName(iAppName) {
-  Time::init();
-
   mWindow = std::make_unique<Window>(mWidth, mHeight, mAppName);
 
   Instance::Config instanceConfig{
@@ -93,6 +91,7 @@ void Application::stepFrame() {
   mWindow->processEvents();
 
   mImGuiManager->beginFrame();
+  Input::setUICapture(mImGuiManager->wantsCaptureMouse(), mImGuiManager->wantsCaptureKeyboard());
   renderUI();
   mImGuiManager->endFrame();
 
@@ -111,6 +110,8 @@ void Application::runForFrames(size_t iFrameCount) {
 void Application::run() {
   NE_LOG("{} Start!", mAppName);
 
+  // Started here so the first frame's delta does not include device creation and asset loading
+  Time::init();
   while (!mWindow->shouldClose()) {
     stepFrame();
   }

@@ -74,8 +74,8 @@ NE_TEST_CASE("transform", "Transform Hierarchical Composition (combine)") {
   NE_TEST_ASSERT(world.scale.equals(Vec3(1.0f, 1.0f, 1.0f), 1e-4f), "Hierarchical scale compounding.");
 
   // Full TRS hierarchy with rotation
-  parent.setEulerAngles(Vec3(30.0f, 45.0f, 60.0f));
-  child.setEulerAngles(Vec3(15.0f, -20.0f, 10.0f));
+  parent.setEulerAngles(math::radians(Vec3(30.0f, 45.0f, 60.0f)));
+  child.setEulerAngles(math::radians(Vec3(15.0f, -20.0f, 10.0f)));
   Transform worldWithRot = Transform::combine(parent, child);
 
   // Transforming a point through child then parent matches world transform
@@ -103,7 +103,7 @@ NE_TEST_CASE("transform", "TransformComponent Local Setters") {
 NE_TEST_CASE("transform", "Transform Rigid Inverse (inverseNoScale)") {
   Transform t;
   t.position = Vec3(3.0f, -7.5f, 12.0f);
-  t.setEulerAngles(Vec3(25.0f, -40.0f, 15.0f));
+  t.setEulerAngles(math::radians(Vec3(25.0f, -40.0f, 15.0f)));
 
   Transform rigidInv = t.inverseNoScale();
   NE_TEST_ASSERT(rigidInv.rotation.equals(t.rotation.conjugate()), "inverseNoScale rotation must equal rotation conjugate.");
@@ -138,14 +138,14 @@ NE_TEST_CASE("transform", "Transform Memory Layout & POD Properties") {
 
 NE_TEST_CASE("transform", "Transform fromMatrix Decomposition") {
   // Non-uniform scale round trip
-  Transform original(Vec3(3.0f, -1.0f, 2.5f), Quat::fromEuler(Vec3(10.0f, 70.0f, -35.0f)), Vec3(2.0f, 0.5f, 3.0f));
+  Transform original(Vec3(3.0f, -1.0f, 2.5f), Quat::fromEuler(math::radians(Vec3(10.0f, 70.0f, -35.0f))), Vec3(2.0f, 0.5f, 3.0f));
   Transform decomposed = Transform::fromMatrix(original.toMatrix());
   NE_TEST_ASSERT(decomposed.position.equals(original.position, 1e-4f), "fromMatrix must recover translation.");
   NE_TEST_ASSERT(decomposed.scale.equals(original.scale, 1e-4f), "fromMatrix must recover non-uniform scale.");
   NE_TEST_ASSERT(decomposed.toMatrix().equals(original.toMatrix(), 1e-4f), "fromMatrix must reproduce the matrix.");
 
   // Mirroring matrix yields a negative X scale that reproduces it
-  Transform mirrored(Vec3(1.0f, 2.0f, 3.0f), Quat::fromEuler(Vec3(0.0f, 0.0f, 45.0f)), Vec3(1.0f, -2.0f, 1.0f));
+  Transform mirrored(Vec3(1.0f, 2.0f, 3.0f), Quat::fromEuler(math::radians(Vec3(0.0f, 0.0f, 45.0f))), Vec3(1.0f, -2.0f, 1.0f));
   Transform mirroredDecomposed = Transform::fromMatrix(mirrored.toMatrix());
   NE_TEST_ASSERT(mirroredDecomposed.scale.x < 0.0f, "Mirroring matrix must decompose to a negative X scale.");
   NE_TEST_ASSERT(mirroredDecomposed.toMatrix().equals(mirrored.toMatrix(), 1e-4f), "Mirrored decomposition must reproduce the matrix.");

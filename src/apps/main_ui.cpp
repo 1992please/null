@@ -41,10 +41,6 @@ void MainUI::draw(BasicApp& iApp) {
       ImGui::ShowDemoWindow(&mShowDemoWindow);
     }
   }
-
-  ImGuiIO& io = ImGui::GetIO();
-  Input::setUICapture(mVisible && io.WantCaptureMouse,
-                      mVisible && io.WantCaptureKeyboard);
 }
 
 void MainUI::drawMainMenuBar(BasicApp& iApp) {
@@ -158,15 +154,15 @@ void MainUI::drawCameraSettings(BasicApp& iApp) {
         transform.setLocalPosition(pos);
       }
 
-      Vec3 euler = transform.getLocal().getEulerAngles();
-      if (ImGui::DragFloat3("Roll/Pitch/Yaw (deg)", &euler.x, 0.5f)) {
-        transform.setLocalRotation(Quat::fromEuler(euler));
+      Vec3 eulerDegrees = math::degrees(transform.getLocal().getEulerAngles());
+      if (ImGui::DragFloat3("Roll/Pitch/Yaw (deg)", &eulerDegrees.x, 0.5f)) {
+        transform.setLocalRotation(Quat::fromEuler(math::radians(eulerDegrees)));
       }
 
       ImGui::Spacing();
       ImGui::Text("Projection (Reverse-Z Depth)");
       ImGui::Separator();
-      ImGui::SliderFloat("FOV (deg)", &camera.mFovDeg, 10.0f, 120.0f, "%.1f");
+      ImGui::SliderAngle("FOV", &camera.mFov, 10.0f, 120.0f, "%.1f deg");
       ImGui::DragFloat("Near Clip (m)", &camera.mNearClip, 0.01f, 0.01f, 10.0f, "%.2f");
       ImGui::DragFloat("Far Clip (m)", &camera.mFarClip, 1.0f, 1.0f, 1000.0f, "%.1f");
 
@@ -179,7 +175,7 @@ void MainUI::drawCameraSettings(BasicApp& iApp) {
       }
 
       float sensitivity = iApp.getCameraController().getLookSensitivity();
-      if (ImGui::SliderFloat("Look Sensitivity", &sensitivity, 0.01f, 1.0f, "%.2f")) {
+      if (ImGui::SliderAngle("Look Sensitivity", &sensitivity, 0.01f, 1.0f, "%.2f deg/px")) {
         iApp.getCameraController().setLookSensitivity(sensitivity);
       }
 

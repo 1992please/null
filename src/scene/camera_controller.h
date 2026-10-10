@@ -5,11 +5,12 @@
 
 namespace ne {
 
-struct TransformComponent;
+class TransformComponent;
 
 class CameraController {
 public:
-  CameraController(float iMoveSpeed = 2.0f, float iLookSensitivity = 0.1f);
+  // Look sensitivity is in radians per pixel of mouse movement
+  CameraController(float iMoveSpeed = 2.0f, float iLookSensitivity = math::radians(0.1f));
 
   void update(float iDeltaTime, TransformComponent& ioTransform);
 

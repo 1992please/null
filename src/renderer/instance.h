@@ -25,14 +25,14 @@ public:
   Instance& operator=(Instance&&) = delete;
 
   VkInstance getInstance() const { return mInstance; }
-  uint32_t getApiVersion() const { return API_VERSION; }
+  uint32_t getApiVersion() const { return kApiVersion; }
 
 private:
   void createInstance(const Config& iConfig);
   void setupDebugMessenger();
 
-  static constexpr uint32_t API_VERSION = VK_API_VERSION_1_4;
-  static constexpr const char* VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
+  static constexpr uint32_t kApiVersion = VK_API_VERSION_1_4;
+  static constexpr const char* kValidationLayerName = "VK_LAYER_KHRONOS_validation";
 
 #if defined(NE_BUILD_DEBUG)
   const bool enableValidationLayers = true;

@@ -5,17 +5,17 @@
 
 namespace ne::math {
 
-constexpr float PI = 3.1415926535897932f;
-constexpr float INV_PI = 0.31830988618f;
-constexpr float HALF_PI = 1.57079632679f;
+constexpr float kPi = 3.1415926535897932f;
+constexpr float kInvPi = 0.31830988618f;
+constexpr float kHalfPi = 1.57079632679f;
 
-constexpr float SMALL_NUMBER = 1.e-8f;
-constexpr float KINDA_SMALL_NUMBER = 1.e-4f;
-constexpr float BIG_NUMBER = 3.4e+38f;
-constexpr float UE_GOLDEN_RATIO = 1.6180339887498948482045868343656381f;
+constexpr float kSmallNumber = 1.e-8f;
+constexpr float kKindaSmallNumber = 1.e-4f;
+constexpr float kBigNumber = 3.4e+38f;
+constexpr float kGoldenRatio = 1.6180339887498948482045868343656381f;
 
-constexpr float DEG_TO_RAD = PI / 180.0f;
-constexpr float RAD_TO_DEG = 180.0f / PI;
+constexpr float kDegToRad = kPi / 180.0f;
+constexpr float kRadToDeg = 180.0f / kPi;
 
 template <typename T>
 constexpr T clamp(T iVal, T iMinVal, T iMaxVal) {
@@ -44,19 +44,19 @@ constexpr T abs(T iVal) {
 
 template <typename T>
 constexpr T radians(T iDeg) {
-  return iDeg * static_cast<T>(DEG_TO_RAD);
+  return iDeg * static_cast<T>(kDegToRad);
 }
 
 template <typename T>
 constexpr T degrees(T iRad) {
-  return iRad * static_cast<T>(RAD_TO_DEG);
+  return iRad * static_cast<T>(kRadToDeg);
 }
 
-constexpr bool equals(float iA, float iB, float iTolerance = KINDA_SMALL_NUMBER) {
+constexpr bool equals(float iA, float iB, float iTolerance = kKindaSmallNumber) {
   return abs(iA - iB) <= iTolerance;
 }
 
-constexpr bool equals(double iA, double iB, double iTolerance = static_cast<double>(KINDA_SMALL_NUMBER)) {
+constexpr bool equals(double iA, double iB, double iTolerance = static_cast<double>(kKindaSmallNumber)) {
   return abs(iA - iB) <= iTolerance;
 }
 

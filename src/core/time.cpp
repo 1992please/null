@@ -13,7 +13,6 @@ void Time::init() {
   sState.mDeltaTime = 0.0f;
   sState.mUnscaledDeltaTime = 0.0f;
   sState.mTimeSeconds = 0.0f;
-  sState.mTimeScale = 1.0f;
   sState.mInitialized = true;
 }
 

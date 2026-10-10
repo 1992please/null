@@ -24,10 +24,11 @@ public:
   Application(Application&&) = delete;
   Application& operator=(Application&&) = delete;
 
+  // Per-frame hooks: renderUI() builds the ImGui frame, then update() runs before transforms propagate and the frame renders
   virtual void update(float iDeltaTime);
-  virtual void render();
   virtual void renderUI() {}
-  virtual void run();
+
+  void run();
   void stepFrame();
   void runForFrames(size_t iFrameCount = 1);
 
@@ -42,6 +43,8 @@ protected:
   std::string mAppName = "Null App";
 
 private:
+  void render();
+
   std::unique_ptr<Instance> mInstance;
   std::unique_ptr<Device> mDevice;
 

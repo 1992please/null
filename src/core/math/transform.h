@@ -35,7 +35,7 @@ struct Transform {
     const Vec3 position(iMatrix[3].x, iMatrix[3].y, iMatrix[3].z);
 
     Vec3 scale(axisX.length(), axisY.length(), axisZ.length());
-    if (scale.x < math::SMALL_NUMBER || scale.y < math::SMALL_NUMBER || scale.z < math::SMALL_NUMBER) {
+    if (scale.x < math::kSmallNumber || scale.y < math::kSmallNumber || scale.z < math::kSmallNumber) {
       return Transform(position, Quat::Identity, scale);
     }
     if (axisX.cross(axisY).dot(axisZ) < 0.0f) {
@@ -87,9 +87,9 @@ struct Transform {
     return Transform(invRotation, invPosition, invScale);
   }
 
-  // Roll (X), pitch (Y), yaw (Z) in degrees
-  void setEulerAngles(const Vec3& iEulerDegrees) {
-    rotation = Quat::fromEuler(iEulerDegrees);
+  // Roll (X), pitch (Y), yaw (Z) in radians
+  void setEulerAngles(const Vec3& iEulerRadians) {
+    rotation = Quat::fromEuler(iEulerRadians);
   }
 
   Vec3 getEulerAngles() const {
@@ -112,7 +112,7 @@ struct Transform {
     return world;
   }
 
-  inline bool equals(const Transform& iOther, float iTolerance = math::KINDA_SMALL_NUMBER) const {
+  inline bool equals(const Transform& iOther, float iTolerance = math::kKindaSmallNumber) const {
     return position.equals(iOther.position, iTolerance) &&
            rotation.equals(iOther.rotation, iTolerance) &&
            scale.equals(iOther.scale, iTolerance);

@@ -10,7 +10,7 @@ class SamplerManager;
 
 class BindlessManager {
 public:
-  BindlessManager(VkDevice iDevice, SamplerManager* iSamplerManager, uint32_t iMaxSampledImages = vk_utils::MAX_SAMPLED_IMAGES);
+  BindlessManager(VkDevice iDevice, SamplerManager* iSamplerManager, uint32_t iMaxSampledImages = vk_utils::kMaxSampledImages);
   ~BindlessManager();
 
   BindlessManager(const BindlessManager&) = delete;
@@ -28,7 +28,7 @@ public:
 
 private:
   VkDevice mDevice = VK_NULL_HANDLE;
-  uint32_t mMaxSampledImages = vk_utils::MAX_SAMPLED_IMAGES;
+  uint32_t mMaxSampledImages = vk_utils::kMaxSampledImages;
   uint32_t mNextSampledImageIndex = 0;
   VkDescriptorPool mDescriptorPool = VK_NULL_HANDLE;
   VkDescriptorSetLayout mDescriptorSetLayout = VK_NULL_HANDLE;

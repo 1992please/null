@@ -2,7 +2,6 @@
 
 #include "core/ecs.h"
 #include "core/math/transform.h"
-#include "scene/transform_system.h"
 
 // std
 #include <vector>
@@ -16,6 +15,10 @@ public:
   TransformComponent() = default;
   explicit TransformComponent(const Transform& iLocal) : mLocal(iLocal) {}
 
+  // Registry remove hook: destroying the entity, or removing this component, detaches it from its parent and destroys
+  // its children, so destroying a root destroys the whole tree
+  static void onRemove(Registry& ioRegistry, Entity iEntity);
+
   const Transform& getLocal() const { return mLocal; }
   void setLocal(const Transform& iLocal) { mLocal = iLocal; mDirty = true; }
   void setLocalPosition(const Vec3& iPosition) { mLocal.position = iPosition; mDirty = true; }
@@ -27,12 +30,11 @@ public:
   const std::vector<Entity>& getChildren() const { return mChildren; }
 
 private:
-  friend void TransformSystem::setParent(Registry&, Entity, Entity, TransformSystem::AttachRule);
-  friend void TransformSystem::update(Registry&);
+  friend class TransformSystem;
 
   Transform mLocal;
   Mat4 mWorldMatrix{1.0f};
-  Entity mParent{NullEntity};
+  Entity mParent;
   std::vector<Entity> mChildren;
   bool mDirty{true}; // Local transform or parent changed since the last TransformSystem::update()
 };

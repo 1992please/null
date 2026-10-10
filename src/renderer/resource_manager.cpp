@@ -22,7 +22,7 @@ ResourceManager::ResourceManager(Device* iDevice, VkFormat iDefaultColorFormat, 
   NE_ASSERT(mDevice);
   mSamplerManager = std::make_unique<SamplerManager>(mDevice);
   mStagingManager = std::make_unique<StagingManager>(mDevice);
-  mGeometryAllocator = std::make_unique<GeometryAllocator>(mDevice, vk_utils::VERTEX_POOL_SIZE, vk_utils::INDEX_POOL_SIZE);
+  mGeometryAllocator = std::make_unique<GeometryAllocator>(mDevice, vk_utils::kVertexPoolSize, vk_utils::kIndexPoolSize);
   mBindlessManager = std::make_unique<BindlessManager>(mDevice->getDevice(), mSamplerManager.get());
 
   VkDescriptorSetLayout setLayout = mBindlessManager->getDescriptorSetLayout();
@@ -51,7 +51,7 @@ ResourceManager::~ResourceManager() {
 }
 
 std::shared_ptr<Pipeline> ResourceManager::getOrCreatePipeline(const std::string& iShaderName) {
-  const std::string& shaderName = iShaderName.empty() ? vk_utils::DEFAULT_SHADER : iShaderName;
+  const std::string& shaderName = iShaderName.empty() ? vk_utils::kDefaultShader : iShaderName;
 
   auto it = mPipelines.find(shaderName);
   if (it != mPipelines.end()) {

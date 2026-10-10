@@ -5,6 +5,12 @@
 
 namespace ne {
 
+namespace {
+
+constexpr float kMaxPitch = math::radians(89.0f); // Stops short of straight up or down, where yaw is undefined
+
+} // namespace
+
 CameraController::CameraController(float iMoveSpeed, float iLookSensitivity)
     : mMoveSpeed(iMoveSpeed), mLookSensitivity(iLookSensitivity) {}
 
@@ -27,7 +33,7 @@ void CameraController::update(float iDeltaTime, TransformComponent& ioTransform)
   if (mIsLooking) {
     Vec2 mouseDelta = Input::getMouseDelta();
     mYaw -= mouseDelta.x * mLookSensitivity; // Positive yaw turns left (counter-clockwise about +Z)
-    mPitch = math::clamp(mPitch + mouseDelta.y * mLookSensitivity, -89.0f, 89.0f); // Positive pitch tilts down
+    mPitch = math::clamp(mPitch + mouseDelta.y * mLookSensitivity, -kMaxPitch, kMaxPitch); // Positive pitch tilts down
     ioTransform.setLocalRotation(Quat::fromEuler(Vec3(0.0f, mPitch, mYaw)));
   }
 
@@ -48,7 +54,7 @@ void CameraController::update(float iDeltaTime, TransformComponent& ioTransform)
     if (Input::isKeyDown(KeyCode::E)) moveDir += Vec3::Up;
     if (Input::isKeyDown(KeyCode::Q)) moveDir -= Vec3::Up;
 
-    if (moveDir.lengthSquared() > math::SMALL_NUMBER) {
+    if (moveDir.lengthSquared() > math::kSmallNumber) {
       moveDir.normalize();
       float speed = mMoveSpeed * (Input::isShiftDown() ? 2.5f : 1.0f);
       ioTransform.setLocalPosition(ioTransform.getLocal().position + moveDir * (speed * iDeltaTime));

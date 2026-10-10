@@ -11,7 +11,7 @@ class Device;
 
 class Buffer {
 public:
-  static constexpr VkDeviceSize DEFAULT_ALIGNMENT = 16;
+  static constexpr VkDeviceSize kDefaultAlignment = 16;
 
   struct Config {
     VkDeviceSize size = 0;
@@ -30,9 +30,9 @@ public:
 
   void writeToBuffer(const void* iData, VkDeviceSize iSize = VK_WHOLE_SIZE, VkDeviceSize iOffset = 0);
 
-  VkDeviceSize suballocate(VkDeviceSize iSize, VkDeviceSize iAlignment = DEFAULT_ALIGNMENT);
-  VkDeviceSize upload(const void* iData, VkDeviceSize iSize, VkDeviceSize iAlignment = DEFAULT_ALIGNMENT);
-  bool canUpload(VkDeviceSize iSize, VkDeviceSize iAlignment = DEFAULT_ALIGNMENT) const;
+  VkDeviceSize suballocate(VkDeviceSize iSize, VkDeviceSize iAlignment = kDefaultAlignment);
+  VkDeviceSize upload(const void* iData, VkDeviceSize iSize, VkDeviceSize iAlignment = kDefaultAlignment);
+  bool canUpload(VkDeviceSize iSize, VkDeviceSize iAlignment = kDefaultAlignment) const;
   void resetUploadOffset() { mUploadOffset = 0; }
   VkDeviceSize getUploadOffset() const { return mUploadOffset; }
 

@@ -71,7 +71,7 @@ std::unique_ptr<Buffer> FrameRenderer::createUploadBuffer(VkDeviceSize size, std
 
 void FrameRenderer::createFramesResources() {
   NE_ASSERT(mFrames.empty());
-  mFrames.resize(MAX_FRAMES_IN_FLIGHT);
+  mFrames.resize(kMaxFramesInFlight);
   for (size_t i = 0; i < mFrames.size(); i++) {
     // One pool per frame: resetting the pool reclaims all of the frame's command memory at once
     VkCommandPoolCreateInfo commandPoolCreateInfo{};
@@ -95,7 +95,7 @@ void FrameRenderer::createFramesResources() {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     VK_CHECK(vkCreateFence(mDevice->getDevice(), &fenceCreateInfo, nullptr, &mFrames[i].mDrawFence));
 
-    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::UPLOAD_BUFFER_SIZE, std::format("UploadBuffer_Frame_{}", i));
+    mFrames[i].mUploadBuffer = createUploadBuffer(vk_utils::kUploadBufferSize, std::format("UploadBuffer_Frame_{}", i));
 
     vk_utils::setDebugObjectName(mDevice->getDevice(), mFrames[i].mCommandPool, std::format("Frame_CommandPool_{}", i).c_str());
     vk_utils::setDebugObjectName(mDevice->getDevice(), mFrames[i].mCommandBuffer,
@@ -185,7 +185,7 @@ void FrameRenderer::endFrame() {
     NE_ASSERT(false, "failed to present swap chain image!");
   }
 
-  mFrameIndex = (mFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+  mFrameIndex = (mFrameIndex + 1) % kMaxFramesInFlight;
 }
 
 void FrameRenderer::recreateSwapChain(bool iForce) {

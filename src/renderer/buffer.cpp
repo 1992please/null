@@ -133,14 +133,14 @@ void Buffer::writeToBuffer(const void* iData, VkDeviceSize iSize, VkDeviceSize i
 }
 
 bool Buffer::canUpload(VkDeviceSize iSize, VkDeviceSize iAlignment) const {
-  const VkDeviceSize alignment = std::max(DEFAULT_ALIGNMENT, iAlignment);
+  const VkDeviceSize alignment = std::max(kDefaultAlignment, iAlignment);
   return vk_utils::alignUp(mUploadOffset, alignment) + iSize <= mConfig.size;
 }
 
 VkDeviceSize Buffer::suballocate(VkDeviceSize iSize, VkDeviceSize iAlignment) {
   NE_ASSERT(canUpload(iSize, iAlignment), "Buffer overflow! Increase buffer size.");
 
-  const VkDeviceSize alignment = std::max(DEFAULT_ALIGNMENT, iAlignment);
+  const VkDeviceSize alignment = std::max(kDefaultAlignment, iAlignment);
   const VkDeviceSize allocatedOffset = vk_utils::alignUp(mUploadOffset, alignment);
   mUploadOffset = allocatedOffset + iSize;
   return allocatedOffset;
